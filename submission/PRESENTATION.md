@@ -27,7 +27,6 @@ This document tracks the slide deck outline and reference materials for the SIH 
 
 - **Cloud Backup Link (Google Drive / OneDrive):**
 - https://drive.google.com/file/d/1o24vzDsYfrNa9i11FnNQFsK9G2Me1p-o/view
-- 
 
 ---
 
