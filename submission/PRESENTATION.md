@@ -25,11 +25,9 @@ This document tracks the slide deck outline and reference materials for the SIH 
 
 ## Slide Deck Links
 
-- **Local Presentation File:** Place the final presentation file in this directory:
-  - `[Final Presentation PPT](./OptimisationSolver_Presentation.pptx)`
-  - `[Final Presentation PDF](./OptimisationSolver_Presentation.pdf)`
 - **Cloud Backup Link (Google Drive / OneDrive):**
-  - *Cloud viewer link will be populated upon final slide export with public view permissions.*
+- https://drive.google.com/file/d/1o24vzDsYfrNa9i11FnNQFsK9G2Me1p-o/view
+- 
 
 ---
 
