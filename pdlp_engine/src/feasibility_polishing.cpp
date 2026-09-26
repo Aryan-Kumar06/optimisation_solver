@@ -1,11 +1,11 @@
 #include "pdlp/feasibility_polishing.h"
 
-#include "pdlp/iterate_average.h"
-#include "pdlp/pdhg_kernel.h"
+#include "pdlp/iteration_backend.h"
 #include "pdlp/step_controller.h"
 
 #include <algorithm>
 #include <chrono>
+#include <memory>
 #include <vector>
 
 namespace pdlp {
@@ -31,16 +31,18 @@ PolishingResult FeasibilityPolisher::polish(
     StepParameters steps = input.steps;
     steps.globalStep *= 0.5;
 
-    PdlpState state;
-    state.primal = input.scaledStart.primal;
-    state.dual = input.scaledStart.dual;
-
-    CpuPdhgKernel kernel(working, input.executor, input.plan);
-    kernel.refreshActivity(state);
+    std::unique_ptr<IterationBackend> ownedBackend;
+    IterationBackend* backend = input.backend;
+    if (backend == nullptr) {
+        ownedBackend = makeCpuIterationBackend(
+            working, *input.preconditioner, input.executor, input.plan);
+        backend = ownedBackend.get();
+    }
+    IterationBackend& iterate = *backend;
+    iterate.reset(input.scaledStart.primal, input.scaledStart.dual);
 
     StepController stepController(options, steps.maximumSafeGlobalStep);
     stepController.setPrimalWeight(steps.primalWeight);
-    IterateAverage average(working.numColumns(), working.numRows(), input.executor);
 
     std::vector<double> originalPrimal;
     std::vector<double> originalDual;
@@ -70,15 +72,14 @@ PolishingResult FeasibilityPolisher::polish(
         bool committed = false;
         bool broken = false;
         for (int attempt = 0; attempt < std::max(options.maximumStepTrials, 1); ++attempt) {
-            const KernelTrialResult trialResult =
-                kernel.trial(state, *input.preconditioner, steps);
+            const KernelTrialResult trialResult = iterate.trial(steps);
             ++result.stepTrials;
             if (!trialResult.finite) {
                 broken = true;
                 break;
             }
             if (!options.useAdaptiveLinesearch) {
-                kernel.commit(state);
+                iterate.commit();
                 committed = true;
                 break;
             }
@@ -86,11 +87,11 @@ PolishingResult FeasibilityPolisher::polish(
                 trialResult.primalMovementWeighted,
                 trialResult.dualMovementWeighted,
                 trialResult.interaction,
-                state.iteration
+                iterate.iteration()
             );
             steps.globalStep = stepController.parameters().globalStep;
             if (accept) {
-                kernel.commit(state);
+                iterate.commit();
                 committed = true;
                 break;
             }
@@ -100,7 +101,7 @@ PolishingResult FeasibilityPolisher::polish(
         }
 
         if (options.useAveraging) {
-            average.add(state.primal, state.dual, steps.globalStep);
+            iterate.addToAverage(steps.globalStep);
         }
         ++result.iterations;
 
@@ -119,15 +120,16 @@ PolishingResult FeasibilityPolisher::polish(
             }
         }
 
-        const CandidateMetrics currentMetrics = score(state.primal, state.dual);
+        const auto checkStart = std::chrono::steady_clock::now();
+        const CandidateMetrics currentMetrics = score(iterate.primal(), iterate.dual());
         if (currentMetrics.kktScore < result.metrics.kktScore) {
             result.candidate.primal = *scoredPrimal;
             result.candidate.dual = *scoredDual;
             result.metrics = currentMetrics;
         }
 
-        if (options.useAveraging && !average.empty()) {
-            const CandidateIterate& averaged = average.candidate();
+        if (options.useAveraging && !iterate.averageEmpty()) {
+            const CandidateIterate& averaged = iterate.average();
             const CandidateMetrics averagedMetrics = score(averaged.primal, averaged.dual);
             if (averagedMetrics.kktScore < result.metrics.kktScore) {
                 result.candidate.primal = *scoredPrimal;
@@ -135,6 +137,9 @@ PolishingResult FeasibilityPolisher::polish(
                 result.metrics = averagedMetrics;
             }
         }
+
+        result.hostCheckSeconds += std::chrono::duration<double>(
+            std::chrono::steady_clock::now() - checkStart).count();
 
         if (checker.isOptimal(result.metrics)) {
             break;

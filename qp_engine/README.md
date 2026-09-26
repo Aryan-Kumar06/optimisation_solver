@@ -133,6 +133,12 @@ commercial solver.
    heuristic, but does not detect the indefiniteness itself and does not
    guarantee convergence on indefinite Hessians.
 
+8. **CUDA backend is hybrid and unvalidated.** `QP_ENABLE_CUDA` builds a backend
+   that moves the sparse products and vector updates to the GPU but keeps the
+   KKT solve on the CPU, so each iteration transfers two n-vectors. `Auto` never
+   selects it until a benchmark shows a crossover, and it has not yet been
+   compiled or run on a GPU; see [docs/cuda.md](../docs/cuda.md).
+
 ## Integration boundary
 
 The model adapter must:

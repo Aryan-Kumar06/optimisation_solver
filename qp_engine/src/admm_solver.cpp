@@ -16,16 +16,10 @@ namespace qp {
 
 namespace {
 
-double primalObjective(const QpModel& model, const std::vector<double>& x) {
-    const int n = model.numVariables();
-    std::vector<double> Px;
-    model.P.multiply(x, Px);
-    double obj = 0.0;
-    for (int j = 0; j < n; ++j)
-        obj += model.q[static_cast<std::size_t>(j)] * x[static_cast<std::size_t>(j)];
-    for (int j = 0; j < n; ++j)
-        obj += 0.5 * x[static_cast<std::size_t>(j)] * Px[static_cast<std::size_t>(j)];
-    return obj;
+using Clock = std::chrono::steady_clock;
+
+double secondsSince(const Clock::time_point& start) {
+    return std::chrono::duration<double>(Clock::now() - start).count();
 }
 
 }  // namespace
@@ -47,6 +41,11 @@ AdmmSolver::AdmmSolver(const QpModel& problem, const AdmmOptions& options)
         options_.adaptiveRhoMu = 10.0;
     if (options_.adaptiveRhoTau <= 1.0)
         options_.adaptiveRhoTau = 2.0;
+    if (options_.cudaDevice < 0) {
+        result_.status = QpStatus::InvalidProblem;
+        result_.statusMessage = "AdmmOptions: cudaDevice must be non-negative";
+        return;
+    }
 
     // Validate the problem first, before any equilibration.
     try {
@@ -91,10 +90,66 @@ AdmmSolver::AdmmSolver(const QpModel& problem, const AdmmOptions& options)
         }
     }
 
-    x_.assign(static_cast<std::size_t>(n), 0.0);
-    z_.assign(static_cast<std::size_t>(m), 0.0);
-    y_.assign(static_cast<std::size_t>(m), 0.0);
-    Ax_.assign(static_cast<std::size_t>(m), 0.0);
+    // Backend selection: deterministic in the options, the build, the device
+    // and the size of the scaled problem. An explicit CUDA request that cannot
+    // be honoured is an error, never a silent CPU solve.
+    bool wantCuda = false;
+    switch (options_.backend) {
+        case ComputeBackend::Cpu:
+            backendMessage_ = "cpu: requested";
+            break;
+        case ComputeBackend::Cuda:
+            wantCuda = true;
+            break;
+        case ComputeBackend::Auto:
+            if (totalNonzeros < options_.cudaNonzeroThreshold) {
+                backendMessage_ = "auto -> cpu: " + std::to_string(totalNonzeros) +
+                    " nonzeros is below cudaNonzeroThreshold";
+            } else {
+                const CudaAvailability availability = cudaAvailability(options_.cudaDevice);
+                if (availability.usable) {
+                    wantCuda = true;
+                } else {
+                    backendMessage_ = "auto -> cpu: " + availability.reason;
+                }
+            }
+            break;
+    }
+    if (wantCuda) {
+        std::string error;
+        if (options_.backend == ComputeBackend::Cuda) {
+            const CudaAvailability availability = cudaAvailability(options_.cudaDevice);
+            if (!availability.usable) {
+                result_.status = QpStatus::InvalidProblem;
+                result_.statusMessage =
+                    "CUDA backend requested but unavailable: " + availability.reason;
+                return;
+            }
+        }
+        backend_ = makeCudaAdmmBackend(scaled_, options_.cudaDevice, error);
+        if (!backend_) {
+            if (options_.backend == ComputeBackend::Cuda) {
+                result_.status = QpStatus::InvalidProblem;
+                result_.statusMessage =
+                    "CUDA backend requested but could not be started: " + error;
+                return;
+            }
+            backendMessage_ = "auto -> cpu: CUDA backend could not be started: " + error;
+        } else {
+            backendMessage_ = std::string(options_.backend == ComputeBackend::Cuda
+                                              ? "cuda (hybrid, KKT on CPU): requested"
+                                              : "auto -> cuda (hybrid, KKT on CPU)") +
+                ", device " + std::to_string(options_.cudaDevice);
+        }
+    }
+    if (!backend_) {
+        backend_ = makeCpuAdmmBackend(
+            scaled_,
+            parallel_ ? executor_.get() : nullptr,
+            parallel_ ? &planA_ : nullptr,
+            parallel_ ? &planP_ : nullptr);
+    }
+
     rho_ = options_.rho;
     desiredRho_ = options_.rho;
 
@@ -106,6 +161,28 @@ AdmmSolver::AdmmSolver(const QpModel& problem, const AdmmOptions& options)
 AdmmResult AdmmSolver::solve() {
     if (result_.status == QpStatus::InvalidProblem)
         return result_;
+
+    // A device failure part-way through is reported as a failed solve. CPU
+    // exceptions propagate exactly as they always did.
+    try {
+        return iterate();
+    } catch (const std::exception& error) {
+        if (!backend_ || backend_->kind() != ComputeBackend::Cuda) {
+            throw;
+        }
+        result_.status = QpStatus::NumericalFailure;
+        result_.statusMessage = std::string("CUDA backend error: ") + error.what();
+        result_.executedBackend = ComputeBackend::Cuda;
+        result_.backendMessage = backendMessage_;
+        result_.backendProfile = backend_->profile();
+        return result_;
+    }
+}
+
+AdmmResult AdmmSolver::iterate() {
+    AdmmBackend& state = *backend_;
+    result_.executedBackend = state.kind();
+    result_.backendMessage = backendMessage_;
 
     const auto tStart = std::chrono::steady_clock::now();
     const int n = scaled_.numVariables();
@@ -120,15 +197,15 @@ AdmmResult AdmmSolver::solve() {
         return result_;
     }
 
+    const Clock::time_point factorStart = Clock::now();
     KktSolver kkt(scaled_, rho_);
+    result_.kktFactorSeconds += secondsSince(factorStart);
     result_.factorizations = 1;
     if (!kkt.isFactorValid()) {
         result_.status = QpStatus::NumericalFailure;
         result_.statusMessage = "KKT factorization failed";
         return result_;
     }
-
-    std::vector<double> zOld(static_cast<std::size_t>(m), 0.0);
 
     // Infeasibility / unboundedness certificates (OSQP, Banjac et al. 2019).
     //
@@ -214,72 +291,30 @@ AdmmResult AdmmSolver::solve() {
         return support < -tol;
     };
 
-    std::vector<double> xOld(static_cast<std::size_t>(n), 0.0);
-    std::vector<double> yOld(static_cast<std::size_t>(m), 0.0);
     bool rhoChanged = false;
     double bestObj = std::numeric_limits<double>::infinity();
-    // bestX/bestY are filled in after the first iteration; we can't pre-fill
-    // with x_/y_ because they start as all-zero which is generally infeasible
-    // and would corrupt the "best so far" tracking.
-    std::vector<double> bestX;
-    std::vector<double> bestY;
+    // The best iterate (held by the backend) is recorded after the first
+    // iteration; it can't be pre-filled with x/y because they start as all-zero,
+    // which is generally infeasible and would corrupt the "best so far" tracking.
     bool hasBest = false;
     bool optimal = false;
 
     for (std::int64_t k = 0; k < options_.iterationLimit; ++k) {
-        zOld = z_;
-        xOld = x_;
-        yOld = y_;
+        state.saveIterate();
         step(kkt, rhoChanged);
 
-        // Compute residuals.
+        // Residuals of the new iterate:
         //   r = A*x - z   (primal)
         //   s = -rho * A^T * (z - zOld)  (dual)
-        //   s_alt = P*x + q + A^T*y  (stationarity, m == 0 path)
-        double rNorm = 0.0;
-        double sNorm = 0.0;
-        if (m > 0) {
-            scaled_.A.multiply(x_, Ax_,
-                               parallel_ ? executor_.get() : nullptr,
-                               parallel_ ? &planA_ : nullptr);
-            for (int i = 0; i < m; ++i) {
-                const double r = Ax_[static_cast<std::size_t>(i)] -
-                                 z_[static_cast<std::size_t>(i)];
-                rNorm += r * r;
-            }
-            rNorm = std::sqrt(rNorm);
+        //   s_alt = P*x + q  (stationarity, m == 0 path)
+        const AdmmIterationMetrics metrics = state.metrics(rho_);
+        const double rNorm = metrics.primalResidualNorm;
+        const double sNorm = metrics.dualResidualNorm;
 
-            std::vector<double> zDiff(static_cast<std::size_t>(m));
-            for (int i = 0; i < m; ++i) {
-                zDiff[static_cast<std::size_t>(i)] =
-                    z_[static_cast<std::size_t>(i)] - zOld[static_cast<std::size_t>(i)];
-            }
-            std::vector<double> sVec;
-            scaled_.A.transposeMultiply(zDiff, sVec);
-            const double scale = rho_;
-            for (int j = 0; j < n; ++j) {
-                sNorm += (scale * sVec[static_cast<std::size_t>(j)]) *
-                         (scale * sVec[static_cast<std::size_t>(j)]);
-            }
-            sNorm = std::sqrt(sNorm);
-        } else {
-            // m == 0: dual residual is the gradient.
-            std::vector<double> grad;
-            scaled_.P.multiply(x_, grad,
-                               parallel_ ? executor_.get() : nullptr,
-                               parallel_ ? &planP_ : nullptr);
-            for (int j = 0; j < n; ++j)
-                grad[static_cast<std::size_t>(j)] += scaled_.q[static_cast<std::size_t>(j)];
-            for (int j = 0; j < n; ++j)
-                sNorm += grad[static_cast<std::size_t>(j)] * grad[static_cast<std::size_t>(j)];
-            sNorm = std::sqrt(sNorm);
-        }
-
-        const double obj = primalObjective(scaled_, x_);
+        const double obj = metrics.objective;
         if (std::isfinite(obj) && obj < bestObj) {
             bestObj = obj;
-            bestX = x_;
-            bestY = y_;
+            state.recordBest();
             hasBest = true;
         }
 
@@ -288,14 +323,23 @@ AdmmResult AdmmSolver::solve() {
             (k + 1) % options_.terminationCheckFrequency == 0 ||
             k + 1 == options_.iterationLimit;
         if (doCheck) {
+            const AdmmCheckView view = state.checkView();
+            // Host views of the iterate. On a device backend this is where
+            // it is downloaded -- once per check, never per iteration.
+            const std::vector<double>& x = view.x;
+            const std::vector<double>& xOld = view.xOld;
+            const std::vector<double>& y = view.y;
+            const std::vector<double>& yOld = view.yOld;
+            const std::vector<double>& z = view.z;
+            const std::vector<double>& Ax = view.Ax;
             const double absTol = options_.primalTolerance;
             const double relTol = options_.dualTolerance;
 
             double AxNorm = 0.0;
             double zNorm = 0.0;
             for (int i = 0; i < m; ++i) {
-                AxNorm += Ax_[static_cast<std::size_t>(i)] * Ax_[static_cast<std::size_t>(i)];
-                zNorm  += z_[static_cast<std::size_t>(i)]  * z_[static_cast<std::size_t>(i)];
+                AxNorm += Ax[static_cast<std::size_t>(i)] * Ax[static_cast<std::size_t>(i)];
+                zNorm  += z[static_cast<std::size_t>(i)]  * z[static_cast<std::size_t>(i)];
             }
             AxNorm = std::sqrt(AxNorm);
             zNorm  = std::sqrt(zNorm);
@@ -306,7 +350,7 @@ AdmmResult AdmmSolver::solve() {
             double AtzNorm = 0.0;
             if (m > 0) {
                 std::vector<double> Atz;
-                scaled_.A.transposeMultiply(y_, Atz);
+                scaled_.A.transposeMultiply(y, Atz);
                 for (int j = 0; j < n; ++j)
                     AtzNorm += Atz[static_cast<std::size_t>(j)] *
                                Atz[static_cast<std::size_t>(j)];
@@ -336,7 +380,7 @@ AdmmResult AdmmSolver::solve() {
             std::vector<double> dx(static_cast<std::size_t>(n));
             for (int j = 0; j < n; ++j)
                 dx[static_cast<std::size_t>(j)] =
-                    x_[static_cast<std::size_t>(j)] - xOld[static_cast<std::size_t>(j)];
+                    x[static_cast<std::size_t>(j)] - xOld[static_cast<std::size_t>(j)];
             if (certifiesUnbounded(dx)) {
                 result_.status = QpStatus::Unbounded;
                 result_.statusMessage = "unbounded: improving ray certified from iterate difference";
@@ -347,7 +391,7 @@ AdmmResult AdmmSolver::solve() {
             std::vector<double> dy(static_cast<std::size_t>(m));
             for (int i = 0; i < m; ++i)
                 dy[static_cast<std::size_t>(i)] =
-                    y_[static_cast<std::size_t>(i)] - yOld[static_cast<std::size_t>(i)];
+                    y[static_cast<std::size_t>(i)] - yOld[static_cast<std::size_t>(i)];
             if (certifiesInfeasible(dy)) {
                 result_.status = QpStatus::Infeasible;
                 result_.statusMessage = "infeasible: Farkas certificate from dual iterate difference";
@@ -360,9 +404,9 @@ AdmmResult AdmmSolver::solve() {
                 result_.statusMessage = "converged";
                 result_.iterations = k + 1;
                 optimal = true;
-                // Use the last iterate (x_) rather than bestX, because the
+                // Use the last iterate (x) rather than the best one, because the
                 // "best" objective tracker can pick an infeasible early iterate
-                // over a feasible converged one.  The converged x_ is guaranteed
+                // over a feasible converged one.  The converged x is guaranteed
                 // feasible by the termination check.
                 break;
             }
@@ -393,7 +437,10 @@ AdmmResult AdmmSolver::solve() {
 
             if (farEnough && longEnough && desiredRho_ > 0.0) {
                 rho_ = desiredRho_;
-                if (kkt.refactor(rho_)) {
+                const Clock::time_point refactorStart = Clock::now();
+                const bool refactored = kkt.refactor(rho_);
+                result_.kktFactorSeconds += secondsSince(refactorStart);
+                if (refactored) {
                     ++result_.factorizations;
                     lastRhoUpdate_ = k;
                 }
@@ -409,8 +456,7 @@ AdmmResult AdmmSolver::solve() {
                 result_.status = QpStatus::TimeLimit;
                 result_.statusMessage = "time limit";
                 result_.iterations = k + 1;
-                x_ = bestX;
-                y_ = bestY;
+                state.restoreBest();
                 break;
             }
         }
@@ -418,22 +464,21 @@ AdmmResult AdmmSolver::solve() {
 
     if (!optimal && result_.status == QpStatus::IterationLimit) {
         if (hasBest) {
-            x_ = bestX;
-            y_ = bestY;
+            state.restoreBest();
         }
     }
 
     toOriginal();
 
-    // result_.primal is always set to x_ in toOriginal() (for no-scaling case)
+    // result_.primal is always set to x in toOriginal() (for no-scaling case)
     // or to the scaled result (for scaling case). Ensure it's set.
-    if (result_.primal.empty() && !x_.empty())
-        result_.primal = x_;
+    if (result_.primal.empty() && !state.primal().empty())
+        result_.primal = state.primal();
 
     // Compute the primal objective on the original (un-scaled) problem so
     // the caller sees the value in their own coordinate system.  result_.primal
     // is already in original coordinates (toOriginal ran above).
-    result_.primalObjective = primalObjective(original_, result_.primal);
+    result_.primalObjective = detail::objectiveValue(original_, result_.primal);
     result_.dualObjective   = -result_.primalObjective;
     result_.finalRho = rho_;
     result_.bestObjective = bestObj;
@@ -473,91 +518,42 @@ AdmmResult AdmmSolver::solve() {
     result_.solveTimeSeconds =
         std::chrono::duration<double>(
             std::chrono::steady_clock::now() - tStart).count();
+    result_.backendProfile = state.profile();
     return result_;
 }
 
 void AdmmSolver::step(KktSolver& kkt, bool& rhoChanged) {
-    const int n = scaled_.numVariables();
-    const int m = scaled_.numConstraints();
+    // x-update right-hand side, sigma*x_prev - q + rho*A^T(z - y/rho); see
+    // AdmmBackend::buildRhs for why each term is there.
+    std::vector<double> rhs;
+    backend_->buildRhs(rho_, rhs);
 
-    // x-update: solve (P + sigma I + rho A^T A) x = sigma x_prev - q + rho A^T z - A^T y
-    //
-    // The sigma*x_prev is what makes the factorisation's sigma*I free of charge:
-    // at the fixed point x = x_prev the two sigma terms cancel and what is left
-    // is (P + rho A^T A) x = -q + rho A^T z - A^T y, the unregularised
-    // condition. Dropping this term would turn sigma into a silent perturbation
-    // of the problem, which is the bug that folding an epsilon onto P used to
-    // cause. See KktSolver::kSigma.
-    std::vector<double> rhs(static_cast<std::size_t>(n));
-    for (int j = 0; j < n; ++j)
-        rhs[static_cast<std::size_t>(j)] =
-            KktSolver::kSigma * x_[static_cast<std::size_t>(j)] - scaled_.q[static_cast<std::size_t>(j)];
-
-    if (m > 0) {
-        // rho * A^T * (z - y/rho)  IS  rho*A^T*z - A^T*y, the whole term.
-        //
-        // An earlier version then subtracted A^T*y a second time, so the
-        // right-hand side was -q + rho*A^T*z - 2*A^T*y. The iteration still
-        // converged, and to a stable fixed point with tiny ADMM residuals -- but
-        // of the wrong operator. On a problem whose only constraint was repeated
-        // k times it returned x_true/k, and the duplication is exactly what
-        // encoding variable bounds as extra rows produces.
-        std::vector<double> zMinusYOverRho(static_cast<std::size_t>(m));
-        for (int i = 0; i < m; ++i)
-            zMinusYOverRho[static_cast<std::size_t>(i)] =
-                z_[static_cast<std::size_t>(i)] - y_[static_cast<std::size_t>(i)] / rho_;
-
-        std::vector<double> Atz;
-        scaled_.A.transposeMultiply(zMinusYOverRho, Atz,
-                                    parallel_ ? executor_.get() : nullptr,
-                                    parallel_ ? &planA_ : nullptr);
-
-        for (int j = 0; j < n; ++j) {
-            rhs[static_cast<std::size_t>(j)] += rho_ * Atz[static_cast<std::size_t>(j)];
-        }
-    }
-
-    if (!kkt.solve(rhs)) {
+    // The KKT solve runs on the host on every backend.
+    const Clock::time_point solveStart = Clock::now();
+    const bool solved = kkt.solve(rhs);
+    result_.kktSolveSeconds += secondsSince(solveStart);
+    if (!solved) {
         // The factor went bad; nudge rho and rebuild rather than continue on it.
         rho_ *= 1.5;
         desiredRho_ = rho_;
         rhoChanged = true;
         return;
     }
-    x_ = std::move(rhs);
 
-    // z-update: projection onto the box.
-    if (m > 0) {
-        scaled_.A.multiply(x_, Ax_,
-                           parallel_ ? executor_.get() : nullptr,
-                           parallel_ ? &planA_ : nullptr);
-        for (int i = 0; i < m; ++i) {
-            const double v = Ax_[static_cast<std::size_t>(i)] +
-                             y_[static_cast<std::size_t>(i)] / rho_;
-            const double lo = scaled_.l[static_cast<std::size_t>(i)];
-            const double hi = scaled_.u[static_cast<std::size_t>(i)];
-            z_[static_cast<std::size_t>(i)] = std::min(std::max(v, lo), hi);
-        }
-    }
-
-    // y-update.
-    if (m > 0) {
-        for (int i = 0; i < m; ++i) {
-            y_[static_cast<std::size_t>(i)] +=
-                rho_ * (Ax_[static_cast<std::size_t>(i)] -
-                        z_[static_cast<std::size_t>(i)]);
-        }
-    }
+    // x = rhs, then the z-update (projection onto the box) and the y-update.
+    backend_->acceptPrimal(std::move(rhs), rho_);
 }
 
 void AdmmSolver::toOriginal() {
+    const std::vector<double>& x = backend_->primal();
+    const std::vector<double>& y = backend_->dual();
     if (!options_.useRuizScaling || !scalingValid_) {
-        result_.primal = x_;
-        result_.constraintDual = y_;
+        result_.primal = x;
+        result_.constraintDual = y;
         return;
     }
-    scaling_.toOriginal(x_, result_.primal);
-    scaling_.toOriginalDual(y_, result_.constraintDual);
+    scaling_.toOriginal(x, result_.primal);
+    scaling_.toOriginalDual(y, result_.constraintDual);
 }
 
 }  // namespace qp

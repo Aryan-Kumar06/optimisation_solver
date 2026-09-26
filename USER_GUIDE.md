@@ -190,6 +190,8 @@ optimsolver solve <model.mps> [options]
 | `--solver` | `<name>` | Force a specific numerical engine: `pdlp`, `dual_simplex`, `branch_and_cut`, `qp`. |
 | `--time-limit` | `<seconds>` | Set a maximum solve time budget in seconds (positive floating-point number). |
 | `--output` | `<file>` | Write the reconstructed original-space solution vector and duals to a file. |
+| `--backend` | `auto`\|`cpu`\|`cuda` | Compute backend for the PDLP and QP engines (default `auto`). `cuda` needs a CUDA-enabled build and a usable GPU and fails with the reason otherwise -- it never silently runs on the CPU. See [docs/cuda.md](docs/cuda.md). |
+| `--cuda-device` | `<index>` | CUDA device used by `--backend cuda`/`auto` (default `0`). |
 | `-h`, `--help` | — | Display help information and usage examples for the solve command. |
 
 ### Command Examples

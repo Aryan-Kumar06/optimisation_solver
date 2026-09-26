@@ -37,6 +37,23 @@ enum class Engine {
 [[nodiscard]] const char* toString(Engine value) noexcept;
 [[nodiscard]] std::optional<Engine> parseEngine(std::string_view name) noexcept;
 
+// Compute device for the engines that have a CUDA backend (PDLP, and QP as a
+// hybrid). Engines without one always run on the CPU. See docs/cuda.md.
+//
+//   Auto  each engine decides from build, device and problem size; a build
+//         without CUDA always runs on the CPU.
+//   Cpu   always the CPU.
+//   Cuda  PDLP/QP run on the GPU or the solve reports Unsupported with the
+//         reason; they never fall back to the CPU silently.
+enum class ComputeBackend {
+    Auto,
+    Cpu,
+    Cuda
+};
+
+[[nodiscard]] const char* toString(ComputeBackend value) noexcept;
+[[nodiscard]] std::optional<ComputeBackend> parseComputeBackend(std::string_view name) noexcept;
+
 // Caller-facing knobs the dispatcher must respect.
 struct SolverOptions {
     // Always honoured, ahead of every structural rule.
@@ -64,6 +81,10 @@ struct SolverOptions {
     // serially below their own nonzero thresholds regardless of this value, so
     // on small models it changes nothing.
     int threadCount = 0;
+
+    // Passed to the engine that runs; does not influence which engine that is.
+    ComputeBackend backend = ComputeBackend::Auto;
+    int cudaDevice = 0;
 };
 
 struct DispatchDecision {

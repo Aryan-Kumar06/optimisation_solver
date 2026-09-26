@@ -4,7 +4,11 @@
 // box-constrained, ill-conditioned with Ruiz scaling, large sparse) and
 // reports solve time, iteration count, and primal/dual residuals.
 //
-// Run: ./qp_bench
+// Run: ./qp_bench [cpu|cuda|auto]
+//
+// The optional backend argument applies to every case (default cpu). With the
+// hybrid CUDA backend each case also reports where the time went: the CPU KKT
+// solves, device setup, and the bytes moved each way.
 #include "qp/admm_solver.h"
 #include "qp/qp_model.h"
 #include "qp/qp_types.h"
@@ -13,6 +17,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <ctime>
 #include <random>
 #include <string>
@@ -137,9 +142,13 @@ qp::QpModel largeSparse(int n, double density) {
     return m;
 }
 
+qp::ComputeBackend gBackend = qp::ComputeBackend::Cpu;
+
 void run(const char* label, const BenchCase& bc) {
+    qp::AdmmOptions options = bc.options;
+    options.backend = gBackend;
     const double t0 = bench::nowSeconds();
-    auto r = qp::AdmmSolver(bc.model, bc.options).solve();
+    auto r = qp::AdmmSolver(bc.model, options).solve();
     double ms = 1000.0 * (bench::nowSeconds() - t0);
     // Sanitise: clock() can return -1 (failure sentinel) or negative values
     // on some MinGW builds. Clamp to 0 if the result is non-finite or negative.
@@ -148,13 +157,37 @@ void run(const char* label, const BenchCase& bc) {
     // on some hosts) to 0. All solve times here are well below 1 ms anyway.
     std::printf("  %-30s  status=%-9s  iters=%4d  obj=%12.6g  "
                 "rPri=%10.3e  rDual=%10.3e  time=%7.2f ms\n",
-                label, qp::toString(r.status), r.iterations,
+                label, qp::toString(r.status), static_cast<int>(r.iterations),
                 r.primalObjective, r.primalResidual, r.dualResidual, ms);
+    if (gBackend != qp::ComputeBackend::Cpu) {
+        std::printf("  %-30s  backend=%s  kkt solve=%.3g s  kkt factor=%.3g s  setup=%.3g s  "
+                    "H2D=%lld B  D2H=%lld B  syncs=%lld\n",
+                    "", qp::toString(r.executedBackend), r.kktSolveSeconds, r.kktFactorSeconds,
+                    r.backendProfile.setupSeconds,
+                    static_cast<long long>(r.backendProfile.hostToDeviceBytes),
+                    static_cast<long long>(r.backendProfile.deviceToHostBytes),
+                    static_cast<long long>(r.backendProfile.synchronisations));
+    }
 }
 
 }  // namespace
 
-int main() {
+int main(int argc, char** argv) {
+    if (argc > 1) {
+        if (std::strcmp(argv[1], "cuda") == 0) {
+            gBackend = qp::ComputeBackend::Cuda;
+        } else if (std::strcmp(argv[1], "auto") == 0) {
+            gBackend = qp::ComputeBackend::Auto;
+        } else if (std::strcmp(argv[1], "cpu") != 0) {
+            std::printf("unknown backend '%s' (cpu|cuda|auto)\n", argv[1]);
+            return 2;
+        }
+    }
+    const qp::CudaAvailability cuda = qp::cudaAvailability(0);
+    std::printf("backend=%s  cuda compiled=%s  device=%s  runtime=%d driver=%d\n",
+                qp::toString(gBackend), cuda.compiled ? "yes" : "no",
+                cuda.usable ? cuda.deviceName.c_str() : "none", cuda.runtimeVersion, cuda.driverVersion);
+
     section("small unconstrained (n=20)");
     {
         BenchCase bc{"", smallUnconstrained(), qp::AdmmOptions{}};

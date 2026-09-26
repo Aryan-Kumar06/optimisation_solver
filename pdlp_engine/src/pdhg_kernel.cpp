@@ -1,22 +1,13 @@
 #include "pdlp/pdhg_kernel.h"
 
+#include "pdlp/pdhg_math.h"
+
 #include <algorithm>
 #include <atomic>
 #include <cmath>
 #include <stdexcept>
 
 namespace pdlp {
-namespace {
-
-// Guards the dual prox against a step that has underflowed to exactly zero,
-// which would otherwise evaluate 0 * infinity on a one-sided row.
-constexpr double kMinimumStep = 1e-300;
-
-inline double clipped(double value, double lower, double upper) noexcept {
-    return std::max(lower, std::min(value, upper));
-}
-
-}  // namespace
 
 CpuPdhgKernel::CpuPdhgKernel(
     const CompiledLp& problem,
@@ -90,11 +81,8 @@ double CpuPdhgKernel::primalHalf(
         const double gradient = objective[column] + ((a0 + a1) + (a2 + a3));
 
         const double previous = primal[column];
-        const double updated = clipped(
-            previous - multiplier * scale[column] * gradient,
-            lower[column],
-            upper[column]
-        );
+        const double updated = math::primalUpdate(
+            previous, multiplier, scale[column], gradient, lower[column], upper[column]);
         const double delta = updated - previous;
 
         trial[column] = updated;
@@ -153,33 +141,20 @@ void CpuPdhgKernel::dualHalf(
         }
         const double nextActivity = (a0 + a1) + (a2 + a3);   // (A x')_i
 
-        const double previousActivity = activity[row];       // (A x^k)_i
-        const double deltaActivity = nextActivity - previousActivity;          // (A dx)_i
-        const double extrapolated = nextActivity + deltaActivity;              // (A x_bar)_i
-
-        const double step = std::max(multiplier * scale[row], kMinimumStep);
+        // Extrapolation and the Moreau-form prox; see math::dualUpdate. The
+        // branchless form yields exactly 0.0 on an inactive row, so duals of
+        // slack rows stay clean instead of accumulating noise across iterations.
         const double previous = dual[row];
-        const double v = previous + step * extrapolated;
+        const math::DualUpdate step = math::dualUpdate(
+            previous, nextActivity, activity[row], multiplier, scale[row],
+            lower[row], upper[row]);
 
-        // Moreau identity for the support function of [lower, upper]:
-        //   y+ = v - step * clip(v / step, lower, upper)
-        // rewritten branchlessly and without the division as
-        //   y+ = max(v - step*upper, 0) + min(v - step*lower, 0).
-        // The two forms agree exactly on all three cases, including equality
-        // rows and infinite bounds. Besides removing a divide and two branches
-        // from the hot loop, this yields exactly 0.0 on an inactive row rather
-        // than the rounding residue of v - step*(v/step), so duals of slack
-        // rows stay clean instead of accumulating noise across iterations.
-        const double updated =
-            std::max(v - step * upper[row], 0.0) +
-            std::min(v - step * lower[row], 0.0);
-
-        const double delta = updated - previous;
-        trialDual[row] = updated;
+        const double delta = step.value - previous;
+        trialDual[row] = step.value;
         trialActivity[row] = nextActivity;
 
         movement += delta * delta * scaleInverse[row];
-        product += delta * deltaActivity;
+        product += delta * step.deltaActivity;
     }
 
     movementWeighted = movement;

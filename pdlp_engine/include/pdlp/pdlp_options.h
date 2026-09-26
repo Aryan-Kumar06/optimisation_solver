@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pdlp/compute_backend.h"
+
 #include <cstdint>
 
 namespace pdlp {
@@ -72,6 +74,21 @@ struct PdlpOptions {
     double primalWeightSmoothing = 0.50;
 
     int polishingIterations = 5000;
+
+    // Where the PDHG iteration runs; see ComputeBackend and docs/cuda.md. The
+    // algorithm, its options and its termination tests are identical on every
+    // backend -- only the per-iteration arithmetic moves.
+    //
+    // Auto never selects CUDA in a build without it, so this default leaves a
+    // CPU-only build behaving exactly as it did before backends existed.
+    ComputeBackend backend = ComputeBackend::Auto;
+    int cudaDevice = 0;
+
+    // Auto selects CUDA only for matrices with at least this many nonzeros:
+    // below it, kernel launch and synchronisation latency outweigh the
+    // bandwidth advantage. PROVISIONAL -- chosen conservatively and not yet
+    // calibrated on hardware; docs/cuda.md describes how to measure it.
+    std::int64_t cudaNonzeroThreshold = 1000000;
 };
 
 }  // namespace pdlp

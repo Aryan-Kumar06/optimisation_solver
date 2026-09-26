@@ -1,5 +1,7 @@
 #include "pdlp/iterate_average.h"
 
+#include "pdlp/pdhg_math.h"
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -19,7 +21,7 @@ inline void blend(
     std::int64_t end
 ) noexcept {
     for (std::int64_t i = begin; i < end; ++i) {
-        target[i] += fraction * (source[i] - target[i]);
+        target[i] = math::blended(target[i], source[i], fraction);
     }
 }
 

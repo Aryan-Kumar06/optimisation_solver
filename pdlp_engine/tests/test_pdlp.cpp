@@ -1,4 +1,8 @@
+#include "backend_contract.h"
+
+#include "pdlp/iteration_backend.h"
 #include "pdlp/parallel.h"
+#include "pdlp/pdhg_math.h"
 #include "pdlp/pdlp_solver.h"
 #include "pdlp/scaling.h"
 #include "pdlp/sparse_matrix.h"
@@ -727,6 +731,123 @@ void testFeasibleProblemsAreNotFlagged() {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Compute backends
+// ---------------------------------------------------------------------------
+
+// The shared per-coordinate arithmetic must keep std::min/std::max semantics
+// (the CUDA kernels compile the same functions): a NaN reaching the dual prox
+// has to survive into the reductions, where the solver detects it.
+void testPdhgMathNanAndInfinitySemantics() {
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    require(std::isnan(pdlp::math::maxOf(nan, 0.0)), "maxOf(NaN, 0) must be NaN (std::max order)");
+    require(std::isnan(pdlp::math::minOf(nan, 0.0)), "minOf(NaN, 0) must be NaN (std::min order)");
+    require(pdlp::math::maxOf(1.0, nan) == 1.0, "maxOf(1, NaN) keeps std::max's answer");
+
+    const pdlp::math::DualUpdate nanStep = pdlp::math::dualUpdate(nan, 1.0, 0.0, 1.0, 1.0, -1.0, 1.0);
+    require(std::isnan(nanStep.value), "a NaN dual must propagate through the dual prox");
+
+    // Infinite bounds: no inf - inf, no 0 * inf, and an inactive one-sided row
+    // gives exactly zero.
+    const pdlp::math::DualUpdate free = pdlp::math::dualUpdate(0.0, 2.0, 1.0, 1.0, 1.0, -kInfinity, kInfinity);
+    require(free.value == 0.0 && free.deltaActivity == 1.0, "free row dual must be exactly 0");
+    const pdlp::math::DualUpdate underflow = pdlp::math::dualUpdate(0.5, 2.0, 1.0, 0.0, 1.0, -kInfinity, 3.0);
+    require(std::isfinite(underflow.value), "a zero step must not evaluate 0 * infinity");
+    require(pdlp::math::primalUpdate(1.0, 1.0, 1.0, -5.0, 0.0, kInfinity) == 6.0, "unbounded above");
+    require(pdlp::math::primalUpdate(1.0, 1.0, 1.0, 5.0, -kInfinity, kInfinity) == -4.0, "free variable");
+    require(pdlp::math::primalUpdate(1.0, 1.0, 1.0, 5.0, 0.0, 10.0) == 0.0, "clipped at the lower bound");
+    require(pdlp::math::blended(2.0, 4.0, 0.25) == 2.5, "average blend");
+}
+
+// The backend contract the CUDA backend is held to (backend_contract.h), run
+// CPU against CPU so the harness itself is exercised on every build.
+void testCpuBackendContract() {
+    const contract::BackendFactory cpu = [](const pdlp::CompiledLp& problem,
+                                            const pdlp::DiagonalPreconditioner& preconditioner) {
+        return pdlp::makeCpuIterationBackend(problem, preconditioner);
+    };
+    for (const contract::Fixture& fixture : contract::kernelFixtures()) {
+        contract::compareBackends(fixture, cpu, cpu, 0.0);
+    }
+}
+
+pdlp::CompiledLp smallBoxedLp() {
+    pdlp::CompiledLp problem;
+    problem.matrix = pdlp::SparseMatrix::fromTriplets(
+        2, 3, {{0, 0, 1.0}, {0, 1, 2.0}, {1, 1, 1.0}, {1, 2, 3.0}});
+    problem.objective = {-1.0, -1.0, -2.0};
+    problem.rowLower = {-kInfinity, 1.0};
+    problem.rowUpper = {4.0, 6.0};
+    problem.variableLower = {0.0, 0.0, 0.0};
+    problem.variableUpper = {3.0, kInfinity, 2.0};
+    return problem;
+}
+
+// An explicit CUDA request is honoured or refused -- never quietly run on the
+// CPU. On a machine without a usable device (always, in a CPU-only build) the
+// solve must fail and say why.
+void testExplicitCudaRequestNeverFallsBack() {
+    const pdlp::CudaAvailability availability = pdlp::cudaAvailability(0);
+    if (availability.usable) {
+        return;  // covered by pdlp_cuda_tests
+    }
+    require(!availability.reason.empty(), "an unusable CUDA backend must say why");
+    auto options = strictOptions();
+    options.backend = pdlp::ComputeBackend::Cuda;
+    const auto result = pdlp::PdlpSolver{}.solve(smallBoxedLp(), options);
+    require(result.status == pdlp::PdlpStatus::InvalidProblem,
+            "CUDA requested without a usable device must not solve, got " +
+            std::string(pdlp::toString(result.status)));
+    require(result.statusMessage.find("CUDA backend requested but unavailable") != std::string::npos,
+            "the failure must name the CUDA request: " + result.statusMessage);
+    require(result.primal.empty(), "no solution may be reported for a refused backend");
+}
+
+void testAutoBackendResolution() {
+    // Below the threshold, Auto is the CPU whatever the build.
+    auto options = strictOptions();
+    options.backend = pdlp::ComputeBackend::Auto;
+    auto result = pdlp::PdlpSolver{}.solve(smallBoxedLp(), options);
+    require(result.executedBackend == pdlp::ComputeBackend::Cpu, "small problem must run on the CPU");
+    require(result.backendMessage.find("below cudaNonzeroThreshold") != std::string::npos,
+            "Auto must say why it chose the CPU: " + result.backendMessage);
+    require(result.backendProfile.hostToDeviceBytes == 0, "the CPU backend transfers nothing");
+
+    // Threshold removed: Auto uses CUDA only if it is actually usable.
+    options.cudaNonzeroThreshold = 0;
+    result = pdlp::PdlpSolver{}.solve(smallBoxedLp(), options);
+    require(result.status == pdlp::PdlpStatus::Optimal, "Auto must still solve");
+    if (!pdlp::cudaAvailability(0).usable) {
+        require(result.executedBackend == pdlp::ComputeBackend::Cpu, "no device: Auto must run on the CPU");
+        require(result.backendMessage.rfind("auto -> cpu", 0) == 0,
+                "Auto must record the fallback reason: " + result.backendMessage);
+    }
+}
+
+// Forcing the CPU must be exactly the default solve, bit for bit, whenever the
+// default resolves to the CPU.
+void testForcedCpuMatchesDefault() {
+    const pdlp::CompiledLp problem = smallBoxedLp();
+    auto automatic = strictOptions();
+    auto forced = strictOptions();
+    forced.backend = pdlp::ComputeBackend::Cpu;
+    const auto a = pdlp::PdlpSolver{}.solve(problem, automatic);
+    const auto b = pdlp::PdlpSolver{}.solve(problem, forced);
+    require(a.executedBackend == pdlp::ComputeBackend::Cpu, "default must resolve to the CPU here");
+    require(a.status == b.status && a.iterations == b.iterations && a.stepTrials == b.stepTrials,
+            "forced CPU must follow the identical iteration path");
+    require(a.primal == b.primal && a.rowDual == b.rowDual, "forced CPU must return identical vectors");
+    require(a.primalObjective == b.primalObjective, "forced CPU must return the identical objective");
+    require(b.backendMessage == "cpu: requested", "forced CPU message: " + b.backendMessage);
+}
+
+void testInvalidCudaDeviceIsRejected() {
+    auto options = strictOptions();
+    options.cudaDevice = -1;
+    const auto result = pdlp::PdlpSolver{}.solve(smallBoxedLp(), options);
+    require(result.status == pdlp::PdlpStatus::InvalidProblem, "a negative CUDA device must be rejected");
+}
+
 void run(const char* name, void (*test)()) {
     try {
         test();
@@ -768,6 +889,13 @@ int main() {
 
     run("linesearchExceedsStaticBound", testLinesearchExceedsStaticBound);
     run("stepPoliciesAgreeOnTheOptimum", testStepPoliciesAgreeOnTheOptimum);
+
+    run("pdhgMathNanAndInfinitySemantics", testPdhgMathNanAndInfinitySemantics);
+    run("cpuBackendContract", testCpuBackendContract);
+    run("explicitCudaRequestNeverFallsBack", testExplicitCudaRequestNeverFallsBack);
+    run("autoBackendResolution", testAutoBackendResolution);
+    run("forcedCpuMatchesDefault", testForcedCpuMatchesDefault);
+    run("invalidCudaDeviceIsRejected", testInvalidCudaDeviceIsRejected);
 
     if (failures == 0) {
         std::cout << "All PDLP tests passed\n";

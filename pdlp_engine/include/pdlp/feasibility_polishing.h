@@ -11,12 +11,15 @@
 
 namespace pdlp {
 
+class IterationBackend;
+
 struct PolishingResult {
     // Always in the original problem's coordinates.
     CandidateIterate candidate;
     CandidateMetrics metrics;
     int iterations = 0;
     std::int64_t stepTrials = 0;
+    double hostCheckSeconds = 0.0;   // time in host-side candidate scoring
 };
 
 struct PolishingInput {
@@ -33,6 +36,10 @@ struct PolishingInput {
 
     Executor* executor = nullptr;
     const SpmvPlan* plan = nullptr;
+
+    // Backend to iterate on, bound to *working and *preconditioner. Its state
+    // is overwritten. Null builds a CPU backend from executor and plan.
+    IterationBackend* backend = nullptr;
 };
 
 class FeasibilityPolisher {

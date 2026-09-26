@@ -312,6 +312,42 @@ SolveResult solveTrivially(const model::Model& reduced, SolveResult result) {
     return result;
 }
 
+pdlp::ComputeBackend toPdlp(ComputeBackend value) noexcept {
+    switch (value) {
+        case ComputeBackend::Cpu:  return pdlp::ComputeBackend::Cpu;
+        case ComputeBackend::Cuda: return pdlp::ComputeBackend::Cuda;
+        case ComputeBackend::Auto: break;
+    }
+    return pdlp::ComputeBackend::Auto;
+}
+
+qp::ComputeBackend toQp(ComputeBackend value) noexcept {
+    switch (value) {
+        case ComputeBackend::Cpu:  return qp::ComputeBackend::Cpu;
+        case ComputeBackend::Cuda: return qp::ComputeBackend::Cuda;
+        case ComputeBackend::Auto: break;
+    }
+    return qp::ComputeBackend::Auto;
+}
+
+ComputeBackend fromEngine(bool cuda) noexcept {
+    return cuda ? ComputeBackend::Cuda : ComputeBackend::Cpu;
+}
+
+// An explicit CUDA request the build or machine cannot honour is reported as
+// Unsupported before the engine is invoked -- never quietly run on the CPU.
+template <typename Availability>
+bool refuseUnavailableCuda(const SolverOptions& options, const Availability& availability,
+                           SolveResult& result) {
+    if (options.backend != ComputeBackend::Cuda || availability.usable) {
+        return false;
+    }
+    result.status = SolveStatus::Unsupported;
+    result.message = "CUDA backend requested but unavailable: " + availability.reason;
+    result.backendReason = result.message;
+    return true;
+}
+
 SolveResult runPdlp(const model::Model& reduced, const SolverOptions& options,
                     SolveResult result) {
     pdlp::CompiledLp compiled;
@@ -327,14 +363,23 @@ SolveResult runPdlp(const model::Model& reduced, const SolverOptions& options,
         return result;
     }
 
+    if (options.backend == ComputeBackend::Cuda &&
+        refuseUnavailableCuda(options, pdlp::cudaAvailability(options.cudaDevice), result)) {
+        return result;
+    }
+
     pdlp::PdlpOptions engineOptions;
     engineOptions.primalTolerance = options.tolerance;
     engineOptions.dualTolerance = options.tolerance;
     engineOptions.gapTolerance = options.tolerance;
     engineOptions.timeLimitSeconds = options.timeLimitSeconds;
     engineOptions.threadCount = options.threadCount;
+    engineOptions.backend = toPdlp(options.backend);
+    engineOptions.cudaDevice = options.cudaDevice;
     result.executedEngine = Engine::Pdlp;
     const pdlp::PdlpResult raw = pdlp::PdlpSolver{}.solve(compiled, engineOptions);
+    result.executedBackend = fromEngine(raw.executedBackend == pdlp::ComputeBackend::Cuda);
+    result.backendReason = raw.backendMessage;
     const adapter::ModelSolution solution =
         adapter::toModelSolution(reduced, translation, raw);
 
@@ -434,13 +479,22 @@ SolveResult runQp(const model::Model& reduced, const SolverOptions& options,
         return result;
     }
 
+    if (options.backend == ComputeBackend::Cuda &&
+        refuseUnavailableCuda(options, qp::cudaAvailability(options.cudaDevice), result)) {
+        return result;
+    }
+
     qp::AdmmOptions engineOptions;
     engineOptions.primalTolerance = options.tolerance;
     engineOptions.dualTolerance = options.tolerance;
     engineOptions.timeLimitSeconds = options.timeLimitSeconds;
     engineOptions.threadCount = options.threadCount;
+    engineOptions.backend = toQp(options.backend);
+    engineOptions.cudaDevice = options.cudaDevice;
     result.executedEngine = Engine::Qp;
     const qp::AdmmResult raw = qp::QpSolver{}.solve(problem, engineOptions);
+    result.executedBackend = fromEngine(raw.executedBackend == qp::ComputeBackend::Cuda);
+    result.backendReason = raw.backendMessage;
 
     result.status = normalise(raw.status);
     result.message = raw.statusMessage;
@@ -569,6 +623,15 @@ SolveResult solveReduced(const model::Model& presolvedModel,
         case Engine::Pdlp:
             result = runPdlp(presolvedModel, options, std::move(result));
             break;
+    }
+
+    // Engines without a CUDA backend run on the CPU whatever was requested; say
+    // so rather than leave a CUDA request looking honoured.
+    if (options.backend == ComputeBackend::Cuda && result.backendReason.empty() &&
+        (result.executedEngine == Engine::DualSimplex ||
+         result.executedEngine == Engine::BranchAndCut)) {
+        result.backendReason = std::string(toString(result.executedEngine)) +
+            " has no CUDA backend; ran on the CPU";
     }
 
     result.reducedVariableCount = presolvedModel.variables.size();

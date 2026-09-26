@@ -34,6 +34,8 @@ std::string ArgumentParser::getSolveHelp() {
            "  --json <file>           Write a structured JSON record of the solve\n"
            "  --dump-model <file>     Write the parsed model as JSON and exit\n"
            "  --threads <n>           Worker threads (0 = auto, 1 = serial)\n"
+           "  --backend <name>        Compute backend for PDLP/QP: auto (default), cpu, cuda\n"
+           "  --cuda-device <index>   CUDA device to use with --backend cuda/auto (default 0)\n"
            "  -h, --help              Show this help message";
 }
 
@@ -176,6 +178,44 @@ ParseResult ArgumentParser::parse(int argc, const char* const argv[]) {
                 return res;
             }
             res.solveOptions.outputPath = outVal;
+        } else if (arg == "--backend") {
+            if (i + 1 >= argc || argv[i + 1][0] == '-' || argv[i + 1][0] == '\0') {
+                res.success = false;
+                res.errorTitle = "Missing value for option '--backend'";
+                res.errorDetails = "Supported backends: auto, cpu, cuda";
+                res.errorMessage = "Error: Missing value for option '--backend'.";
+                return res;
+            }
+            std::string backendVal = argv[++i];
+            if (!solver::parseComputeBackend(backendVal).has_value()) {
+                res.success = false;
+                res.errorTitle = "Invalid backend '" + backendVal + "'";
+                res.errorDetails = "Supported backends: auto, cpu, cuda";
+                res.errorMessage = "Error: Invalid backend '" + backendVal +
+                                   "'. Supported backends: auto, cpu, cuda.";
+                return res;
+            }
+            res.solveOptions.backend = backendVal;
+        } else if (arg == "--cuda-device") {
+            if (i + 1 >= argc) {
+                res.success = false;
+                res.errorTitle = "Missing value for option '--cuda-device'";
+                res.errorDetails = "A non-negative CUDA device index is required.";
+                res.errorMessage = "Error: Missing value for option '--cuda-device'.";
+                return res;
+            }
+            std::string deviceStr = argv[++i];
+            char* endPtr = nullptr;
+            const long deviceVal = std::strtol(deviceStr.c_str(), &endPtr, 10);
+            if (deviceStr.empty() || endPtr == deviceStr.c_str() || *endPtr != '\0' ||
+                deviceVal < 0 || deviceVal > 1024) {
+                res.success = false;
+                res.errorTitle = "Invalid CUDA device '" + deviceStr + "'";
+                res.errorDetails = "Must be a non-negative integer device index.";
+                res.errorMessage = "Error: Invalid CUDA device '" + deviceStr + "'.";
+                return res;
+            }
+            res.solveOptions.cudaDevice = static_cast<int>(deviceVal);
         } else if (!arg.empty() && arg[0] == '-') {
             res.success = false;
             res.errorTitle = "Unknown option '" + arg + "'";

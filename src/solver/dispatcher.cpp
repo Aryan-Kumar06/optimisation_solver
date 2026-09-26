@@ -60,6 +60,28 @@ std::optional<Engine> parseEngine(std::string_view name) noexcept {
     return std::nullopt;
 }
 
+const char* toString(ComputeBackend value) noexcept {
+    switch (value) {
+        case ComputeBackend::Auto: return "auto";
+        case ComputeBackend::Cpu:  return "cpu";
+        case ComputeBackend::Cuda: return "cuda";
+    }
+    return "unknown";
+}
+
+std::optional<ComputeBackend> parseComputeBackend(std::string_view name) noexcept {
+    if (name == "auto") {
+        return ComputeBackend::Auto;
+    }
+    if (name == "cpu") {
+        return ComputeBackend::Cpu;
+    }
+    if (name == "cuda") {
+        return ComputeBackend::Cuda;
+    }
+    return std::nullopt;
+}
+
 DispatchDecision dispatch(
     const model::Model& reduced,
     const Classification& classification,

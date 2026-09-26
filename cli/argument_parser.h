@@ -18,6 +18,8 @@ struct SolveOptions {
     std::optional<std::string> solver;
     std::optional<double> timeLimitSeconds;
     std::optional<std::string> outputPath;
+    std::optional<std::string> backend;
+    std::optional<int> cudaDevice;
 
     // Machine-readable outputs for the benchmark harness. Separate from
     // --output, which stays a human-readable solution listing.

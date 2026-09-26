@@ -201,11 +201,14 @@ void printSolveHelp(std::ostream& out) {
     out << "                          pdlp, dual_simplex, branch_and_cut, qp\n";
     out << "  --time-limit <seconds>  Maximum solve time budget in seconds (positive number)\n";
     out << "  --output <file>         Write reconstructed original-space solution to file\n";
+    out << "  --backend <name>        Compute backend for PDLP/QP: auto (default), cpu, cuda\n";
+    out << "  --cuda-device <index>   CUDA device to use with --backend cuda/auto (default 0)\n";
     out << "  -h, --help              Show this help message\n\n";
     out << s.bold() << "Examples" << s.reset() << "\n";
     out << "  optimsolver solve model.mps\n";
     out << "  optimsolver solve model.mps --solver dual_simplex\n";
     out << "  optimsolver solve model.mps --time-limit 60 --output solution.txt\n";
+    out << "  optimsolver solve model.mps --solver pdlp --backend cuda\n";
 }
 
 void printHeaderBox(std::ostream& out, const std::string& title, const TerminalStyle& s, int width) {

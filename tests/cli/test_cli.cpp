@@ -3,6 +3,7 @@
 #include "mps/mps_reader.h"
 #include "presolve/presolver.h"
 #include "postsolve/postsolver.h"
+#include "pdlp/compute_backend.h"
 #include "solver/orchestrator.h"
 
 #include <cassert>
@@ -567,6 +568,60 @@ void test_interactive_invalid_option() {
     std::cout << "[PASSED] test_interactive_invalid_option\n";
 }
 
+// Compute-backend flags. These use `expect` rather than assert so that they
+// also check something in Release builds, where NDEBUG removes assert.
+void expect(bool condition, const std::string& what) {
+    if (!condition) {
+        std::cerr << "[FAILED] " << what << "\n";
+        std::exit(1);
+    }
+}
+
+void test_backend_option_parsing() {
+    const char* argv[] = {"optimsolver", "solve", "m.mps", "--backend", "cuda", "--cuda-device", "1"};
+    auto res = cli::ArgumentParser::parse(7, argv);
+    expect(res.success, "--backend cuda --cuda-device 1 parses");
+    expect(res.solveOptions.backend.has_value() && *res.solveOptions.backend == "cuda", "backend value");
+    expect(res.solveOptions.cudaDevice.has_value() && *res.solveOptions.cudaDevice == 1, "device value");
+
+    std::string out, err;
+    int code = runCli({"optimsolver", "solve", "m.mps", "--backend", "gpu"}, out, err);
+    expect(code != 0 && err.find("Invalid backend 'gpu'") != std::string::npos, "unknown backend rejected");
+    code = runCli({"optimsolver", "solve", "m.mps", "--backend"}, out, err);
+    expect(code != 0 && err.find("--backend") != std::string::npos, "missing backend value rejected");
+    code = runCli({"optimsolver", "solve", "m.mps", "--cuda-device", "-2"}, out, err);
+    expect(code != 0 && err.find("Invalid CUDA device") != std::string::npos, "negative device rejected");
+    code = runCli({"optimsolver", "solve", "--help"}, out, err);
+    expect(code == 0 && out.find("--backend") != std::string::npos, "--help documents --backend");
+
+    std::cout << "[PASSED] test_backend_option_parsing\n";
+}
+
+void test_backend_selection_reported() {
+    const std::string mpsPath = getTestModelPath("tests/cli/simple_lp.mps");
+    std::string out, err;
+
+    // Default output is unchanged: no backend line unless one was requested.
+    int code = runCli({"optimsolver", "solve", mpsPath, "--solver", "pdlp"}, out, err);
+    expect(code == 0 && out.find("Compute backend") == std::string::npos,
+           "default output carries no backend line");
+
+    code = runCli({"optimsolver", "solve", mpsPath, "--solver", "pdlp", "--backend", "cpu"}, out, err);
+    expect(code == 0 && out.find("Compute backend: cpu") != std::string::npos,
+           "--backend cpu is reported");
+
+    // Explicit CUDA without a usable device: refused, with the reason -- never
+    // a silent CPU solve.
+    if (!pdlp::cudaAvailability(0).usable) {
+        code = runCli({"optimsolver", "solve", mpsPath, "--solver", "pdlp", "--backend", "cuda"}, out, err);
+        expect(code != 0, "--backend cuda without a device fails");
+        expect(err.find("CUDA backend requested but unavailable") != std::string::npos,
+               "the refusal names the CUDA request");
+    }
+
+    std::cout << "[PASSED] test_backend_selection_reported\n";
+}
+
 }  // namespace
 
 int main() {
@@ -598,6 +653,8 @@ int main() {
     test_interactive_open_model_failed();
     test_interactive_open_and_current_model_context();
     test_interactive_invalid_option();
+    test_backend_option_parsing();
+    test_backend_selection_reported();
 
     std::cout << "All CLI tests passed successfully!\n";
     return 0;

@@ -2,7 +2,7 @@
 
 #include "pdlp/feasibility_polishing.h"
 #include "pdlp/infeasibility.h"
-#include "pdlp/iterate_average.h"
+#include "pdlp/iteration_backend.h"
 #include "pdlp/parallel.h"
 #include "pdlp/pdhg_kernel.h"
 #include "pdlp/preconditioner.h"
@@ -17,6 +17,7 @@
 #include <exception>
 #include <limits>
 #include <memory>
+#include <string>
 
 namespace pdlp {
 namespace {
@@ -90,6 +91,22 @@ double squaredDistance(
     return sum;
 }
 
+PdlpResult iterateToCompletion(
+    const CompiledLp& problem,
+    const PdlpOptions& options,
+    const CompiledLp& working,
+    const ProblemScaling* scalingPointer,
+    const DiagonalPreconditioner& preconditioner,
+    double maximumSafeGlobalStep,
+    IterationBackend& iterate,
+    const std::string& backendMessage,
+    const std::vector<double>& initialPrimal,
+    const std::vector<double>& initialDual,
+    Executor* executor,
+    const SpmvPlan* plan,
+    const Clock::time_point& start
+);
+
 PdlpResult invalidProblem(std::string message, double solveTime) {
     PdlpResult result;
     result.status = PdlpStatus::InvalidProblem;
@@ -128,8 +145,20 @@ PdlpResult PdlpSolver::solve(
         options.primalTolerance < 0.0 || options.dualTolerance < 0.0 ||
         options.gapTolerance < 0.0 || options.initialStepSafety <= 0.0 ||
         options.minimumPrimalWeight <= 0.0 ||
-        options.maximumPrimalWeight < options.minimumPrimalWeight) {
+        options.maximumPrimalWeight < options.minimumPrimalWeight ||
+        options.cudaDevice < 0) {
         return invalidProblem("Invalid PDLP options", elapsedSeconds(start));
+    }
+
+    // An explicit CUDA request that cannot be honoured fails here, before any
+    // setup work, and says why. It is never downgraded to a CPU solve.
+    if (options.backend == ComputeBackend::Cuda) {
+        const CudaAvailability availability = cudaAvailability(options.cudaDevice);
+        if (!availability.usable) {
+            return invalidProblem(
+                "CUDA backend requested but unavailable: " + availability.reason,
+                elapsedSeconds(start));
+        }
     }
 
     const int columns = problem.numColumns();
@@ -165,11 +194,10 @@ PdlpResult PdlpSolver::solve(
     }
     const CompiledLp& working = scaling ? scaling->problem : problem;
 
-    PdlpState state;
-    state.primal.resize(static_cast<std::size_t>(columns));
-    state.dual.assign(static_cast<std::size_t>(rows), 0.0);
+    std::vector<double> initialPrimal(static_cast<std::size_t>(columns));
+    const std::vector<double> initialDual(static_cast<std::size_t>(rows), 0.0);
     for (int column = 0; column < columns; ++column) {
-        state.primal[static_cast<std::size_t>(column)] = initialValue(
+        initialPrimal[static_cast<std::size_t>(column)] = initialValue(
             working.variableLower[static_cast<std::size_t>(column)],
             working.variableUpper[static_cast<std::size_t>(column)]
         );
@@ -201,14 +229,114 @@ PdlpResult PdlpSolver::solve(
         }
     }
 
+    // Backend selection. Deterministic: it depends only on the options, the
+    // build, the device, and the size of the working matrix. The executor
+    // stays in use on every backend, because termination and certificate
+    // checks always run on the host.
+    std::unique_ptr<IterationBackend> iterate;
+    std::string backendMessage;
+    {
+        const auto workingNonzeros =
+            static_cast<std::int64_t>(working.matrix.nonzeros());
+        bool wantCuda = false;
+        switch (options.backend) {
+            case ComputeBackend::Cpu:
+                backendMessage = "cpu: requested";
+                break;
+            case ComputeBackend::Cuda:
+                wantCuda = true;
+                break;
+            case ComputeBackend::Auto:
+                if (workingNonzeros < options.cudaNonzeroThreshold) {
+                    backendMessage = "auto -> cpu: " + std::to_string(workingNonzeros) +
+                        " nonzeros is below cudaNonzeroThreshold (" +
+                        std::to_string(options.cudaNonzeroThreshold) + ")";
+                } else {
+                    const CudaAvailability availability =
+                        cudaAvailability(options.cudaDevice);
+                    if (availability.usable) {
+                        wantCuda = true;
+                    } else {
+                        backendMessage = "auto -> cpu: " + availability.reason;
+                    }
+                }
+                break;
+        }
+
+        if (wantCuda) {
+            CudaBackendConfig config;
+            config.device = options.cudaDevice;
+            std::string error;
+            iterate = makeCudaIterationBackend(working, preconditioner, config, error);
+            if (!iterate) {
+                if (options.backend == ComputeBackend::Cuda) {
+                    return invalidProblem(
+                        "CUDA backend requested but could not be started: " + error,
+                        elapsedSeconds(start));
+                }
+                backendMessage = "auto -> cpu: CUDA backend could not be started: " + error;
+            } else {
+                backendMessage = options.backend == ComputeBackend::Cuda
+                    ? "cuda: requested, device " + std::to_string(options.cudaDevice)
+                    : "auto -> cuda: " + std::to_string(workingNonzeros) +
+                          " nonzeros, device " + std::to_string(options.cudaDevice);
+            }
+        }
+        if (!iterate) {
+            iterate = makeCpuIterationBackend(
+                working, preconditioner, executor.get(), plan.get());
+        }
+    }
+
+    // A device failure part-way through a solve is reported as a failed solve
+    // rather than propagated. The CPU backend's behaviour is unchanged: its
+    // exceptions still propagate exactly as they did before backends existed.
+    try {
+        return iterateToCompletion(
+            problem, options, working, scaling.get(), preconditioner,
+            maximumSafeGlobalStep, *iterate, backendMessage,
+            initialPrimal, initialDual, executor.get(), plan.get(), start);
+    } catch (const std::exception& error) {
+        if (iterate->kind() != ComputeBackend::Cuda) {
+            throw;
+        }
+        PdlpResult result;
+        result.status = PdlpStatus::NumericalFailure;
+        result.statusMessage = std::string("CUDA backend error: ") + error.what();
+        result.executedBackend = ComputeBackend::Cuda;
+        result.backendMessage = backendMessage;
+        result.backendProfile = iterate->profile();
+        result.solveTimeSeconds = elapsedSeconds(start);
+        return result;
+    }
+}
+
+namespace {
+
+// The PDLP iteration proper -- linesearch, averaging, termination,
+// certificates, restarts and polishing -- written once against
+// IterationBackend, so every backend runs the same algorithm.
+PdlpResult iterateToCompletion(
+    const CompiledLp& problem,
+    const PdlpOptions& options,
+    const CompiledLp& working,
+    const ProblemScaling* scalingPointer,
+    const DiagonalPreconditioner& preconditioner,
+    double maximumSafeGlobalStep,
+    IterationBackend& iterate,
+    const std::string& backendMessage,
+    const std::vector<double>& initialPrimal,
+    const std::vector<double>& initialDual,
+    Executor* executor,
+    const SpmvPlan* plan,
+    const Clock::time_point& start
+) {
     StepController stepController(options, maximumSafeGlobalStep);
     stepController.setPrimalWeight(options.initialPrimalWeight);
-    CpuPdhgKernel kernel(working, executor.get(), plan.get());
-    kernel.refreshActivity(state);
-    IterateAverage average(columns, rows, executor.get());
-    TerminationChecker checker(options, problem, executor.get(), plan.get());
+    iterate.reset(initialPrimal, initialDual);
+    TerminationChecker checker(options, problem, executor, plan);
     RestartController restartController(options);
-    InfeasibilityDetector detector(problem, options, executor.get(), plan.get());
+    InfeasibilityDetector detector(problem, options, executor, plan);
 
     // Candidate ray directions, in the original problem's coordinates.
     std::vector<double> primalDirection;
@@ -221,7 +349,7 @@ PdlpResult PdlpSolver::solve(
     std::vector<double> originalDual;
     const std::vector<double>* scoredPrimal = nullptr;
     const std::vector<double>* scoredDual = nullptr;
-    const ProblemScaling* scalingPointer = scaling.get();
+    double hostCheckSeconds = 0.0;
 
     const auto score = [&](const std::vector<double>& primal,
                            const std::vector<double>& dual) {
@@ -236,7 +364,7 @@ PdlpResult PdlpSolver::solve(
         return checker.evaluate(*scoredPrimal, *scoredDual);
     };
 
-    CandidateMetrics currentMetrics = score(state.primal, state.dual);
+    CandidateMetrics currentMetrics = score(iterate.primal(), iterate.dual());
     CandidateIterate best{*scoredPrimal, *scoredDual};
     CandidateMetrics bestMetrics = currentMetrics;
     double restartBaseline = currentMetrics.kktScore;
@@ -245,13 +373,22 @@ PdlpResult PdlpSolver::solve(
 
     // Anchor for the primal weight update: the iterate at the last restart, in
     // working coordinates.
-    std::vector<double> restartPrimal = state.primal;
-    std::vector<double> restartDual = state.dual;
+    std::vector<double> restartPrimal = iterate.primal();
+    std::vector<double> restartDual = iterate.dual();
     std::int64_t stepTrials = 0;
 
 
+    // Backend identity and accounting, stamped onto every exit path.
+    const auto withBackend = [&](PdlpResult value) {
+        value.executedBackend = iterate.kind();
+        value.backendMessage = backendMessage;
+        value.backendProfile = iterate.profile();
+        value.hostCheckSeconds = hostCheckSeconds;
+        return value;
+    };
+
     if (checker.isOptimal(currentMetrics)) {
-        return makeResult(
+        return withBackend(makeResult(
             PdlpStatus::Optimal,
             "Initial point satisfies the requested tolerances",
             std::move(best),
@@ -260,7 +397,7 @@ PdlpResult PdlpSolver::solve(
             0,
             0,
             elapsedSeconds(start)
-        );
+        ));
     }
 
     // Stamped onto every exit path below.
@@ -268,7 +405,7 @@ PdlpResult PdlpSolver::solve(
         value.finalStepSize = stepController.parameters().globalStep;
         value.staticStepBound = stepController.parameters().maximumSafeGlobalStep;
         value.finalPrimalWeight = stepController.parameters().primalWeight;
-        return value;
+        return withBackend(std::move(value));
     };
 
     PdlpStatus limitStatus = PdlpStatus::IterationLimit;
@@ -290,11 +427,8 @@ PdlpResult PdlpSolver::solve(
         // trial or two rather than by repeated halving.
         bool committed = false;
         for (int attempt = 0; attempt < std::max(options.maximumStepTrials, 1); ++attempt) {
-            const KernelTrialResult trialResult = kernel.trial(
-                state,
-                preconditioner,
-                stepController.parameters()
-            );
+            const KernelTrialResult trialResult =
+                iterate.trial(stepController.parameters());
             ++stepTrials;
             if (!trialResult.finite) {
                 return withDiagnostics(makeResult(
@@ -302,7 +436,7 @@ PdlpResult PdlpSolver::solve(
                     "PDHG generated a non-finite iterate",
                     std::move(best),
                     bestMetrics,
-                    state.iteration,
+                    iterate.iteration(),
                     stepTrials,
                     restartCount,
                     elapsedSeconds(start)
@@ -314,10 +448,10 @@ PdlpResult PdlpSolver::solve(
                     trialResult.primalMovementWeighted,
                     trialResult.dualMovementWeighted,
                     trialResult.interaction,
-                    state.iteration
+                    iterate.iteration()
                 );
             if (accept) {
-                kernel.commit(state);
+                iterate.commit();
                 committed = true;
                 break;
             }
@@ -330,7 +464,7 @@ PdlpResult PdlpSolver::solve(
                 "Adaptive linesearch failed to accept a step",
                 std::move(best),
                 bestMetrics,
-                state.iteration,
+                iterate.iteration(),
                 stepTrials,
                 restartCount,
                 elapsedSeconds(start)
@@ -340,18 +474,15 @@ PdlpResult PdlpSolver::solve(
         ++iterationsSinceRestart;
 
         if (options.useAveraging) {
-            average.add(
-                state.primal,
-                state.dual,
-                stepController.parameters().globalStep
-            );
+            iterate.addToAverage(stepController.parameters().globalStep);
         }
 
-        if (state.iteration % options.terminationCheckFrequency != 0) {
+        if (iterate.iteration() % options.terminationCheckFrequency != 0) {
             continue;
         }
 
-        currentMetrics = score(state.primal, state.dual);
+        const Clock::time_point checkStart = Clock::now();
+        currentMetrics = score(iterate.primal(), iterate.dual());
         if (currentMetrics.kktScore < bestMetrics.kktScore) {
             best.primal = *scoredPrimal;
             best.dual = *scoredDual;
@@ -359,9 +490,9 @@ PdlpResult PdlpSolver::solve(
         }
 
         CandidateMetrics averagedMetrics = currentMetrics;
-        const bool haveAverage = options.useAveraging && !average.empty();
+        const bool haveAverage = options.useAveraging && !iterate.averageEmpty();
         if (haveAverage) {
-            const CandidateIterate& averaged = average.candidate();
+            const CandidateIterate& averaged = iterate.average();
             averagedMetrics = score(averaged.primal, averaged.dual);
             if (averagedMetrics.kktScore < bestMetrics.kktScore) {
                 best.primal = *scoredPrimal;
@@ -375,8 +506,8 @@ PdlpResult PdlpSolver::solve(
         // unbounded problem it converges to a ray. Testing it costs two matrix
         // passes, so it happens only on a check boundary.
         if (options.detectInfeasibility) {
-            difference(state.primal, restartPrimal, primalDirection);
-            difference(state.dual, restartDual, dualDirection);
+            difference(iterate.primal(), restartPrimal, primalDirection);
+            difference(iterate.dual(), restartDual, dualDirection);
 
             std::vector<double> rowRay;
             std::vector<double> columnRay;
@@ -395,7 +526,7 @@ PdlpResult PdlpSolver::solve(
                     "Primal infeasible: Farkas ray found",
                     std::move(best),
                     bestMetrics,
-                    state.iteration,
+                    iterate.iteration(),
                     stepTrials,
                     restartCount,
                     elapsedSeconds(start)
@@ -411,7 +542,7 @@ PdlpResult PdlpSolver::solve(
                     "Unbounded: improving ray found",
                     std::move(best),
                     bestMetrics,
-                    state.iteration,
+                    iterate.iteration(),
                     stepTrials,
                     restartCount,
                     elapsedSeconds(start)
@@ -427,7 +558,7 @@ PdlpResult PdlpSolver::solve(
                 "Primal, dual, and gap tolerances satisfied",
                 std::move(best),
                 bestMetrics,
-                state.iteration,
+                iterate.iteration(),
                 stepTrials,
                 restartCount,
                 elapsedSeconds(start)
@@ -439,15 +570,15 @@ PdlpResult PdlpSolver::solve(
             averagedMetrics,
             restartBaseline,
             iterationsSinceRestart,
-            state.iteration
+            iterate.iteration()
         );
         if (restart.choice != RestartChoice::None) {
             const bool fromAverage =
                 restart.choice == RestartChoice::Average && haveAverage;
-            const std::vector<double>* selectedPrimal = &state.primal;
-            const std::vector<double>* selectedDual = &state.dual;
+            const std::vector<double>* selectedPrimal = &iterate.primal();
+            const std::vector<double>* selectedDual = &iterate.dual();
             if (fromAverage) {
-                const CandidateIterate& averaged = average.candidate();
+                const CandidateIterate& averaged = iterate.average();
                 selectedPrimal = &averaged.primal;
                 selectedDual = &averaged.dual;
             }
@@ -461,20 +592,23 @@ PdlpResult PdlpSolver::solve(
             if (fromAverage) {
                 // Restarting from the current iterate needs no copy: the state
                 // already holds it, and its A*x is already correct.
-                state.primal = *selectedPrimal;
-                state.dual = *selectedDual;
-                kernel.refreshActivity(state);
+                iterate.restartFromAverage();
             }
 
-            restartPrimal = state.primal;
-            restartDual = state.dual;
+            restartPrimal = iterate.primal();
+            restartDual = iterate.dual();
             restartBaseline = restart.candidateScore;
-            average.reset();
+            iterate.resetAverage();
             restartController.reset();
             iterationsSinceRestart = 0;
             ++restartCount;
         }
+        hostCheckSeconds += elapsedSeconds(checkStart);
     }
+
+    // Polishing reuses the backend and restarts its iteration counter, so the
+    // main loop's count is captured first and used by every exit below.
+    const std::int64_t mainIterations = iterate.iteration();
 
     if (options.useFeasibilityPolishing && !best.primal.empty()) {
         double remaining = 0.0;
@@ -486,7 +620,7 @@ PdlpResult PdlpSolver::solve(
                     limitMessage,
                     std::move(best),
                     bestMetrics,
-                    state.iteration,
+                    mainIterations,
                     stepTrials,
                     restartCount,
                     elapsedSeconds(start)
@@ -512,11 +646,16 @@ PdlpResult PdlpSolver::solve(
         input.startMetrics = bestMetrics;
         input.steps = stepController.parameters();
         input.remainingSeconds = remaining;
-        input.executor = executor.get();
-        input.plan = plan.get();
+        input.executor = executor;
+        input.plan = plan;
+        // Polishing reuses the solve's backend -- and on a device, the problem
+        // already resident there -- rather than building a second one. The
+        // main iteration is finished, so its state may be overwritten.
+        input.backend = &iterate;
 
         PolishingResult polished =
             FeasibilityPolisher::polish(options, input, checker);
+        hostCheckSeconds += polished.hostCheckSeconds;
         if (polished.metrics.kktScore < bestMetrics.kktScore) {
             best = std::move(polished.candidate);
             bestMetrics = polished.metrics;
@@ -527,7 +666,7 @@ PdlpResult PdlpSolver::solve(
                 "Tolerances satisfied after refinement polishing",
                 std::move(best),
                 bestMetrics,
-                state.iteration + polished.iterations,
+                mainIterations + polished.iterations,
                 stepTrials + polished.stepTrials,
                 restartCount,
                 elapsedSeconds(start)
@@ -540,11 +679,13 @@ PdlpResult PdlpSolver::solve(
         limitMessage,
         std::move(best),
         bestMetrics,
-        state.iteration,
+        mainIterations,
         stepTrials,
         restartCount,
         elapsedSeconds(start)
     ));
 }
+
+}  // namespace
 
 }  // namespace pdlp

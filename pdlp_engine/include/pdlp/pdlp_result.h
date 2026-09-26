@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pdlp/compute_backend.h"
+
 #include <cstdint>
 #include <limits>
 #include <string>
@@ -59,6 +61,18 @@ struct PdlpResult {
     double finalStepSize = 0.0;
     double staticStepBound = 0.0;
     double finalPrimalWeight = 1.0;
+
+    // Which backend ran the iteration, and why that one. A solve that asked
+    // for Auto reports what Auto resolved to; the message names the reason
+    // (threshold, availability, fallback) so "did the GPU run?" is never a
+    // guess.
+    ComputeBackend executedBackend = ComputeBackend::Cpu;
+    std::string backendMessage;
+
+    // Device setup and transfer accounting (zero on the CPU), plus the time
+    // spent in host-side termination and certificate checks on any backend.
+    BackendProfile backendProfile;
+    double hostCheckSeconds = 0.0;
 };
 
 [[nodiscard]] const char* toString(PdlpStatus status) noexcept;

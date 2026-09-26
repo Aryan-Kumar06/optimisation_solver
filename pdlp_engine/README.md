@@ -245,10 +245,11 @@ commercial solver.
    families and HiGHS as a reference. The standard sets need an MPS reader in the
    adapter layer, which is deliberately outside this module.
 
-6. **No GPU path.** The kernel is deliberately shaped for one: the two fused
-   halves are coordinate-parallel with a single barrier between them, which maps
-   onto two CUDA kernels, and the linesearch's reductions are the only device
-   synchronisation points per iteration. Nothing here targets a GPU yet.
+6. **GPU path unvalidated.** An optional CUDA backend (`PDLP_ENABLE_CUDA`,
+   `PdlpOptions::backend`) runs the two fused halves as device kernels behind the
+   same solver loop, with the linesearch reductions as the only per-iteration
+   synchronisation. It has not yet been compiled or run on a GPU; see
+   [docs/cuda.md](../docs/cuda.md). Termination checks still run on the host.
 
 ## Integration boundary
 

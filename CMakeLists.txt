@@ -144,6 +144,16 @@ target_include_directories(test_presolve_metadata PRIVATE
 target_link_libraries(test_presolve_metadata PRIVATE postsolver)
 add_test(NAME test_presolve_metadata COMMAND test_presolve_metadata)
 
+# Optional CUDA backends for the PDLP and QP engines (see docs/cuda.md). OFF by
+# default: a normal configure needs no CUDA toolkit, driver or GPU, and compiles
+# no CUDA source. When ON, the language is enabled here, above the engines,
+# because their device code reaches every target that links them.
+option(OPTIMSOLVER_ENABLE_CUDA "Build the CUDA backends of the PDLP and QP engines" OFF)
+if(OPTIMSOLVER_ENABLE_CUDA)
+    include(${PROJECT_SOURCE_DIR}/cmake/OptimsolverCuda.cmake)
+    optimsolver_enable_cuda()
+endif()
+
 # Linear programming engine. Self-contained and C++17; builds the library only.
 # Its tests and benchmark harnesses stay off here and are enabled by configuring
 # pdlp_engine/ standalone, or with -DPDLP_BUILD_TESTS=ON -DPDLP_BUILD_TOOLS=ON.
@@ -256,6 +266,13 @@ endforeach()
 add_executable(test_qp_convention tests/qp/test_qp_convention.cpp)
 target_link_libraries(test_qp_convention PRIVATE solver_orchestrator)
 add_test(NAME test_qp_convention COMMAND test_qp_convention)
+
+# Backend selection through the public pipeline: the request reaches the
+# engine, the engine records what ran, and an explicit CUDA request is never
+# answered by a silent CPU solve.
+add_executable(test_compute_backend tests/solver/test_compute_backend.cpp)
+target_link_libraries(test_compute_backend PRIVATE solver_orchestrator)
+add_test(NAME test_compute_backend COMMAND test_compute_backend)
 
 # Ground truth by exhaustive enumeration: every small binary MILP is solved
 # by brute force over all 2^n subsets and compared against the pipeline. No

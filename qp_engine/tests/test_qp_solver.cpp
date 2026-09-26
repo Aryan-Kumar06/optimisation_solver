@@ -1,5 +1,8 @@
 // Comprehensive tests for the QP engine.
 // Run: ./qp_tests
+#include "admm_backend_contract.h"
+
+#include "qp/admm_backend.h"
 #include "qp/admm_solver.h"
 #include "qp/kkt_solver.h"
 #include "qp/polishing.h"
@@ -441,6 +444,82 @@ void testQpSolverFacade() {
 }
 
 // ---------------------------------------------------------------------------
+// Compute backends
+// ---------------------------------------------------------------------------
+
+// The contract the hybrid CUDA backend is held to (admm_backend_contract.h),
+// run CPU against CPU so the harness is exercised on every build.
+void testCpuBackendContract() {
+    const qpcontract::BackendFactory cpu = [](const qp::QpModel& model) {
+        return qp::makeCpuAdmmBackend(model, nullptr, nullptr, nullptr);
+    };
+    for (const qpcontract::Fixture& fixture : qpcontract::fixtures()) {
+        qpcontract::compareBackends(fixture, cpu, cpu, 0.0);
+    }
+}
+
+qp::QpModel backendTestModel() {
+    qp::QpModel m;
+    m.P = mkMat(2, 2, {{0,0,2.0}, {0,1,0.5}, {1,0,0.5}, {1,1,1.0}});
+    m.A = mkMat(2, 2, {{0,0,1.0}, {0,1,1.0}, {1,0,1.0}});
+    m.q = {-1.0, -1.0};
+    m.l = {-1e300, 0.0};
+    m.u = {1.0, 0.75};
+    return m;
+}
+
+// An explicit CUDA request is honoured or refused, never quietly run on the CPU.
+void testExplicitCudaRequestNeverFallsBack() {
+    const qp::CudaAvailability availability = qp::cudaAvailability(0);
+    if (availability.usable) return;  // covered by qp_cuda_tests
+    require(!availability.reason.empty(), "an unusable CUDA backend must say why");
+    qp::AdmmOptions o;
+    o.backend = qp::ComputeBackend::Cuda;
+    const auto r = qp::QpSolver{}.solve(backendTestModel(), o);
+    require(r.status == qp::QpStatus::InvalidProblem, "CUDA requested without a device must not solve");
+    require(r.statusMessage.find("CUDA backend requested but unavailable") != std::string::npos,
+            "the failure must name the CUDA request: " + r.statusMessage);
+}
+
+void testAutoBackendResolution() {
+    qp::AdmmOptions o;
+    auto r = qp::QpSolver{}.solve(backendTestModel(), o);
+    require(r.executedBackend == qp::ComputeBackend::Cpu, "Auto defaults to the CPU for the hybrid QP backend");
+    require(r.backendMessage.find("below cudaNonzeroThreshold") != std::string::npos,
+            "Auto must say why it chose the CPU: " + r.backendMessage);
+    o.cudaNonzeroThreshold = 0;
+    r = qp::QpSolver{}.solve(backendTestModel(), o);
+    require(r.status == qp::QpStatus::Optimal, "Auto must still solve");
+    if (!qp::cudaAvailability(0).usable) {
+        require(r.executedBackend == qp::ComputeBackend::Cpu, "no device: Auto must run on the CPU");
+        require(r.backendMessage.rfind("auto -> cpu", 0) == 0, "fallback reason: " + r.backendMessage);
+    }
+    require(r.kktSolveSeconds >= 0.0 && r.kktFactorSeconds >= 0.0, "KKT timings are reported");
+}
+
+// Forcing the CPU is the default solve, bit for bit, when Auto resolves to the CPU.
+void testForcedCpuMatchesDefault() {
+    qp::AdmmOptions automatic;
+    qp::AdmmOptions forced;
+    forced.backend = qp::ComputeBackend::Cpu;
+    const auto a = qp::QpSolver{}.solve(backendTestModel(), automatic);
+    const auto b = qp::QpSolver{}.solve(backendTestModel(), forced);
+    require(a.status == b.status && a.iterations == b.iterations && a.factorizations == b.factorizations,
+            "forced CPU must follow the identical iteration path");
+    require(a.primal == b.primal && a.constraintDual == b.constraintDual,
+            "forced CPU must return identical vectors");
+    require(a.primalObjective == b.primalObjective, "forced CPU must return the identical objective");
+    require(b.backendMessage == "cpu: requested", "forced CPU message: " + b.backendMessage);
+}
+
+void testInvalidCudaDeviceIsRejected() {
+    qp::AdmmOptions o;
+    o.cudaDevice = -3;
+    const auto r = qp::QpSolver{}.solve(backendTestModel(), o);
+    require(r.status == qp::QpStatus::InvalidProblem, "a negative CUDA device must be rejected");
+}
+
+// ---------------------------------------------------------------------------
 // Run helpers
 // ---------------------------------------------------------------------------
 
@@ -489,8 +568,15 @@ int main() {
     // Integration
     run("qpSolverFacade",        testQpSolverFacade);
 
+    // Compute backends
+    run("cpuBackendContract",    testCpuBackendContract);
+    run("explicitCudaRequestNeverFallsBack", testExplicitCudaRequestNeverFallsBack);
+    run("autoBackendResolution", testAutoBackendResolution);
+    run("forcedCpuMatchesDefault", testForcedCpuMatchesDefault);
+    run("invalidCudaDeviceIsRejected", testInvalidCudaDeviceIsRejected);
+
     if (failures == 0) {
-        std::printf("\nAll %d QP engine tests passed\n", 21);
+        std::printf("\nAll %d QP engine tests passed\n", 26);
         return 0;
     }
     std::printf("\n%d test(s) failed\n", failures);

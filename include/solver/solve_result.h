@@ -63,6 +63,12 @@ struct SolveResult {
     // A bound-walk result is recorded as Engine::Trivial.
     Engine executedEngine = Engine::Unsupported;
 
+    // Which compute backend the engine ran on, and why -- including why a
+    // requested CUDA backend was not used. Recorded by the engine itself, not
+    // inferred from the request, so "did the GPU run?" has a factual answer.
+    ComputeBackend executedBackend = ComputeBackend::Cpu;
+    std::string backendReason;
+
     // True when a complete, finite point passes primal postsolve validation.
     // A valid zero-variable solution is empty with hasPrimal=true. An explicitly
     // forced continuous relaxation can still have integralityRespected=false.
