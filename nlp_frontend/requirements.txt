@@ -1,3 +1,2 @@
-sympy>=1.12
 anthropic>=0.40.0
 pytest>=7.0

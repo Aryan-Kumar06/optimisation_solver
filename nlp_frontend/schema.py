@@ -1,3 +1,4 @@
+
 """
 Strict schema validation for the LLM-extracted optimization problem spec.
 
@@ -13,6 +14,7 @@ Addresses PR #9 review items:
      sympy or the MPS writer.
 """
 
+import math
 import re
 
 VALID_VAR_TYPES = {"continuous", "integer", "binary"}
@@ -57,6 +59,7 @@ def validate_bound(value, context):
         isinstance(value, (int, float)) and not isinstance(value, bool),
         f"{context}: bound must be numeric or null, got {value!r}",
     )
+    _require(math.isfinite(value), f"{context}: bound must be finite, got {value!r}")
 
 
 def validate_spec(spec: dict) -> dict:
@@ -141,5 +144,6 @@ def validate_spec(spec: dict) -> dict:
             "rhs" in c and isinstance(c["rhs"], (int, float)) and not isinstance(c["rhs"], bool),
             f"{ctx}: rhs must be numeric, got {c.get('rhs')!r}",
         )
+        _require(math.isfinite(c["rhs"]), f"{ctx}: rhs must be finite, got {c['rhs']!r}")
 
     return spec
