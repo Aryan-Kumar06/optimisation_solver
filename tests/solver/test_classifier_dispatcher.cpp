@@ -282,19 +282,45 @@ void testQuadraticRoutesToQpEngine() {
     require(!d.reason.empty(), "and explains why");
 }
 
-// A quadratic objective WITH integrality has no engine: nothing here does
-// branch-and-cut over a quadratic relaxation. That must be reported rather than
-// solved as though the quadratic terms were not there.
-void testMiqpIsReportedUnsupported() {
+void testConvexMiqpRoutesToMiqp() {
     model::Model m = lpOfSize(3, 3);
     m.variables[0].type = model::VariableType::Binary;
     m.variables[0].lowerBound = 0.0;
     m.variables[0].upperBound = 1.0;
     m.objective.quadraticTerms.push_back({1, 1, 1.0});
     const auto d = solver::dispatch(m, solver::classify(m), feasibleResult());
+    require(d.engine == solver::Engine::Miqp,
+            "convex MIQP routes to the MIQP engine");
+}
+
+void testNonConvexMinimizationRejected() {
+    model::Model m = lpOfSize(3, 3);
+    m.variables[0].type = model::VariableType::Integer;
+    m.objective.sense = model::ObjectiveSense::Minimize;
+    m.objective.quadraticTerms.push_back({1, 1, -1.0});
+    const auto d = solver::dispatch(m, solver::classify(m), feasibleResult());
     require(d.engine == solver::Engine::Unsupported,
-            "MIQP has no engine and must say so");
-    require(!d.reason.empty(), "unsupported decisions must explain themselves");
+            "concave quadratic minimization is non-convex and must be rejected");
+}
+
+void testConcaveMaximizationAccepted() {
+    model::Model m = lpOfSize(3, 3);
+    m.variables[0].type = model::VariableType::Integer;
+    m.objective.sense = model::ObjectiveSense::Maximize;
+    m.objective.quadraticTerms.push_back({1, 1, -1.0});
+    const auto d = solver::dispatch(m, solver::classify(m), feasibleResult());
+    require(d.engine == solver::Engine::Miqp,
+            "concave quadratic maximization is valid convex-MIQP form");
+}
+
+void testConvexMaximizationRejected() {
+    model::Model m = lpOfSize(3, 3);
+    m.variables[0].type = model::VariableType::Integer;
+    m.objective.sense = model::ObjectiveSense::Maximize;
+    m.objective.quadraticTerms.push_back({1, 1, 1.0});
+    const auto d = solver::dispatch(m, solver::classify(m), feasibleResult());
+    require(d.engine == solver::Engine::Unsupported,
+            "convex quadratic maximization must be rejected");
 }
 
 
@@ -364,7 +390,10 @@ int main() {
     run("sizeCrossover", testSizeCrossover);
     run("nonzeroThresholdAlsoTriggersPdlp", testNonzeroThresholdAlsoTriggersPdlp);
     run("quadraticRoutesToQpEngine", testQuadraticRoutesToQpEngine);
-    run("miqpIsReportedUnsupported", testMiqpIsReportedUnsupported);
+    run("convexMiqpRoutesToMiqp", testConvexMiqpRoutesToMiqp);
+    run("nonConvexMinimizationRejected", testNonConvexMinimizationRejected);
+    run("concaveMaximizationAccepted", testConcaveMaximizationAccepted);
+    run("convexMaximizationRejected", testConvexMaximizationRejected);
     run("trivialWhenNothingRemains", testTrivialWhenNothingRemains);
     run("everyDecisionExplainsItself", testEveryDecisionExplainsItself);
     run("withRealPresolve", testWithRealPresolve);

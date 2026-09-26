@@ -153,6 +153,7 @@ add_subdirectory(pdlp_engine)
 # own tests, so `ctest` from the root covers all three engines.
 add_subdirectory(milp_engine)
 add_subdirectory(qp_engine)
+add_subdirectory(miqp_engine)
 
 # Classifier and dispatcher. Classification runs before presolve (its reductions
 # differ by problem class); engine selection runs after (presolve changes size,
@@ -164,6 +165,7 @@ add_library(solver_dispatch
     src/presolve/presolver.cpp
 )
 target_include_directories(solver_dispatch PUBLIC ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(solver_dispatch PUBLIC qp_engine)
 target_compile_features(solver_dispatch PUBLIC cxx_std_17)
 if(NOT MSVC)
     target_compile_options(solver_dispatch PRIVATE -Wall -Wextra -Wpedantic)
@@ -204,6 +206,7 @@ target_link_libraries(solver_orchestrator PUBLIC
     pdlp_adapter
     milp_engine
     qp_engine
+    miqp_engine
     postsolver
 )
 target_compile_features(solver_orchestrator PUBLIC cxx_std_17)
@@ -240,6 +243,13 @@ add_test(NAME test_mps_reader
 add_executable(test_end_to_end tests/pipeline/test_end_to_end.cpp)
 target_link_libraries(test_end_to_end PRIVATE solver_orchestrator)
 add_test(NAME test_end_to_end COMMAND test_end_to_end)
+
+add_executable(test_mps_miqp tests/pipeline/test_mps_miqp.cpp)
+target_link_libraries(test_mps_miqp PRIVATE solver_orchestrator mps_reader)
+add_test(NAME test_mps_miqp
+    COMMAND test_mps_miqp
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+)
 
 add_executable(test_postsolve_integration tests/pipeline/test_postsolve_integration.cpp)
 target_link_libraries(test_postsolve_integration PRIVATE solver_orchestrator)
