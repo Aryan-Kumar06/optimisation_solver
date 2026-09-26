@@ -1,0 +1,2 @@
+sympy>=1.12
+anthropic>=0.40.0
