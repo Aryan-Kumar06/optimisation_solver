@@ -3,11 +3,14 @@
 #include "model/model.h"
 
 #include <cstddef>
+#include <limits>
 #include <map>
 #include <string>
 #include <vector>
 
 namespace presolve {
+
+constexpr std::size_t INVALID_ORIGINAL_INDEX = std::numeric_limits<std::size_t>::max();
 
 enum class TransformationType {
   RemoveVariable,
@@ -24,9 +27,11 @@ struct Transformation {
   // Local index at the moment the transformation occurred (retained for backward compatibility)
   std::size_t index = 0;
 
-  // Stable original indices that remain valid after erasures
-  std::size_t originalVariableIndex = 0;
-  std::size_t originalConstraintIndex = 0;
+  // Stable original indices that remain valid after erasures. Bound tightening
+  // must explicitly name BOTH the affected variable and its originating row.
+  // An unset index must never be mistaken for original variable/constraint zero.
+  std::size_t originalVariableIndex = INVALID_ORIGINAL_INDEX;
+  std::size_t originalConstraintIndex = INVALID_ORIGINAL_INDEX;
 
   double oldValue = 0.0;
   double newValue = 0.0;

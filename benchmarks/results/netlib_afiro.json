@@ -1,0 +1,329 @@
+{
+  "tolerances": {
+    "feasibility_absolute": 1e-06,
+    "feasibility_relative": 1e-08,
+    "integrality_absolute": 1e-06,
+    "optimality_normalised": 1e-06,
+    "frozen": true
+  },
+  "results": [
+    {
+      "instance": "benchmarks/instances/netlib/afiro.mps",
+      "instance_name": "afiro.mps",
+      "best_known_objective": -464.75314286,
+      "parse_check": {
+        "status": "agree",
+        "problem_class": "LP",
+        "variables": 32,
+        "constraints": 27,
+        "nonzeros": 83,
+        "differences": [],
+        "difference_count": 0,
+        "independent_reader_warnings": []
+      },
+      "runs": [
+        {
+          "solver": "optimsolver:dual_simplex",
+          "process": {
+            "run_status": "SUCCESS",
+            "exit_code": 0,
+            "terminating_signal": null,
+            "timed_out": false,
+            "killed_process_tree": false,
+            "escalated_to_sigkill": false,
+            "launch_failed": false,
+            "launch_error": null,
+            "wall_seconds": 0.001,
+            "timeout_seconds": 60,
+            "peak_memory_bytes": 1589248,
+            "stdout_truncated": false,
+            "stderr_truncated": false
+          },
+          "orchestrator_wall_seconds": 0.0048802499659359455,
+          "termination": {
+            "status": "optimal",
+            "message": "dual simplex",
+            "dispatched_engine": "dual_simplex",
+            "executed_engine": "dual_simplex",
+            "engine_reason": "engine forced by the caller"
+          },
+          "settings": {
+            "requested_engine": "dual_simplex",
+            "time_limit_seconds": 59,
+            "tolerance": 0
+          },
+          "solver_objective": -464.7531428571428,
+          "dual_bound": null,
+          "mip_gap": null,
+          "work": {
+            "iterations": 16,
+            "nodes": null,
+            "solve_seconds": 4.7333e-05
+          },
+          "self_reported": {
+            "max_bound_residual": 0,
+            "max_constraint_residual": 0,
+            "max_dual_residual": 5.551115123125783e-17,
+            "max_integrality_violation": 0
+          },
+          "duals_unavailable_reason": null,
+          "check": {
+            "verdict": "optimal_verified",
+            "solver_status": "optimal",
+            "tolerances": {
+              "feasibility_absolute": 1e-06,
+              "feasibility_relative": 1e-08,
+              "integrality_absolute": 1e-06,
+              "optimality_normalised": 1e-06,
+              "frozen": true
+            },
+            "objective_recomputed": -464.7531428571428,
+            "nonfinite": {
+              "count": 0,
+              "variables": []
+            },
+            "primal": {
+              "max_row_violation_abs": 4.263256414560601e-14,
+              "max_row_violation_scaled": 9.018854130490849e-17,
+              "worst_row": "R19",
+              "max_bound_violation_abs": 0.0,
+              "max_bound_violation_scaled": 0.0,
+              "worst_variable": null,
+              "rows_violating": 0,
+              "variables_violating": 0
+            },
+            "integrality": {
+              "checked": false,
+              "max_violation_abs": null,
+              "worst_variable": null,
+              "variables_violating": 0
+            },
+            "dual": {
+              "available": true,
+              "reason": null,
+              "max_stationarity_abs": 4.163336342344337e-17,
+              "max_sign_violation_abs": 5.551115123125783e-17,
+              "max_complementarity_abs": 55511151231257.83,
+              "dual_objective": -464.7531428571428,
+              "gap_abs": 0.0,
+              "gap_normalised": 0.0
+            },
+            "best_known": {
+              "value": -464.75314286,
+              "abs_difference": 2.857234449038515e-09,
+              "normalised_difference": 3.070623479815012e-12,
+              "agrees": true
+            },
+            "notes": [
+              "2 multiplier(s) pointed at an infinite bound with magnitude below 1e-06 and were treated as zero"
+            ]
+          },
+          "logs": {
+            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving AFIRO                                       \u2502\n\u2502                                                      \u2502\n\u2502  Model      32 variables \u00b7 27 constraints            \u2502\n\u2502  Reduced    32 variables \u00b7 23 constraints            \u2502\n\u2502  Engine     dual_simplex                             \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       -464.753143\n  Iterations      16\n  Solve time      0.0000 s\n",
+            "stderr_tail": ""
+          }
+        },
+        {
+          "solver": "optimsolver:pdlp",
+          "process": {
+            "run_status": "SUCCESS",
+            "exit_code": 0,
+            "terminating_signal": null,
+            "timed_out": false,
+            "killed_process_tree": false,
+            "escalated_to_sigkill": false,
+            "launch_failed": false,
+            "launch_error": null,
+            "wall_seconds": 0.001,
+            "timeout_seconds": 60,
+            "peak_memory_bytes": 1622016,
+            "stdout_truncated": false,
+            "stderr_truncated": false
+          },
+          "orchestrator_wall_seconds": 0.003887708066031337,
+          "termination": {
+            "status": "optimal",
+            "message": "Primal, dual, and gap tolerances satisfied",
+            "dispatched_engine": "pdlp",
+            "executed_engine": "pdlp",
+            "engine_reason": "engine forced by the caller"
+          },
+          "settings": {
+            "requested_engine": "pdlp",
+            "time_limit_seconds": 59,
+            "tolerance": 0
+          },
+          "solver_objective": -464.7531431267798,
+          "dual_bound": null,
+          "mip_gap": null,
+          "work": {
+            "iterations": 700,
+            "nodes": null,
+            "solve_seconds": 0.000170583
+          },
+          "self_reported": {
+            "max_bound_residual": 0,
+            "max_constraint_residual": 0,
+            "max_dual_residual": 3.4523894846102563e-10,
+            "max_integrality_violation": 0
+          },
+          "duals_unavailable_reason": null,
+          "check": {
+            "verdict": "optimal_verified",
+            "solver_status": "optimal",
+            "tolerances": {
+              "feasibility_absolute": 1e-06,
+              "feasibility_relative": 1e-08,
+              "integrality_absolute": 1e-06,
+              "optimality_normalised": 1e-06,
+              "frozen": true
+            },
+            "objective_recomputed": -464.7531431267797,
+            "nonfinite": {
+              "count": 0,
+              "variables": []
+            },
+            "primal": {
+              "max_row_violation_abs": 1.7783415984240492e-07,
+              "max_row_violation_scaled": 1.3357644281326793e-09,
+              "worst_row": "R19",
+              "max_bound_violation_abs": 0.0,
+              "max_bound_violation_scaled": 0.0,
+              "worst_variable": null,
+              "rows_violating": 0,
+              "variables_violating": 0
+            },
+            "integrality": {
+              "checked": false,
+              "max_violation_abs": null,
+              "worst_variable": null,
+              "variables_violating": 0
+            },
+            "dual": {
+              "available": true,
+              "reason": null,
+              "max_stationarity_abs": 2.030122101108197e-17,
+              "max_sign_violation_abs": 3.4523894846102563e-10,
+              "max_complementarity_abs": 3.452389484610256e+20,
+              "dual_objective": -464.7531425456616,
+              "gap_abs": 5.811181154058431e-07,
+              "gap_normalised": 6.245182051466651e-10
+            },
+            "best_known": {
+              "value": -464.75314286,
+              "abs_difference": 2.667796934474609e-07,
+              "normalised_difference": 2.8670380572931584e-10,
+              "agrees": true
+            },
+            "notes": [
+              "9 multiplier(s) pointed at an infinite bound with magnitude below 1e-06 and were treated as zero"
+            ]
+          },
+          "logs": {
+            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving AFIRO                                       \u2502\n\u2502                                                      \u2502\n\u2502  Model      32 variables \u00b7 27 constraints            \u2502\n\u2502  Reduced    32 variables \u00b7 23 constraints            \u2502\n\u2502  Engine     pdlp                                     \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       -464.753143\n  Iterations      700\n  Solve time      0.0002 s\n",
+            "stderr_tail": ""
+          }
+        },
+        {
+          "solver": "highs:highs-ds",
+          "process": {
+            "run_status": "SUCCESS",
+            "exit_code": 0,
+            "terminating_signal": null,
+            "timed_out": false,
+            "killed_process_tree": false,
+            "escalated_to_sigkill": false,
+            "launch_failed": false,
+            "launch_error": null,
+            "wall_seconds": 0.762,
+            "timeout_seconds": 60,
+            "peak_memory_bytes": 68354048,
+            "stdout_truncated": false,
+            "stderr_truncated": false
+          },
+          "orchestrator_wall_seconds": 0.7662555419374257,
+          "termination": {
+            "status": "optimal",
+            "message": "Optimization terminated successfully. (HiGHS Status 7: Optimal)",
+            "dispatched_engine": "highs-ds",
+            "executed_engine": "highs-ds",
+            "engine_reason": "reference solver, engine selected by --method"
+          },
+          "settings": {
+            "requested_engine": "highs-ds",
+            "time_limit_seconds": 59.0,
+            "tolerance": null
+          },
+          "solver_objective": -464.75314285714285,
+          "dual_bound": null,
+          "mip_gap": null,
+          "work": {
+            "iterations": 6,
+            "nodes": null,
+            "solve_seconds": 0.621443249983713
+          },
+          "self_reported": {
+            "max_bound_residual": null,
+            "max_constraint_residual": null,
+            "max_dual_residual": null,
+            "max_integrality_violation": null
+          },
+          "duals_unavailable_reason": null,
+          "check": {
+            "verdict": "optimal_verified",
+            "solver_status": "optimal",
+            "tolerances": {
+              "feasibility_absolute": 1e-06,
+              "feasibility_relative": 1e-08,
+              "integrality_absolute": 1e-06,
+              "optimality_normalised": 1e-06,
+              "frozen": true
+            },
+            "objective_recomputed": -464.75314285714285,
+            "nonfinite": {
+              "count": 0,
+              "variables": []
+            },
+            "primal": {
+              "max_row_violation_abs": 1.4210854715202004e-14,
+              "max_row_violation_scaled": 1.4210854715202004e-17,
+              "worst_row": "R19",
+              "max_bound_violation_abs": 0.0,
+              "max_bound_violation_scaled": 0.0,
+              "worst_variable": null,
+              "rows_violating": 0,
+              "variables_violating": 0
+            },
+            "integrality": {
+              "checked": false,
+              "max_violation_abs": null,
+              "worst_variable": null,
+              "variables_violating": 0
+            },
+            "dual": {
+              "available": true,
+              "reason": null,
+              "max_stationarity_abs": 5.551115123125783e-17,
+              "max_sign_violation_abs": 0.0,
+              "max_complementarity_abs": 0.0,
+              "dual_objective": -464.7531428571428,
+              "gap_abs": 5.684341886080802e-14,
+              "gap_normalised": 6.108869948919607e-17
+            },
+            "best_known": {
+              "value": -464.75314286,
+              "abs_difference": 2.857177605619654e-09,
+              "normalised_difference": 3.070562391115523e-12,
+              "agrees": true
+            },
+            "notes": []
+          },
+          "logs": {
+            "stdout_tail": "",
+            "stderr_tail": ""
+          }
+        }
+      ]
+    }
+  ]
+}

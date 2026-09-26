@@ -641,6 +641,111 @@ void test_reject_neg_inf_primal_solution() {
   std::cout << "[PASSED] test_reject_neg_inf_primal_solution\n";
 }
 
+
+// ============================================================
+// Scale-aware feasibility gate
+//
+// The gate was purely absolute, so its verdict depended on the model's UNITS
+// rather than the answer's quality. Measured on Netlib adlittle, PDLP
+// converged to its requested RELATIVE tolerance and produced a row violation
+// of 5.35e-06 on rows whose own activity is in the hundreds -- 2.5e-08
+// relative -- and postsolve refused it, so a correctly solved LP returned an
+// error instead of an answer.
+// ============================================================
+void test_relative_feasibility_accepts_large_scale_row() {
+  model::Model model;
+  model.variables.push_back(makeVar("x0", 0.0, 1e9));
+  model::Constraint row;
+  row.name = "big";
+  row.lowerBound = -std::numeric_limits<double>::infinity();
+  row.upperBound = 1e6;
+  row.linearTerms.push_back({0, 1.0});
+  model.constraints.push_back(row);
+
+  auto presolveRes = makeIdentityResult(model);
+  // 1e-3 over a bound of 1e6 is 1e-9 relative: inside the 1e-8 relative term,
+  // far outside the 1e-6 absolute one.
+  std::vector<double> presolvedSolution = {1e6 + 1e-3};
+
+  postsolve::Postsolver postsolver;
+  auto result = postsolver.process(model, presolveRes, presolvedSolution);
+
+  assert(result.isSuccess());
+  // The absolute residual is still REPORTED even though the point passed:
+  // reporting 0.0 here would call a point exact that merely passed the gate.
+  assert(std::abs(result.maxConstraintResidual - 1e-3) < 1e-9);
+  assert(result.maxConstraintResidualScaled < 1e-8);
+
+  std::cout << "[PASSED] test_relative_feasibility_accepts_large_scale_row\n";
+}
+
+void test_relative_feasibility_still_rejects_real_violation() {
+  model::Model model;
+  model.variables.push_back(makeVar("x0", 0.0, 1e9));
+  model::Constraint row;
+  row.name = "big";
+  row.lowerBound = -std::numeric_limits<double>::infinity();
+  row.upperBound = 1e6;
+  row.linearTerms.push_back({0, 1.0});
+  model.constraints.push_back(row);
+
+  auto presolveRes = makeIdentityResult(model);
+  // 1.0 over 1e6 is 1e-6 relative -- two orders past the relative term, so it
+  // must still be refused. The gate is scale-aware, not simply looser.
+  std::vector<double> presolvedSolution = {1e6 + 1.0};
+
+  postsolve::Postsolver postsolver;
+  auto result = postsolver.process(model, presolveRes, presolvedSolution);
+
+  assert(!result.isSuccess());
+  assert(result.status == postsolve::PostsolveStatus::ConstraintViolation);
+
+  std::cout << "[PASSED] test_relative_feasibility_still_rejects_real_violation\n";
+}
+
+void test_small_scale_gate_is_unchanged() {
+  // On a unit-magnitude row the relative term contributes ~1e-8, so behaviour
+  // must be indistinguishable from the old absolute 1e-6 rule.
+  model::Model model;
+  model.variables.push_back(makeVar("x0", 0.0, 10.0));
+  model::Constraint row;
+  row.name = "small";
+  row.lowerBound = -std::numeric_limits<double>::infinity();
+  row.upperBound = 1.0;
+  row.linearTerms.push_back({0, 1.0});
+  model.constraints.push_back(row);
+
+  auto presolveRes = makeIdentityResult(model);
+
+  postsolve::Postsolver postsolver;
+  auto inside = postsolver.process(model, presolveRes, {1.0 + 1e-9});
+  assert(inside.isSuccess());
+  auto outside = postsolver.process(model, presolveRes, {1.0 + 1e-3});
+  assert(!outside.isSuccess());
+
+  std::cout << "[PASSED] test_small_scale_gate_is_unchanged\n";
+}
+
+void test_integrality_is_not_scaled() {
+  // Integrality must stay ABSOLUTE. Being 0.4 away from an integer is 0.4 away
+  // whatever the variable's magnitude; scaling it would let a large integer
+  // variable drift arbitrarily far from integral and still pass.
+  model::Model model;
+  model.variables.push_back(
+      makeVar("x0", 0.0, 1e9, model::VariableType::Integer));
+
+  auto presolveRes = makeIdentityResult(model);
+  std::vector<double> presolvedSolution = {1e6 + 0.4};
+
+  postsolve::Postsolver postsolver;
+  auto result = postsolver.process(model, presolveRes, presolvedSolution);
+
+  assert(!result.isSuccess());
+  assert(result.status == postsolve::PostsolveStatus::IntegralityViolation);
+
+  std::cout << "[PASSED] test_integrality_is_not_scaled\n";
+}
+
 int main() {
   test_no_transformations();
   test_fixed_continuous_variable();
@@ -664,6 +769,10 @@ int main() {
   test_reject_nan_primal_solution();
   test_reject_pos_inf_primal_solution();
   test_reject_neg_inf_primal_solution();
+  test_relative_feasibility_accepts_large_scale_row();
+  test_relative_feasibility_still_rejects_real_violation();
+  test_small_scale_gate_is_unchanged();
+  test_integrality_is_not_scaled();
 
   std::cout << "All postsolve tests passed successfully!\n";
   return 0;

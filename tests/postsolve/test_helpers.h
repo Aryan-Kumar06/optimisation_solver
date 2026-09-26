@@ -5,8 +5,10 @@
 #include "postsolve/postsolver.h"
 
 #include <cmath>
+#include <cstdlib>
 #include <iostream>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace test_helpers {

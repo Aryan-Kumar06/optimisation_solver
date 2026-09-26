@@ -34,15 +34,11 @@ enum class SolveStatus {
 
 [[nodiscard]] const char* toString(SolveStatus value) noexcept;
 
-// The single shape postsolve consumes, whichever engine produced it.
-//
-// COORDINATES. Sense flips and any engine-internal rescaling are already undone,
-// so the values are in the model's own units and sense. They are NOT yet mapped
-// back through presolve: the vectors are indexed by the REDUCED model's
-// variables and constraints, because postsolve is the layer that expands them
-// and it does not exist yet. `reducedVariableCount` and `reducedConstraintCount`
-// say what the indices refer to, so a caller cannot mistake reduced indices for
-// original ones.
+// One result contract for every engine. Solution vectors use the indices, units
+// and objective sense of the model passed to the API: ORIGINAL coordinates for
+// solve(), and the supplied reduced model's coordinates for solveReduced().
+// reducedVariableCount/reducedConstraintCount describe presolve statistics,
+// not the dimensions of the reconstructed vectors returned by solve().
 struct SolveResult {
     SolveStatus status = SolveStatus::InvalidModel;
     std::string message;
@@ -63,19 +59,28 @@ struct SolveResult {
     // a value written by the path that did the work can.
     //
     // Engine::Unsupported here means no engine was invoked at all -- the
-    // solve was answered by presolve (Infeasible), by the bound-walk
-    // (Trivial), or refused before dispatch.
+    // solve was answered by presolve (Infeasible) or refused before dispatch.
+    // A bound-walk result is recorded as Engine::Trivial.
     Engine executedEngine = Engine::Unsupported;
 
-    // Length model.variables.size(). Empty when no point was found.
+    // True when a complete, finite point passes primal postsolve validation.
+    // A valid zero-variable solution is empty with hasPrimal=true. An explicitly
+    // forced continuous relaxation can still have integralityRespected=false.
+    bool hasPrimal = false;
+
+    // Length of the input model's variable list when hasPrimal=true.
     std::vector<double> variableValues;
 
     // Shadow prices, d(objective)/d(right-hand side), length
-    // model.constraints.size(). EMPTY when the engine provides none:
-    // branch-and-cut has no meaningful dual for the integer problem. Check
-    // hasDuals rather than assuming.
+    // model.constraints.size(). Published only after optimality validation.
+    // Integer models and non-optimal results have no sensitivity multipliers.
+    // Check hasDuals: a valid zero-constraint dual vector is empty.
     std::vector<double> constraintDuals;
     bool hasDuals = false;
+    // grad f(x) - A^T y, in the same input-model variable order.
+    std::vector<double> reducedCosts;
+    std::string dualsUnavailableReason = "No dual solution is available.";
+    double maxDualResidual = 0.0;
 
     double objectiveValue = 0.0;
 
@@ -91,8 +96,7 @@ struct SolveResult {
     std::int64_t nodeCount = 0;
     double solveSeconds = 0.0;
 
-    // Dimensions the vectors above are indexed by. Equal to the original
-    // model's counts only when presolve removed nothing.
+    // Dimensions solved by the engine, retained as reduction statistics.
     std::size_t reducedVariableCount = 0;
     std::size_t reducedConstraintCount = 0;
 };

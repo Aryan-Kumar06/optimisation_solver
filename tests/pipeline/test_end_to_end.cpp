@@ -84,20 +84,11 @@ void testProductMix() {
     near(r.variableValues[0], 0.0, 1e-4, "product mix x");
     near(r.variableValues[1], 5.6, 1e-4, "product mix y");
     ck(r.hasDuals, "an LP route reports duals");
-    // The duals are for the REDUCED model, which is not this model: presolve
-    // derives x <= 7 and y <= 5.6 from the rows, and at the optimum y sits AT
-    // that derived bound. So the price of the binding 'machine' row is split
-    // between the row (0.75) and y's tightened bound, where in the ORIGINAL
-    // model the row alone carries it (0.8, per HiGHS). Both are valid dual
-    // solutions to their respective problems.
-    //
-    // Asserting 0.8 here would be asserting an original-space marginal that
-    // SolveResult does not promise -- mapping reduced duals back is
-    // postsolve's job. What IS promised, and what is checked instead: one
-    // dual per reduced row, correctly signed (>= 0 for a <= row being
-    // maximised), and priced on the row that is actually binding.
-    ck(r.constraintDuals.size() == r.reducedConstraintCount,
-       "one dual per reduced row");
+    ck(r.constraintDuals.size() == b.m.constraints.size(), "one dual per original row");
+    near(r.constraintDuals[1], 0.8, 1e-6, "original machine shadow price");
+    ck(r.reducedCosts.size() == b.m.variables.size(), "original reduced-cost dimensions");
+    near(r.reducedCosts[0], -0.2, 1e-6, "original x reduced cost");
+    near(r.reducedCosts[1], 0, 1e-6, "original y is interior");
     for (std::size_t i = 0; i < r.constraintDuals.size(); ++i) {
         ck(r.constraintDuals[i] >= -1e-6,
            "dual " + std::to_string(i) + " is correctly signed for a <= row");
@@ -514,14 +505,12 @@ void testUniformResultContract() {
         const auto r = solver::solve(models[k]);
         const std::string tag = "model " + std::to_string(k) + ": ";
         ck(r.status == solver::SolveStatus::Optimal, tag + "solves");
-        // Postsolve indexes by the REDUCED model, which is what it expands
-        // from, so the contract is stated against those dimensions.
-        ck(r.variableValues.size() == r.reducedVariableCount,
-           tag + "variableValues is one entry per reduced variable");
+        ck(r.hasPrimal && r.variableValues.size() == models[k].variables.size(),
+           tag + "variableValues is one entry per original variable");
         // Duals are either absent or one per constraint -- never partial.
         ck(!r.hasDuals ||
-               r.constraintDuals.size() == r.reducedConstraintCount,
-           tag + "duals are absent or one per reduced constraint");
+               r.constraintDuals.size() == models[k].constraints.size(),
+           tag + "duals are absent or one per original constraint");
         ck(!r.engineReason.empty(), tag + "engine choice is explained");
         ck(std::isfinite(r.objectiveValue), tag + "objective is finite");
     }
@@ -705,8 +694,8 @@ void testQpDualsMatchConstraintCount() {
     const auto r = solver::solve(b.m);
     report("QP dual vector length", r);
     ck(r.status == solver::SolveStatus::Optimal, "QP with bounds solves");
-    ck(!r.hasDuals || r.constraintDuals.size() == r.reducedConstraintCount,
-       "duals are one per reduced constraint, not one per QP row");
+    ck(!r.hasDuals || r.constraintDuals.size() == b.m.constraints.size(),
+       "duals are one per original constraint, not one per QP row");
 }
 
 }  // namespace

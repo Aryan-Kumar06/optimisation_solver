@@ -160,4 +160,14 @@ QpModel fromModel(const model::Model& model, QpTranslation& translation) {
     return qp;
 }
 
+
+void toModelDuals(const QpTranslation& translation, std::vector<double>& duals) {
+    // See the header for why this is a negation and not a copy, and why the
+    // maximisation case is the opposite sign rather than the same one.
+    const double sign = translation.objectiveNegated ? 1.0 : -1.0;
+    for (double& value : duals) {
+        value *= sign;
+    }
+}
+
 }  // namespace qp

@@ -1,0 +1,10 @@
+{
+  "opt_lp.mps": 36.0,
+  "degenerate_lp.mps": -4.0,
+  "ranged_lp.mps": 6.0,
+  "max_offset_lp.mps": 109.0,
+  "milp_knapsack.mps": 9.0,
+  "convex_qp.mps": 2.0,
+  "max_qp.mps": 7.5,
+  "free_fixed.mps": -1.0
+}

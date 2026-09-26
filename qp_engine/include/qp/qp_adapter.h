@@ -7,6 +7,8 @@
 #include "model/model.h"
 #include "qp/qp_model.h"
 
+#include <vector>
+
 namespace qp {
 
 // Converts a model::Model (which may contain quadratic terms) into a qp::QpModel
@@ -40,6 +42,37 @@ struct QpTranslation {
 };
 
 [[nodiscard]] QpModel fromModel(const model::Model& model, QpTranslation& translation);
+
+// THE RETURN HALF. Required, and it was missing.
+//
+// fromModel() existed without a counterpart, so AdmmResult::constraintDual was
+// copied straight out to callers. It is not a shadow price. The ADMM's
+// stationarity condition is
+//
+//     P x + q + A^T y = 0
+//
+// while the usual Lagrange multiplier lambda satisfies A^T lambda = grad f, so
+// y = -lambda. Exactly the same convention mismatch pdlp_adapter documents and
+// corrects; this engine simply had nowhere to correct it.
+//
+// A maximisation adds a second negation, because fromModel() negated P and q to
+// hand the engine an equivalent minimisation. The two compose rather than
+// cancel:
+//
+//     minimisation:  shadow price = -y_admm
+//     maximisation:  shadow price = +y_admm
+//
+// Measured before this existed: on "min x^2 + y^2 s.t. x + y >= 2" the engine
+// returned -2 where the shadow price is +2. The primal was exact, so nothing
+// downstream looked wrong; postsolve's residual gate refused to publish the
+// duals with a violation of 4.0 and the solve reported optimal with no
+// sensitivity information at all.
+//
+// Modifies `duals` in place. The QP adapter appends one identity row per
+// bounded variable, so entries beyond the model's row count are bound
+// multipliers rather than row duals; they take the same sign convention and are
+// converted too, so a caller that keeps them gets consistent values.
+void toModelDuals(const QpTranslation& translation, std::vector<double>& duals);
 
 // Convenience overload for callers that don't need the translation (existing
 // tests, ad hoc use). Prefer the two-argument form when reporting objective

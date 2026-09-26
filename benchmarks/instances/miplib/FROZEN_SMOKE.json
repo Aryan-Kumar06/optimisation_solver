@@ -1,0 +1,127 @@
+{
+  "frozen_utc": "2026-09-10T12:45:22.791571+00:00",
+  "source": "https://miplib.zib.de/ (MIPLIB 2017 Collection Set metadata table)",
+  "protocol": "Selection criteria were fixed from the solver's DOCUMENTED limits before any instance was downloaded or run, and this file was written before the first solve. Compatibility screening (does the file parse?) is performed after freezing and is not a performance observation; an instance that turns out incompatible is recorded as such and NOT replaced.",
+  "a_priori_criteria": {
+    "constraints_lt": 2000,
+    "constraints_rationale": "the dual simplex maintains a DENSE m x m basis inverse allocated up front (8*m^2 bytes) and branch-and-cut solves every node with it; this is the documented dispatcher ceiling, not a tuning choice",
+    "nonzeros_le": 500000,
+    "variables_le": 3000,
+    "excluded_tags": [
+      "indicator",
+      "sos"
+    ],
+    "excluded_tags_rationale": "the MPS reader rejects INDICATORS and SOS sections outright rather than silently dropping them, so such instances cannot be represented",
+    "requires_reference_objective": true
+  },
+  "difficulty_caveat": "MIPLIB's easy/hard/open status describes REFERENCE solvers, not ours. It was not used to select for tractability and carries no expectation that our engine finds these easy.",
+  "candidate_pool_size": 168,
+  "selection": [
+    {
+      "name": "flugpl",
+      "url": "https://miplib.zib.de/WebData/instances/flugpl.mps.gz",
+      "miplib_status": "easy",
+      "reference_objective": 1201500.0,
+      "reference_kind": "proven_optimal",
+      "reference_kind_basis": "MIPLIB status 'easy'/'hard' means the instance has been solved to proven optimality by reference solvers; 'open' means the value is a best-known incumbent with no optimality proof",
+      "constraints": 18,
+      "variables": 18,
+      "binaries": 0,
+      "general_integers": 11,
+      "continuous": 7,
+      "nonzeros": 46,
+      "tags": [
+        "aggregations",
+        "variable_bound",
+        "general_linear"
+      ],
+      "structural_rationale": "general integers WITH continuous variables; aggregations / variable_bound structure; smallest mixed general-integer case in the compatible pool"
+    },
+    {
+      "name": "gen-ip054",
+      "url": "https://miplib.zib.de/WebData/instances/gen-ip054.mps.gz",
+      "miplib_status": "easy",
+      "reference_objective": 6840.96564179,
+      "reference_kind": "proven_optimal",
+      "reference_kind_basis": "MIPLIB status 'easy'/'hard' means the instance has been solved to proven optimality by reference solvers; 'open' means the value is a best-known incumbent with no optimality proof",
+      "constraints": 27,
+      "variables": 30,
+      "binaries": 0,
+      "general_integers": 30,
+      "continuous": 0,
+      "nonzeros": 532,
+      "tags": [
+        "benchmark",
+        "benchmark_suitable",
+        "variable_bound",
+        "general_linear"
+      ],
+      "structural_rationale": "PURE general integer (no binaries, no continuous) -- exercises branching on non-binary domains"
+    },
+    {
+      "name": "mas74",
+      "url": "https://miplib.zib.de/WebData/instances/mas74.mps.gz",
+      "miplib_status": "easy",
+      "reference_objective": 11801.18572,
+      "reference_kind": "proven_optimal",
+      "reference_kind_basis": "MIPLIB status 'easy'/'hard' means the instance has been solved to proven optimality by reference solvers; 'open' means the value is a best-known incumbent with no optimality proof",
+      "constraints": 13,
+      "variables": 151,
+      "binaries": 150,
+      "general_integers": 0,
+      "continuous": 1,
+      "nonzeros": 1706,
+      "tags": [
+        "benchmark",
+        "benchmark_suitable",
+        "invariant_knapsack",
+        "mixed_binary"
+      ],
+      "structural_rationale": "binary knapsack, WIDE aspect ratio (13 rows x 151 columns); invariant_knapsack structure"
+    },
+    {
+      "name": "pk1",
+      "url": "https://miplib.zib.de/WebData/instances/pk1.mps.gz",
+      "miplib_status": "easy",
+      "reference_objective": 11.0,
+      "reference_kind": "proven_optimal",
+      "reference_kind_basis": "MIPLIB status 'easy'/'hard' means the instance has been solved to proven optimality by reference solvers; 'open' means the value is a best-known incumbent with no optimality proof",
+      "constraints": 45,
+      "variables": 86,
+      "binaries": 55,
+      "general_integers": 0,
+      "continuous": 31,
+      "nonzeros": 915,
+      "tags": [
+        "benchmark",
+        "benchmark_suitable",
+        "precedence",
+        "mixed_binary"
+      ],
+      "structural_rationale": "mixed binary with continuous and precedence structure; medium row count"
+    },
+    {
+      "name": "mad",
+      "url": "https://miplib.zib.de/WebData/instances/mad.mps.gz",
+      "miplib_status": "easy",
+      "reference_objective": 0.0268,
+      "reference_kind": "proven_optimal",
+      "reference_kind_basis": "MIPLIB status 'easy'/'hard' means the instance has been solved to proven optimality by reference solvers; 'open' means the value is a best-known incumbent with no optimality proof",
+      "constraints": 51,
+      "variables": 220,
+      "binaries": 200,
+      "general_integers": 0,
+      "continuous": 20,
+      "nonzeros": 2808,
+      "tags": [
+        "benchmark",
+        "benchmark_suitable",
+        "set_partitioning",
+        "set_packing",
+        "invariant_knapsack",
+        "mixed_binary"
+      ],
+      "structural_rationale": "set partitioning over 200 binaries -- the equality-over-binaries structure the classifier detects"
+    }
+  ]
+}

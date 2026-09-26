@@ -44,6 +44,22 @@ const char* toString(Engine value) noexcept {
     return "unknown";
 }
 
+std::optional<Engine> parseEngine(std::string_view name) noexcept {
+    if (name == "pdlp") {
+        return Engine::Pdlp;
+    }
+    if (name == "dual_simplex") {
+        return Engine::DualSimplex;
+    }
+    if (name == "branch_and_cut") {
+        return Engine::BranchAndCut;
+    }
+    if (name == "qp") {
+        return Engine::Qp;
+    }
+    return std::nullopt;
+}
+
 DispatchDecision dispatch(
     const model::Model& reduced,
     const Classification& classification,
