@@ -115,6 +115,100 @@ void testTimeLimit() {
     require(r.status == miqp::MiqpStatus::TimeLimit, "time limit must stop tree");
 }
 
+void testNearIntegralRoundedCandidateIsRevalidatedAndBranched() {
+    model::Model m;
+    m.name = "near_integral_rounding";
+
+    m.variables = {
+        var("x", model::VariableType::Integer, 0.0, 2.0)
+    };
+
+    m.constraints = {
+        row("strict_upper",
+            -INF,
+            0.99999995,
+            {{0, 1.0}})
+    };
+
+    m.objective.sense =
+        model::ObjectiveSense::Minimize;
+
+    m.objective.offset =
+        0.9999998800000036;
+
+    m.objective.linearTerms = {
+        {0, -1.99999988}
+    };
+
+    m.objective.quadraticTerms = {
+        {0, 0, 1.0}
+    };
+
+    const auto r =
+        miqp::BranchAndBoundSolver{}.solve(m);
+
+    require(
+        r.status == miqp::MiqpStatus::Optimal,
+        "near-integral MIQP should continue after invalid rounding");
+
+    require(
+        r.nodeCount >= 2,
+        "invalid rounded root candidate must cause branching");
+
+    require(
+        r.primal.size() == 1,
+        "complete primal expected");
+
+    require(
+        std::abs(r.primal[0]) < 1e-9,
+        "x=1 is infeasible, so valid optimum must be x=0");
+}
+
+void testBinaryVariablePath() {
+    model::Model m;
+    m.name = "binary_regression";
+
+    m.variables = {
+        var("b", model::VariableType::Binary, 0.0, 1.0)
+    };
+
+    m.objective.sense =
+        model::ObjectiveSense::Minimize;
+
+    m.objective.offset = 0.64;
+
+    m.objective.linearTerms = {
+        {0, -1.6}
+    };
+
+    m.objective.quadraticTerms = {
+        {0, 0, 1.0}
+    };
+
+    const auto r =
+        miqp::BranchAndBoundSolver{}.solve(m);
+
+    require(
+        r.status == miqp::MiqpStatus::Optimal,
+        "binary MIQP should solve");
+
+    require(
+        r.nodeCount >= 2,
+        "binary relaxation should require branching");
+
+    require(
+        r.primal.size() == 1,
+        "binary primal expected");
+
+    require(
+        std::abs(r.primal[0] - 1.0) < 1e-9,
+        "binary optimum should be b=1");
+
+    require(
+        std::abs(r.objectiveValue - 0.04) < 2e-4,
+        "binary objective should match known optimum");
+}
+
 void testUnboundedRelaxationDoesNotClaimMiqpUnbounded() {
     model::Model m;
     m.variables = {
@@ -149,5 +243,10 @@ int main() {
     run("time limit", testTimeLimit);
     run("unbounded relaxation is not MIQP certificate",
         testUnboundedRelaxationDoesNotClaimMiqpUnbounded);
+    run("near-integral rounded candidate is revalidated and branched",
+    testNearIntegralRoundedCandidateIsRevalidatedAndBranched);
+
+    run("binary variable path",
+        testBinaryVariablePath);
     return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

@@ -1,5 +1,6 @@
 add_library(miqp_engine
     src/branch_and_bound.cpp
+    src/feasibility.cpp
     ${CMAKE_SOURCE_DIR}/src/model/model.cpp
 )
 
@@ -20,3 +21,4 @@ enable_testing()
 add_executable(test_miqp tests/test_miqp.cpp)
 target_link_libraries(test_miqp PRIVATE miqp_engine)
 add_test(NAME test_miqp COMMAND test_miqp)
+

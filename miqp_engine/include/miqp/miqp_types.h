@@ -19,6 +19,7 @@ struct MiqpOptions {
     double timeLimitSeconds = 0.0;
     std::int64_t nodeLimit = 0;
     double integralityTolerance = 1e-6;
+    double feasibilityTolerance = 1e-7;
     double objectiveTolerance = 1e-8;
     int threadCount = 0;
 };

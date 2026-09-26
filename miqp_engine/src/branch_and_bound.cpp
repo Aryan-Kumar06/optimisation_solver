@@ -1,5 +1,5 @@
 #include "miqp/branch_and_bound.h"
-
+#include "miqp/feasibility.h"
 #include "qp/convexity.h"
 #include "qp/qp_adapter.h"
 #include "qp/qp_solver.h"
@@ -22,12 +22,55 @@ struct Node {
     int depth = 0;
 };
 
+bool nodeRowsDefinitelyInfeasible(const model::Model& model,
+                                  const Node& node,
+                                  double tolerance) {
+    for (const auto& constraint : model.constraints) {
+        double minActivity = 0.0;
+        double maxActivity = 0.0;
+
+        for (const auto& term : constraint.linearTerms) {
+            if (term.value == 0.0) {
+                continue;
+            }
+
+            const std::size_t j =
+                static_cast<std::size_t>(term.variableIndex);
+
+            if (j >= node.lower.size()) {
+                return true;
+            }
+
+            if (term.value > 0.0) {
+                minActivity += term.value * node.lower[j];
+                maxActivity += term.value * node.upper[j];
+            } else {
+                minActivity += term.value * node.upper[j];
+                maxActivity += term.value * node.lower[j];
+            }
+        }
+
+        if (std::isfinite(constraint.lowerBound) &&
+            maxActivity < constraint.lowerBound - tolerance) {
+            return true;
+        }
+
+        if (std::isfinite(constraint.upperBound) &&
+            minActivity > constraint.upperBound + tolerance) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 bool better(double candidate, double incumbent, bool maximize, double tol) {
     return maximize ? candidate > incumbent + tol : candidate < incumbent - tol;
 }
 
 bool prunable(double bound, double incumbent, bool maximize, double tol) {
-    return maximize ? bound <= incumbent + tol : bound >= incumbent - tol;
+    return maximize ? bound <= incumbent - tol
+                : bound >= incumbent + tol;
 }
 
 int chooseBranchVariable(const model::Model& model,
@@ -128,6 +171,10 @@ MiqpResult BranchAndBoundSolver::solve(const model::Model& model,
         }
         if (inconsistent) continue;
 
+        if (nodeRowsDefinitelyInfeasible(model, node, 1e-12)) {
+    continue;
+}
+
         qp::QpTranslation translation;
         qp::QpModel qpModel;
         try {
@@ -139,8 +186,12 @@ MiqpResult BranchAndBoundSolver::solve(const model::Model& model,
         }
 
         qp::AdmmOptions qpOptions;
-        qpOptions.primalTolerance = options.integralityTolerance * 0.1;
-        qpOptions.dualTolerance = options.integralityTolerance * 0.1;
+        const double qpTolerance =
+        std::min(options.integralityTolerance * 0.1,
+                options.feasibilityTolerance * 0.1);
+
+        qpOptions.primalTolerance = qpTolerance;
+        qpOptions.dualTolerance = qpTolerance;
         qpOptions.threadCount = options.threadCount;
         if (options.timeLimitSeconds > 0.0) {
             qpOptions.timeLimitSeconds = std::max(0.0, options.timeLimitSeconds - elapsed());
@@ -192,29 +243,79 @@ MiqpResult BranchAndBoundSolver::solve(const model::Model& model,
             (translation.objectiveNegated ? -relaxationResult.primalObjective
                                           : relaxationResult.primalObjective) +
             translation.objectiveOffset;
-        if (hasIncumbent && prunable(bound, incumbent, maximize, options.objectiveTolerance)) {
-            continue;
+        const double pruningTolerance =
+    std::max(options.objectiveTolerance,
+             10.0 * qpOptions.primalTolerance);
+
+if (hasIncumbent &&
+    prunable(bound,
+             incumbent,
+             maximize,
+             pruningTolerance)) {
+    continue;
+}
+
+int branch = chooseBranchVariable(
+    model,
+    relaxationResult.primal,
+    options.integralityTolerance);
+
+if (branch < 0) {
+    std::vector<double> roundedCandidate =
+        relaxationResult.primal;
+
+    for (std::size_t j = 0;
+         j < roundedCandidate.size();
+         ++j) {
+        if (model.variables[j].type !=
+            model::VariableType::Continuous) {
+            roundedCandidate[j] =
+                std::round(roundedCandidate[j]);
+        }
+    }
+
+    const FeasibilityCheck feasibility =
+        checkFeasibility(
+            model,
+            roundedCandidate,
+            options.feasibilityTolerance,
+            options.integralityTolerance);
+
+    const FeasibilityCheck roundingSafety =
+        checkRoundingSafety(
+            model,
+            relaxationResult.primal,
+            roundedCandidate);
+
+    if (feasibility.feasible &&
+        roundingSafety.feasible) {
+
+        const double candidate =
+            modelObjective(model, roundedCandidate);
+
+        if (!hasIncumbent ||
+            better(candidate,
+                   incumbent,
+                   maximize,
+                   options.objectiveTolerance)) {
+
+            hasIncumbent = true;
+            incumbent = candidate;
+            incumbentX = std::move(roundedCandidate);
         }
 
-        const int branch = chooseBranchVariable(model, relaxationResult.primal,
-                                                options.integralityTolerance);
-        if (branch < 0) {
-            const double candidate = modelObjective(model, relaxationResult.primal);
-            if (!hasIncumbent || better(candidate, incumbent, maximize,
-                                        options.objectiveTolerance)) {
-                hasIncumbent = true;
-                incumbent = candidate;
-                incumbentX = relaxationResult.primal;
-                // Snap integer variables that are already within tolerance.
-                for (std::size_t j = 0; j < incumbentX.size(); ++j) {
-                    if (model.variables[j].type != model::VariableType::Continuous) {
-                        incumbentX[j] = std::round(incumbentX[j]);
-                    }
-                }
-                incumbent = modelObjective(model, incumbentX);
-            }
-            continue;
-        }
+        continue;
+    }
+
+    branch = chooseBranchVariable(
+        model,
+        relaxationResult.primal,
+        std::numeric_limits<double>::epsilon());
+
+    if (branch < 0) {
+        continue;
+    }
+}
 
         const std::size_t j = static_cast<std::size_t>(branch);
         const double value = relaxationResult.primal[j];
@@ -230,10 +331,25 @@ MiqpResult BranchAndBoundSolver::solve(const model::Model& model,
         upperChild.lower[j] = std::max(upperChild.lower[j], up);
 
         // LIFO order: push upper first so the down branch is explored first.
-        if (upperChild.lower[j] <= upperChild.upper[j] + options.integralityTolerance)
-            stack.push_back(std::move(upperChild));
-        if (lowerChild.lower[j] <= lowerChild.upper[j] + options.integralityTolerance)
-            stack.push_back(std::move(lowerChild));
+        const bool upperTightens =
+    upperChild.lower[j] > node.lower[j];
+
+const bool lowerTightens =
+    lowerChild.upper[j] < node.upper[j];
+
+if (upperTightens &&
+    upperChild.lower[j] <=
+        upperChild.upper[j] +
+            options.integralityTolerance) {
+    stack.push_back(std::move(upperChild));
+}
+
+if (lowerTightens &&
+    lowerChild.lower[j] <=
+        lowerChild.upper[j] +
+            options.integralityTolerance) {
+    stack.push_back(std::move(lowerChild));
+}
     }
 
     if (!hasIncumbent) {
