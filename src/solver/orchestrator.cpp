@@ -332,6 +332,7 @@ SolveResult runPdlp(const model::Model& reduced, const SolverOptions& options,
     engineOptions.dualTolerance = options.tolerance;
     engineOptions.gapTolerance = options.tolerance;
     engineOptions.timeLimitSeconds = options.timeLimitSeconds;
+    engineOptions.threadCount = options.threadCount;
     result.executedEngine = Engine::Pdlp;
     const pdlp::PdlpResult raw = pdlp::PdlpSolver{}.solve(compiled, engineOptions);
     const adapter::ModelSolution solution =
@@ -437,6 +438,7 @@ SolveResult runQp(const model::Model& reduced, const SolverOptions& options,
     engineOptions.primalTolerance = options.tolerance;
     engineOptions.dualTolerance = options.tolerance;
     engineOptions.timeLimitSeconds = options.timeLimitSeconds;
+    engineOptions.threadCount = options.threadCount;
     result.executedEngine = Engine::Qp;
     const qp::AdmmResult raw = qp::QpSolver{}.solve(problem, engineOptions);
 
@@ -463,11 +465,18 @@ SolveResult runQp(const model::Model& reduced, const SolverOptions& options,
         result.constraintDuals.assign(raw.constraintDual.begin(),
                                       raw.constraintDual.begin() +
                                           static_cast<std::ptrdiff_t>(rows));
-        // ADMM uses grad + A^T y = 0. Convert to shadow prices, undoing
-        // the objective negation for maximization exactly once.
-        const double sign = translation.objectiveNegated ? 1.0 : -1.0;
-        for (double& dual : result.constraintDuals) dual *= sign;
-        result.hasDuals = true;
+        // ADMM uses grad + A^T y = 0, so its multiplier is the NEGATIVE of a
+        // shadow price, and a maximisation negates it again -- the two compose
+        // rather than cancel. The rule itself is unchanged; it now lives in
+        // qp_adapter as the return half of fromModel(), mirroring how
+        // pdlp_adapter pairs its two directions, so there is one place to read
+        // it and one place to get it wrong.
+        //
+        // hasDuals is `rows > 0` rather than an unconditional true: with no
+        // constraints there are no row duals to report, and claiming otherwise
+        // hands a caller an empty vector flagged as present.
+        qp::toModelDuals(translation, result.constraintDuals);
+        result.hasDuals = rows > 0;
     }
     return result;
 }
@@ -476,6 +485,7 @@ SolveResult runBranchAndCut(const model::Model& reduced, const SolverOptions& op
                             SolveResult result) {
     milp::MilpOptions engineOptions;
     engineOptions.timeLimitSeconds = options.timeLimitSeconds;
+    engineOptions.threadCount = options.threadCount;
     result.executedEngine = Engine::BranchAndCut;
     const milp::MilpResult raw =
         milp::BranchAndBoundSolver{}.solve(reduced, engineOptions);

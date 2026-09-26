@@ -1,0 +1,41 @@
+{
+  "recorded_utc": "2026-09-10T11:40:53.387087+00:00",
+  "commit": "e002a0b94892a9fb7f28571a089c78915bc45331",
+  "commit_subject": "Parse the MPS constructs the format actually defines",
+  "branch": "mps-format-support",
+  "tree_dirty": true,
+  "build": {
+    "generator": "Unix Makefiles",
+    "build_type": "Release",
+    "cxx_standard": 17,
+    "cxx_extensions": false,
+    "compiler": "Apple clang version 15.0.0 (clang-1500.3.9.4)",
+    "cmake": "cmake version 4.4.3",
+    "flags": "-O3 -DNDEBUG (CMAKE_BUILD_TYPE=Release default)",
+    "dir": "build-release"
+  },
+  "platform": {
+    "system": "Darwin",
+    "release": "24.3.0",
+    "machine": "arm64",
+    "python": "3.13.6",
+    "cpu_count": 8
+  },
+  "ctest": {
+    "total": 48,
+    "passed": 48,
+    "failed": 0,
+    "wall_seconds": 8.08
+  },
+  "ctest_after": {
+    "total": 50,
+    "passed": 50,
+    "failed": 0
+  },
+  "pipeline_selftests": 48,
+  "fixes_applied": [
+    "qp_engine: added qp::toModelDuals return-half; ADMM row multipliers are now converted to shadow prices (sign depends on objective sense)",
+    "benchmarks/lib/verify.py: dual-objective construction now tolerance-gates negligible multipliers against infinite bounds",
+    "benchmarks/instances/known: degenerate_lp and max_offset_lp rebuilt with two-term rows so they survive presolve"
+  ]
+}

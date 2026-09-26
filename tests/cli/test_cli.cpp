@@ -115,9 +115,9 @@ void test_solve_extra_arguments() {
 
 void test_solve_unknown_option() {
     std::string out, err;
-    int code = runCli({"optimsolver", "solve", "model.mps", "--threads", "4"}, out, err);
+    int code = runCli({"optimsolver", "solve", "model.mps", "--nonexistent-flag", "4"}, out, err);
     assert(code != 0);
-    assert(err.find("Unknown option '--threads'") != std::string::npos);
+    assert(err.find("Unknown option '--nonexistent-flag'") != std::string::npos);
 
     std::cout << "[PASSED] test_solve_unknown_option\n";
 }

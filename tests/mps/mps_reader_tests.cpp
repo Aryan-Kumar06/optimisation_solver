@@ -428,6 +428,31 @@ void test_integral_bound_values() {
     std::cout << "[PASS] LI/UI require integral values with line-numbered errors\n";
 }
 
+// The RHS/RANGES set name is optional. Netlib's blend omits it, and before
+// this the reader consumed field 1 as the set name regardless, took a row name
+// for it, and failed the whole file. Parity of the field count is what decides:
+// records are (row, value) pairs, so an odd count carries a name and an even
+// count does not.
+void test_rhs_without_set_name() {
+    mps::MpsReader reader;
+    model::Model m = reader.read("tests/mps/test_cases/17_rhs_no_set_name.mps");
+
+    assert(std::isinf(rowNamed(m, "C1").lowerBound) &&
+           rowNamed(m, "C1").lowerBound < 0);
+    assert(rowNamed(m, "C1").upperBound == 10.0);
+
+    // RANGES also omits its set name; G row with rhs 5 and range 4 -> [5, 9].
+    assert(rowNamed(m, "C2").lowerBound == 5.0);
+    assert(rowNamed(m, "C2").upperBound == 9.0);
+
+    // A named set must still work, and must still select the first vector.
+    model::Model named = reader.read("tests/mps/test_cases/07_ranges.mps");
+    assert(rowNamed(named, "C1").lowerBound == 6.0);
+    assert(rowNamed(named, "C1").upperBound == 10.0);
+
+    std::cout << "[PASS] Test 15: RHS/RANGES with the set name omitted" << std::endl;
+}
+
 int main() {
     std::cout << "--- Running MPS Reader Test Suite ---" << std::endl;
     test_basic_lp();
@@ -444,6 +469,7 @@ int main() {
     test_quadratic_objective();
     test_rejects_unknown_section();
     test_rejects_sos();
+    test_rhs_without_set_name();
     test_first_vectors();
     test_marker_fields();
     test_integral_bound_values();

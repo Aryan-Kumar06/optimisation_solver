@@ -104,6 +104,94 @@ static void checkCase(const char* tag, const model::Model& m,
          std::string(tag) + ": reported objective == direct evaluation of Model");
 }
 
+
+// ---------------------------------------------------------------------------
+// QP DUAL CONVENTION
+//
+// A row dual must be a shadow price, d(objective)/d(right-hand side), in the
+// model's OWN sense -- the same convention HiGHS reports and the one postsolve
+// requires.
+//
+// This was wrong and nothing caught it. qp::fromModel had no return half, so
+// AdmmResult::constraintDual reached callers unmodified. The ADMM's
+// stationarity is P x + q + A^T y = 0 while a Lagrange multiplier satisfies
+// A^T lambda = grad f, making y = -lambda. Measured on "min x^2 + y^2 s.t.
+// x + y >= 2" the engine returned -2 where the shadow price is +2. The primal
+// was exact, so no status looked wrong; postsolve's residual gate quietly
+// refused to publish the duals and every QP solve reported optimal with no
+// sensitivities at all.
+//
+// A maximisation negates AGAIN, because fromModel negates P and q to hand the
+// engine a minimisation. The two do not cancel:
+//     minimisation:  shadow price = -y_admm
+//     maximisation:  shadow price = +y_admm
+//
+// Both rows below use TWO terms on purpose. A single-term row is a bound in
+// disguise and presolve removes it, leaving no dual to check -- which is how a
+// weaker version of this test passed while the bug was live.
+// ---------------------------------------------------------------------------
+static void checkDual(const char* tag, const model::Model& m,
+                      double wantObjective, double wantDual, double tol) {
+    const solver::SolveResult r = solver::solve(m, {});
+    ck(r.status == solver::SolveStatus::Optimal,
+       std::string(tag) + ": optimal");
+    near(r.objectiveValue, wantObjective, tol, std::string(tag) + ": objective");
+    ck(r.hasDuals && r.constraintDuals.size() == 1,
+       std::string(tag) + ": one row dual is reported");
+    if (r.hasDuals && r.constraintDuals.size() == 1) {
+        near(r.constraintDuals[0], wantDual, tol, std::string(tag) + ": shadow price");
+        // Sign is the part that was wrong, so assert it on its own rather than
+        // letting a tolerance on the magnitude hide it.
+        ck((r.constraintDuals[0] > 0.0) == (wantDual > 0.0),
+           std::string(tag) + ": shadow price has the correct SIGN");
+    }
+}
+
+static void qpDualConventionCases() {
+    // min x^2 + y^2 s.t. x + y >= 2  ->  x=y=1, f=2.
+    // grad f = (2,2); A^T lambda = grad f gives lambda = 2. Tightening the row
+    // by one unit raises the objective, so the shadow price is POSITIVE.
+    {
+        B b; b.var("x",-10.0,10.0); b.var("y",-10.0,10.0);
+        b.row("c0", 2.0, INF, {{0,1.0},{1,1.0}});
+        b.m.objective.sense = model::ObjectiveSense::Minimize;
+        b.m.objective.quadraticTerms = {{0,0,1.0},{1,1,1.0}};
+        checkDual("min QP, >= row", b.m, 2.0, 2.0, 1e-4);
+    }
+
+    // max -x^2 - y^2 + 4x + 4y s.t. x + y <= 3  ->  x=y=1.5, f=7.5.
+    // With x=y=u/2, f(u) = -u^2/2 + 4u, so df/du = -u + 4 = +1 at u=3.
+    // POSITIVE: relaxing a binding <= row of a maximisation helps. Reporting a
+    // negative number here would claim the opposite.
+    {
+        B b; b.var("x",-10.0,10.0); b.var("y",-10.0,10.0);
+        b.row("c0", -INF, 3.0, {{0,1.0},{1,1.0}});
+        b.m.objective.sense = model::ObjectiveSense::Maximize;
+        b.m.objective.linearTerms = {{0,4.0},{1,4.0}};
+        b.m.objective.quadraticTerms = {{0,0,-1.0},{1,1,-1.0}};
+        checkDual("max QP, <= row", b.m, 7.5, 1.0, 1e-4);
+    }
+
+    // Strong duality must reproduce the objective from the multipliers. This is
+    // the check that fails for ANY wrong sign or scale, not just a flip.
+    {
+        B b; b.var("x",-10.0,10.0); b.var("y",-10.0,10.0);
+        b.row("c0", 2.0, INF, {{0,1.0},{1,1.0}});
+        b.m.objective.sense = model::ObjectiveSense::Minimize;
+        b.m.objective.quadraticTerms = {{0,0,1.0},{1,1,1.0}};
+        const solver::SolveResult r = solver::solve(b.m, {});
+        if (r.hasDuals && r.constraintDuals.size() == 1 && r.variableValues.size() == 2) {
+            // For min 0.5 x'Px + q'x with an active row, the dual objective is
+            //   rhs * y  -  (quadratic part evaluated at x*)
+            const double quadratic = r.variableValues[0]*r.variableValues[0] +
+                                     r.variableValues[1]*r.variableValues[1];
+            const double dualObjective = 2.0 * r.constraintDuals[0] - quadratic;
+            near(dualObjective, r.objectiveValue, 1e-4,
+                 "min QP: strong duality reproduces the objective from the dual");
+        }
+    }
+}
+
 int main() {
     std::printf("=== Section 3: QP convention, sense, and offset ===\n");
 
@@ -220,6 +308,8 @@ int main() {
         b.m.objective.quadraticTerms = {{0,0,1.0},{1,1,1.0}};
         checkCase("fixed variable x==3", b.m, {3.0,0.0}, 9.0, 1e-4, 1e-4);
     }
+
+    qpDualConventionCases();
 
     std::printf("\n%d checks, %d failures\n", checks, failures);
     return failures == 0 ? 0 : 1;

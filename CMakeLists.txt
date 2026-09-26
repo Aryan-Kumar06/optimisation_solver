@@ -17,6 +17,27 @@ target_include_directories(bench PRIVATE
     ${PROJECT_SOURCE_DIR}/include
 )
 
+
+# ---------------------------------------------------------------------------
+# assert() and Release builds
+#
+# CMake gives every Release build -DNDEBUG, which compiles assert() out. Many
+# test files here use assert() as their ONLY check, so under Release they ran
+# their setup, verified nothing, and reported success unconditionally -- a green
+# ctest run in Release was not evidence those assertions held. Undefining NDEBUG
+# for TEST targets only (never the libraries under test, which stay optimised)
+# makes their assertions fire in every build type.
+# ---------------------------------------------------------------------------
+function(optimsolver_enable_assertions target)
+    if(TARGET ${target})
+        if(MSVC)
+            target_compile_options(${target} PRIVATE /UNDEBUG)
+        else()
+            target_compile_options(${target} PRIVATE -UNDEBUG)
+        endif()
+    endif()
+endfunction()
+
 enable_testing()
 
 add_executable(test_batch2
@@ -248,6 +269,7 @@ add_library(optimsolver_cli
     cli/argument_parser.cpp
     cli/cli.cpp
     cli/mascot.cpp
+    cli/json_report.cpp
 )
 target_include_directories(optimsolver_cli PUBLIC
     ${PROJECT_SOURCE_DIR}/cli
@@ -258,6 +280,21 @@ target_link_libraries(optimsolver_cli PUBLIC
     mps_reader
     postsolver
 )
+execute_process(
+    COMMAND git rev-parse HEAD
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+    OUTPUT_VARIABLE OPTIMSOLVER_GIT_COMMIT
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+if(NOT OPTIMSOLVER_GIT_COMMIT)
+    set(OPTIMSOLVER_GIT_COMMIT "unknown")
+endif()
+target_compile_definitions(optimsolver_cli PRIVATE
+    OPTIMSOLVER_GIT_COMMIT="${OPTIMSOLVER_GIT_COMMIT}"
+    OPTIMSOLVER_BUILD_TYPE="${CMAKE_BUILD_TYPE}"
+)
+
 target_compile_features(optimsolver_cli PUBLIC cxx_std_17)
 if(NOT MSVC)
     target_compile_options(optimsolver_cli PRIVATE -Wall -Wextra -Wpedantic)
@@ -278,3 +315,53 @@ target_compile_definitions(test_cli PRIVATE
     TEST_SOURCE_DIR="${PROJECT_SOURCE_DIR}"
 )
 add_test(NAME test_cli COMMAND test_cli)
+
+# ---------------------------------------------------------------------------
+# Benchmark harness. POSIX only (see benchmarks/harness/process_manager.h), so
+# it is guarded rather than failing to build on Windows. It is the promoted form
+# of benchmark_model/benchmarkcode.cpp, which no target ever referenced.
+# ---------------------------------------------------------------------------
+if(NOT WIN32)
+    add_library(bench_harness benchmarks/harness/process_manager.cpp)
+    target_include_directories(bench_harness PUBLIC
+        ${PROJECT_SOURCE_DIR}/benchmarks/harness
+        ${PROJECT_SOURCE_DIR}/include
+    )
+    target_compile_features(bench_harness PUBLIC cxx_std_17)
+    if(NOT MSVC)
+        target_compile_options(bench_harness PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+
+    add_executable(bench_runner benchmarks/harness/bench_runner.cpp)
+    target_link_libraries(bench_runner PRIVATE bench_harness)
+
+    add_executable(test_process_manager benchmarks/harness/test_process_manager.cpp)
+    target_link_libraries(test_process_manager PRIVATE bench_harness)
+    add_test(NAME test_process_manager COMMAND test_process_manager)
+
+    # Proves the checker REJECTS wrong answers. A checker that never fails would
+    # make every benchmark run look green.
+    find_package(Python3 COMPONENTS Interpreter)
+    if(Python3_Interpreter_FOUND)
+        add_test(NAME test_benchmark_pipeline
+            COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/benchmarks/test_pipeline.py
+            WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(test_benchmark_pipeline PROPERTIES
+            TIMEOUT 300
+            ENVIRONMENT "OPTIMSOLVER_BINARY=$<TARGET_FILE:optimsolver>")
+    endif()
+endif()
+
+# Applied last so every test target, including those in engine subdirectories,
+# already exists.
+foreach(optimsolver_test_target IN ITEMS
+    bench test_batch2 test_presolve_correctness test_transformation_metadata
+    test_pipeline_cascades test_adversarial test_postsolve test_postsolve_duals
+    test_presolve_metadata test_classifier_dispatcher test_pdlp_adapter
+    test_mps_reader test_end_to_end test_qp_convention test_milp_enumeration
+    test_postsolve_integration test_cli test_process_manager
+    test_dual_simplex test_branch_and_bound test_gomory_cuts test_heuristics
+    test_branching pdlp_tests qp_tests)
+    optimsolver_enable_assertions(${optimsolver_test_target})
+endforeach()

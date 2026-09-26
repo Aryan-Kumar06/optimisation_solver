@@ -227,11 +227,26 @@ bool Postsolver::validateSolution(
     PostsolveResult& result) const {
   result.maxBoundResidual = 0.0;
   result.maxConstraintResidual = 0.0;
+  result.maxBoundResidualScaled = 0.0;
+  result.maxConstraintResidualScaled = 0.0;
+
+  // Size guard from origin/main: every loop below indexes x by variable, so a
+  // mismatched vector must be refused before any of them run.
   if (x.size() != originalModel.variables.size()) {
     result.status = PostsolveStatus::InvalidMapping;
     result.errorMessage = "Primal vector size does not match the supplied model.";
     return false;
   }
+
+  // Feasibility is judged as  violation <= tolerance_ + relativeTolerance_*scale,
+  // where `scale` is the entity's OWN magnitude. A purely absolute gate holds a
+  // row summing values in the millions to the same slack as a row of two small
+  // terms, which is a statement about units rather than about correctness.
+  // Integrality is deliberately NOT scaled below: being 0.4 away from an
+  // integer is 0.4 away whatever the variable's magnitude.
+  const auto feasTolerance = [this](double scale) {
+    return tolerance_ + relativeTolerance_ * scale;
+  };
 
   // 1. Explicitly reject all non-finite primal values (NaN, +Inf, -Inf)
   // before ordinary bound, integrality, or constraint validation.
@@ -250,18 +265,36 @@ bool Postsolver::validateSolution(
     const auto& var = originalModel.variables[i];
     double val = x[i];
 
+    const double boundScale = std::max({
+        1.0,
+        std::isfinite(var.lowerBound) ? std::abs(var.lowerBound) : 0.0,
+        std::isfinite(var.upperBound) ? std::abs(var.upperBound) : 0.0,
+        std::abs(val)});
+    const double boundTolerance = feasTolerance(boundScale);
+
+    // Residuals are recorded for EVERY variable, not only for the ones that
+    // breach the gate. Recording them only inside the violation branch made a
+    // passing solve report 0.0 when its true worst violation was 5.35e-06 --
+    // the reported number then said "exact" for a point that merely passed.
+    {
+      const double below = std::isfinite(var.lowerBound)
+                               ? std::max(0.0, var.lowerBound - val) : 0.0;
+      const double above = std::isfinite(var.upperBound)
+                               ? std::max(0.0, val - var.upperBound) : 0.0;
+      const double worst = std::max(below, above);
+      result.maxBoundResidual = std::max(result.maxBoundResidual, worst);
+      result.maxBoundResidualScaled =
+          std::max(result.maxBoundResidualScaled, worst / boundScale);
+    }
+
     // Check Lower Bound
-    if (val < var.lowerBound - tolerance_) {
-      double diff = var.lowerBound - val;
-      result.maxBoundResidual = std::max(result.maxBoundResidual, diff);
+    if (val < var.lowerBound - boundTolerance) {
       result.status = PostsolveStatus::BoundViolation;
       result.errorMessage = "Lower bound violation on variable " + var.name;
     }
 
     // Check Upper Bound
-    if (val > var.upperBound + tolerance_) {
-      double diff = val - var.upperBound;
-      result.maxBoundResidual = std::max(result.maxBoundResidual, diff);
+    if (val > var.upperBound + boundTolerance) {
       result.status = PostsolveStatus::BoundViolation;
       result.errorMessage = "Upper bound violation on variable " + var.name;
     }
@@ -305,18 +338,38 @@ bool Postsolver::validateSolution(
       return false;
     }
 
+    // The row's own magnitude: the size of the numbers actually being added
+    // up, not just its right-hand side.
+    double rowMagnitude = 0.0;
+    for (const auto& term : constraint.linearTerms) {
+      rowMagnitude += std::abs(term.value * x[term.variableIndex]);
+    }
+    const double rowScale = std::max({
+        1.0,
+        std::isfinite(constraint.lowerBound) ? std::abs(constraint.lowerBound) : 0.0,
+        std::isfinite(constraint.upperBound) ? std::abs(constraint.upperBound) : 0.0,
+        rowMagnitude});
+    const double rowTolerance = feasTolerance(rowScale);
+
+    {
+      const double below = std::isfinite(constraint.lowerBound)
+                               ? std::max(0.0, constraint.lowerBound - activity) : 0.0;
+      const double above = std::isfinite(constraint.upperBound)
+                               ? std::max(0.0, activity - constraint.upperBound) : 0.0;
+      const double worst = std::max(below, above);
+      result.maxConstraintResidual = std::max(result.maxConstraintResidual, worst);
+      result.maxConstraintResidualScaled =
+          std::max(result.maxConstraintResidualScaled, worst / rowScale);
+    }
+
     // Check Lower Bound violation
-    if (activity < constraint.lowerBound - tolerance_) {
-      double diff = constraint.lowerBound - activity;
-      result.maxConstraintResidual = std::max(result.maxConstraintResidual, diff);
+    if (activity < constraint.lowerBound - rowTolerance) {
       result.status = PostsolveStatus::ConstraintViolation;
       result.errorMessage = "Constraint lower bound violation on " + constraint.name;
     }
 
     // Check Upper Bound violation
-    if (activity > constraint.upperBound + tolerance_) {
-      double diff = activity - constraint.upperBound;
-      result.maxConstraintResidual = std::max(result.maxConstraintResidual, diff);
+    if (activity > constraint.upperBound + rowTolerance) {
       result.status = PostsolveStatus::ConstraintViolation;
       result.errorMessage = "Constraint upper bound violation on " + constraint.name;
     }

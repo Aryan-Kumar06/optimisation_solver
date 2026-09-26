@@ -6,6 +6,7 @@
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
+#include <vector>
 
 namespace mps {
 namespace {
@@ -25,6 +26,30 @@ std::string unquote(std::string value) {
     value.erase(std::remove(value.begin(), value.end(), '\''), value.end());
     value.erase(std::remove(value.begin(), value.end(), '"'), value.end());
     return value;
+}
+
+std::vector<std::string> splitFields(const std::string& line) {
+    std::vector<std::string> fields;
+    std::istringstream stream(line);
+    std::string token;
+    while (stream >> token) {
+        fields.push_back(token);
+    }
+    return fields;
+}
+
+bool parseNumber(const std::string& token, double& out) {
+    try {
+        std::size_t consumed = 0;
+        const double value = std::stod(token, &consumed);
+        if (consumed != token.size()) {
+            return false;
+        }
+        out = value;
+        return true;
+    } catch (const std::exception&) {
+        return false;
+    }
 }
 
 [[noreturn]] void fail(const std::string& message, std::size_t lineNumber) {
@@ -260,19 +285,40 @@ model::Model MpsReader::read(const std::string& filepath) {
             case MpsSection::RHS: {
                 // Keep all records belonging to the first RHS vector only,
                 // including its objective constant. Other vectors are alternatives.
-                if (selected_rhs_vector_.empty()) selected_rhs_vector_ = token;
-                if (token != selected_rhs_vector_) {
-                    warn("RHS vector '" + token + "' ignored; using first vector '" +
-                         selected_rhs_vector_ + "'");
-                    break;
+                // The set name in field 1 is OPTIONAL, and real files omit it.
+                // Netlib's blend writes
+                //     65   23.26   66   5.25
+                // with no set name, so consuming field 1 unconditionally ate a
+                // row name and the record then failed as "RHS entry for row
+                // '5.25' has no value" -- the whole file was unreadable.
+                //
+                // Records are (row, value) PAIRS, so an odd field count means a
+                // set name is present and an even count means it is not. Parity
+                // decides it, not position, and the multi-vector selection below
+                // only applies when a name was actually given.
+                const std::vector<std::string> fields = splitFields(line);
+                const bool named = (fields.size() % 2 == 1);
+                const std::size_t start = named ? 1u : 0u;
+
+                if (named) {
+                    if (selected_rhs_vector_.empty()) selected_rhs_vector_ = fields[0];
+                    if (fields[0] != selected_rhs_vector_) {
+                        warn("RHS vector '" + fields[0] +
+                             "' ignored; using first vector '" +
+                             selected_rhs_vector_ + "'");
+                        break;
+                    }
                 }
+
                 std::string row_name;
                 double value = 0.0;
                 int pairs = 0;
 
-                while (ss >> row_name) {
-                    if (!(ss >> value)) {
-                        fail("RHS entry for row '" + row_name + "' has no value",
+                for (std::size_t k = start; k + 1 < fields.size(); k += 2) {
+                    row_name = fields[k];
+                    if (!parseNumber(fields[k + 1], value)) {
+                        fail("RHS entry for row '" + row_name +
+                             "' has a non-numeric value '" + fields[k + 1] + "'",
                              lineNumber);
                     }
                     ++pairs;
@@ -306,18 +352,29 @@ model::Model MpsReader::read(const std::string& filepath) {
             }
 
             case MpsSection::RANGES: {
-                if (selected_ranges_vector_.empty()) selected_ranges_vector_ = token;
-                if (token != selected_ranges_vector_) {
-                    warn("RANGES vector '" + token + "' ignored; using first vector '" +
-                         selected_ranges_vector_ + "'");
-                    break;
+                // Same optional set name as RHS, decided by the same parity.
+                const std::vector<std::string> fields = splitFields(line);
+                const bool named = (fields.size() % 2 == 1);
+                const std::size_t start = named ? 1u : 0u;
+
+                if (named) {
+                    if (selected_ranges_vector_.empty()) selected_ranges_vector_ = fields[0];
+                    if (fields[0] != selected_ranges_vector_) {
+                        warn("RANGES vector '" + fields[0] +
+                             "' ignored; using first vector '" +
+                             selected_ranges_vector_ + "'");
+                        break;
+                    }
                 }
+
                 std::string row_name;
                 double value = 0.0;
 
-                while (ss >> row_name) {
-                    if (!(ss >> value)) {
-                        fail("RANGES entry for row '" + row_name + "' has no value",
+                for (std::size_t k = start; k + 1 < fields.size(); k += 2) {
+                    row_name = fields[k];
+                    if (!parseNumber(fields[k + 1], value)) {
+                        fail("RANGES entry for row '" + row_name +
+                             "' has a non-numeric value '" + fields[k + 1] + "'",
                              lineNumber);
                     }
 

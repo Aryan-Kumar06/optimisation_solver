@@ -1,0 +1,460 @@
+{
+  "tolerances": {
+    "feasibility_absolute": 1e-06,
+    "feasibility_relative": 1e-08,
+    "integrality_absolute": 1e-06,
+    "optimality_normalised": 1e-06,
+    "frozen": true
+  },
+  "results": [
+    {
+      "instance": "benchmarks/instances/miplib/mps/gt2.mps",
+      "instance_name": "gt2.mps",
+      "best_known_objective": 21165.99999999978,
+      "parse_check": {
+        "status": "agree",
+        "problem_class": "MILP",
+        "variables": 188,
+        "constraints": 29,
+        "nonzeros": 376,
+        "differences": [],
+        "difference_count": 0,
+        "independent_reader_warnings": []
+      },
+      "runs": [
+        {
+          "solver": "optimsolver:branch_and_cut",
+          "engine_use": {
+            "requested": "branch_and_cut",
+            "dispatched": "branch_and_cut",
+            "executed": "branch_and_cut",
+            "fallback": false,
+            "counts_for_requested": true,
+            "reason": null
+          },
+          "process": {
+            "run_status": "SUCCESS",
+            "exit_code": 0,
+            "terminating_signal": null,
+            "timed_out": false,
+            "killed_process_tree": false,
+            "escalated_to_sigkill": false,
+            "launch_failed": false,
+            "launch_error": null,
+            "wall_seconds": 0.019,
+            "timeout_seconds": 6,
+            "peak_memory_bytes": 2572288,
+            "stdout_truncated": false,
+            "stderr_truncated": false
+          },
+          "stage_seconds": {
+            "parse": 0.000407459,
+            "presolve": 0.001006041,
+            "solve": 0.015710875,
+            "postsolve": 2.792e-06
+          },
+          "orchestrator_wall_seconds": 0.023416625102981925,
+          "termination": {
+            "status": "numerical_failure",
+            "message": "branch-and-cut: lp_failure",
+            "dispatched_engine": "branch_and_cut",
+            "executed_engine": "branch_and_cut",
+            "engine_reason": "engine forced by the caller",
+            "reason": "lp_failure"
+          },
+          "settings": {
+            "requested_engine": "branch_and_cut",
+            "time_limit_seconds": 5,
+            "tolerance": 1e-08,
+            "thread_count": 1
+          },
+          "solver_objective": 30560,
+          "dual_bound": 17180.649247480127,
+          "mip_gap": 0.4378059801217236,
+          "work": {
+            "iterations": null,
+            "nodes": 64,
+            "solve_seconds": 0.015707542
+          },
+          "self_reported": {
+            "max_bound_residual": 0,
+            "max_constraint_residual": 0,
+            "max_dual_residual": null,
+            "max_integrality_violation": 2.220446049250313e-16
+          },
+          "duals_unavailable_reason": "engine produced no duals",
+          "check": {
+            "verdict": "feasible",
+            "solver_status": "numerical_failure",
+            "tolerances": {
+              "feasibility_absolute": 1e-06,
+              "feasibility_relative": 1e-08,
+              "integrality_absolute": 1e-06,
+              "optimality_normalised": 1e-06,
+              "frozen": true
+            },
+            "objective_recomputed": 30560.0,
+            "nonfinite": {
+              "count": 0,
+              "variables": []
+            },
+            "primal": {
+              "max_row_violation_abs": 0.0,
+              "max_row_violation_scaled": 0.0,
+              "worst_row": null,
+              "max_bound_violation_abs": 0.0,
+              "max_bound_violation_scaled": 0.0,
+              "worst_variable": null,
+              "rows_violating": 0,
+              "variables_violating": 0
+            },
+            "integrality": {
+              "checked": true,
+              "max_violation_abs": 2.220446049250313e-16,
+              "worst_variable": "x...0503",
+              "variables_violating": 0
+            },
+            "dual": {
+              "available": false,
+              "reason": "solver produced no duals; optimality is NOT independently verified",
+              "max_stationarity_abs": null,
+              "max_sign_violation_abs": null,
+              "max_complementarity_abs": null,
+              "dual_objective": null,
+              "gap_abs": null,
+              "gap_normalised": null
+            },
+            "best_known": {
+              "value": 21165.99999999978,
+              "abs_difference": 9394.000000000218,
+              "normalised_difference": 0.18160728439693502,
+              "agrees": false
+            },
+            "notes": []
+          },
+          "logs": {
+            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving gt2                                         \u2502\n\u2502                                                      \u2502\n\u2502  Model      188 variables \u00b7 29 constraints           \u2502\n\u2502  Reduced    188 variables \u00b7 28 constraints           \u2502\n\u2502  Engine     branch_and_cut                           \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\nnumerical_failure\n\n  Objective       30560\n  Message         branch-and-cut: lp_failure\n  Solve time      0.0157 s\n",
+            "stderr_tail": ""
+          },
+          "milp": {
+            "incumbent": 30560,
+            "dual_bound": 17180.649247480127,
+            "native_gap": 0.4378059801217236,
+            "native_gap_source": "solver-reported",
+            "common_gap": 0.4378059801217236,
+            "common_gap_target": 0.0001,
+            "common_gap_within_target": false,
+            "bound_ordering": {
+              "checked": true,
+              "valid": true,
+              "violation": 0.0
+            },
+            "bound_unavailable_reason": null,
+            "reference_objective": 21165.99999999978,
+            "reference_kind": null,
+            "reference_relative_difference": 0.3073952879581223,
+            "matches_reference": false,
+            "time_to_first_feasible": null,
+            "nodes": 64,
+            "outcome": "solver_failure",
+            "notes": [
+              "solver reported numerical_failure; NOT infeasibility"
+            ],
+            "termination_reason": "lp_failure",
+            "discarded_nodes": 1,
+            "root_lp_bound": 13460.233074411897,
+            "root_cut_bound": 17180.649247480127,
+            "root_cut_passes": 4
+          }
+        }
+      ]
+    },
+    {
+      "instance": "benchmarks/instances/miplib/mps/gen-ip002.mps",
+      "instance_name": "gen-ip002.mps",
+      "best_known_objective": -4783.733392,
+      "parse_check": {
+        "status": "agree",
+        "problem_class": "MILP",
+        "variables": 41,
+        "constraints": 24,
+        "nonzeros": 922,
+        "differences": [],
+        "difference_count": 0,
+        "independent_reader_warnings": []
+      },
+      "runs": [
+        {
+          "solver": "optimsolver:branch_and_cut",
+          "engine_use": {
+            "requested": "branch_and_cut",
+            "dispatched": "branch_and_cut",
+            "executed": "branch_and_cut",
+            "fallback": false,
+            "counts_for_requested": true,
+            "reason": null
+          },
+          "process": {
+            "run_status": "SUCCESS",
+            "exit_code": 0,
+            "terminating_signal": null,
+            "timed_out": false,
+            "killed_process_tree": false,
+            "escalated_to_sigkill": false,
+            "launch_failed": false,
+            "launch_error": null,
+            "wall_seconds": 4.191,
+            "timeout_seconds": 6,
+            "peak_memory_bytes": 8978432,
+            "stdout_truncated": false,
+            "stderr_truncated": false
+          },
+          "stage_seconds": {
+            "parse": 0.000821875,
+            "presolve": 0.001184541,
+            "solve": 4.187372792,
+            "postsolve": 3.833e-06
+          },
+          "orchestrator_wall_seconds": 4.194532708032057,
+          "termination": {
+            "status": "limit_reached",
+            "message": "branch-and-cut: iteration_limit",
+            "dispatched_engine": "branch_and_cut",
+            "executed_engine": "branch_and_cut",
+            "engine_reason": "engine forced by the caller",
+            "reason": "iteration_limit"
+          },
+          "settings": {
+            "requested_engine": "branch_and_cut",
+            "time_limit_seconds": 5,
+            "tolerance": 1e-08,
+            "thread_count": 1
+          },
+          "solver_objective": -3572.5825080000004,
+          "dual_bound": -4837.9017580518785,
+          "mip_gap": 0.2615429815096939,
+          "work": {
+            "iterations": null,
+            "nodes": 22,
+            "solve_seconds": 4.187371041
+          },
+          "self_reported": {
+            "max_bound_residual": 0,
+            "max_constraint_residual": 0,
+            "max_dual_residual": null,
+            "max_integrality_violation": 0
+          },
+          "duals_unavailable_reason": "engine produced no duals",
+          "check": {
+            "verdict": "feasible",
+            "solver_status": "limit_reached",
+            "tolerances": {
+              "feasibility_absolute": 1e-06,
+              "feasibility_relative": 1e-08,
+              "integrality_absolute": 1e-06,
+              "optimality_normalised": 1e-06,
+              "frozen": true
+            },
+            "objective_recomputed": -3572.5825080000004,
+            "nonfinite": {
+              "count": 0,
+              "variables": []
+            },
+            "primal": {
+              "max_row_violation_abs": 0.0,
+              "max_row_violation_scaled": 0.0,
+              "worst_row": null,
+              "max_bound_violation_abs": 0.0,
+              "max_bound_violation_scaled": 0.0,
+              "worst_variable": null,
+              "rows_violating": 0,
+              "variables_violating": 0
+            },
+            "integrality": {
+              "checked": true,
+              "max_violation_abs": 0.0,
+              "worst_variable": null,
+              "variables_violating": 0
+            },
+            "dual": {
+              "available": false,
+              "reason": "solver produced no duals; optimality is NOT independently verified",
+              "max_stationarity_abs": null,
+              "max_sign_violation_abs": null,
+              "max_complementarity_abs": null,
+              "dual_objective": null,
+              "gap_abs": null,
+              "gap_normalised": null
+            },
+            "best_known": {
+              "value": -4783.733392,
+              "abs_difference": 1211.1508839999997,
+              "normalised_difference": 0.14492103666920134,
+              "agrees": false
+            },
+            "notes": []
+          },
+          "logs": {
+            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving gen-ip002                                   \u2502\n\u2502                                                      \u2502\n\u2502  Model      41 variables \u00b7 24 constraints            \u2502\n\u2502  Reduced    41 variables \u00b7 24 constraints            \u2502\n\u2502  Engine     branch_and_cut                           \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n! Limit Reached\n\n  Objective       -3572.58251\n  Nodes           22\n  Solve time      4.1874 s\n",
+            "stderr_tail": ""
+          },
+          "milp": {
+            "incumbent": -3572.5825080000004,
+            "dual_bound": -4837.9017580518785,
+            "native_gap": 0.2615429815096939,
+            "native_gap_source": "solver-reported",
+            "common_gap": 0.2615429815096939,
+            "common_gap_target": 0.0001,
+            "common_gap_within_target": false,
+            "bound_ordering": {
+              "checked": true,
+              "valid": true,
+              "violation": 0.0
+            },
+            "bound_unavailable_reason": null,
+            "reference_objective": -4783.733392,
+            "reference_kind": null,
+            "reference_relative_difference": 0.2531811003567733,
+            "matches_reference": false,
+            "time_to_first_feasible": null,
+            "nodes": 22,
+            "outcome": "limit_with_incumbent",
+            "notes": [],
+            "termination_reason": "iteration_limit",
+            "discarded_nodes": 1,
+            "root_lp_bound": -4840.541961300886,
+            "root_cut_bound": -4837.9017580502195,
+            "root_cut_passes": 5
+          }
+        }
+      ]
+    },
+    {
+      "instance": "benchmarks/instances/miplib/mps/flugpl.mps",
+      "instance_name": "flugpl.mps",
+      "best_known_objective": 1201500.0,
+      "parse_check": {
+        "status": "agree",
+        "problem_class": "MILP",
+        "variables": 18,
+        "constraints": 18,
+        "nonzeros": 46,
+        "differences": [],
+        "difference_count": 0,
+        "independent_reader_warnings": []
+      },
+      "runs": [
+        {
+          "solver": "optimsolver:branch_and_cut",
+          "engine_use": {
+            "requested": "branch_and_cut",
+            "dispatched": "branch_and_cut",
+            "executed": "branch_and_cut",
+            "fallback": false,
+            "counts_for_requested": true,
+            "reason": null
+          },
+          "process": {
+            "run_status": "NON_ZERO_EXIT",
+            "exit_code": 1,
+            "terminating_signal": null,
+            "timed_out": false,
+            "killed_process_tree": false,
+            "escalated_to_sigkill": false,
+            "launch_failed": false,
+            "launch_error": null,
+            "wall_seconds": 0.004,
+            "timeout_seconds": 6,
+            "peak_memory_bytes": 1720320,
+            "stdout_truncated": false,
+            "stderr_truncated": false
+          },
+          "stage_seconds": {
+            "parse": 9.7375e-05,
+            "presolve": 0.000123584,
+            "solve": 0.002555708,
+            "postsolve": null
+          },
+          "orchestrator_wall_seconds": 0.0065440828911960125,
+          "termination": {
+            "status": "numerical_failure",
+            "message": "branch-and-cut: lp_failure",
+            "dispatched_engine": "branch_and_cut",
+            "executed_engine": "branch_and_cut",
+            "engine_reason": "engine forced by the caller",
+            "reason": "lp_failure"
+          },
+          "settings": {
+            "requested_engine": "branch_and_cut",
+            "time_limit_seconds": 5,
+            "tolerance": 1e-08,
+            "thread_count": 1
+          },
+          "solver_objective": null,
+          "dual_bound": 1167875.166377315,
+          "mip_gap": null,
+          "work": {
+            "iterations": null,
+            "nodes": 167,
+            "solve_seconds": 0.002554833
+          },
+          "self_reported": {
+            "max_bound_residual": null,
+            "max_constraint_residual": null,
+            "max_dual_residual": null,
+            "max_integrality_violation": 0
+          },
+          "duals_unavailable_reason": "no primal solution, so no duals were reconstructed",
+          "check": {
+            "verdict": "not_applicable",
+            "solver_status": "numerical_failure",
+            "notes": [
+              "solver reported 'numerical_failure'; no point to check. This pipeline does not independently verify infeasibility or unboundedness certificates -- doing so needs a Farkas ray or an improving ray, which is a separate check."
+            ],
+            "tolerances": {
+              "feasibility_absolute": 1e-06,
+              "feasibility_relative": 1e-08,
+              "integrality_absolute": 1e-06,
+              "optimality_normalised": 1e-06,
+              "frozen": true
+            }
+          },
+          "logs": {
+            "stdout_tail": "",
+            "stderr_tail": "\u2717 Solver error: Numerical failure\n\n  branch-and-cut: lp_failure\n"
+          },
+          "milp": {
+            "incumbent": null,
+            "dual_bound": 1167875.166377315,
+            "native_gap": null,
+            "native_gap_source": null,
+            "common_gap": null,
+            "common_gap_target": 0.0001,
+            "common_gap_within_target": null,
+            "bound_ordering": {
+              "checked": false,
+              "valid": null,
+              "violation": null
+            },
+            "bound_unavailable_reason": null,
+            "reference_objective": 1201500.0,
+            "reference_kind": "proven_optimal",
+            "reference_relative_difference": null,
+            "matches_reference": null,
+            "time_to_first_feasible": null,
+            "nodes": 167,
+            "outcome": "solver_failure",
+            "notes": [
+              "solver reported numerical_failure; NOT infeasibility"
+            ],
+            "termination_reason": "lp_failure",
+            "discarded_nodes": 1,
+            "root_lp_bound": 1167185.7255923206,
+            "root_cut_bound": 1167875.1663773148,
+            "root_cut_passes": 1
+          }
+        }
+      ]
+    }
+  ]
+}

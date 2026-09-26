@@ -13,6 +13,21 @@ namespace postsolve {
 
 constexpr double DEFAULT_POSTSOLVE_TOLERANCE = 1e-6;
 
+// Relative component of the feasibility gate.
+//
+// The gate used to be purely absolute, which made its verdict depend on the
+// model's UNITS rather than on the answer's quality: multiply every right-hand
+// side by 1000 and an equally good point flips from accepted to rejected.
+// Measured on Netlib adlittle, PDLP converged to its requested RELATIVE
+// tolerance and produced a row violation of 5.35e-06 against rows whose own
+// activity is in the hundreds -- a relative error of 2.5e-08 -- and postsolve
+// refused it, so a correctly solved LP returned an error instead of an answer.
+//
+// This value and the scaling below deliberately match the independent checker
+// in benchmarks/lib/verify.py, so postsolve accepts exactly what an outside
+// verifier accepts rather than a rule of its own.
+constexpr double DEFAULT_POSTSOLVE_RELATIVE_TOLERANCE = 1e-8;
+
 enum class PostsolveStatus {
   Success,
   InfeasiblePresolve,
@@ -30,8 +45,14 @@ struct PostsolveResult {
   std::vector<double> primalSolution; // In original variable index order
   double originalObjectiveValue = 0.0;
   
+  // Absolute residuals, always reported so a caller can apply its own rule.
   double maxBoundResidual = 0.0;
   double maxConstraintResidual = 0.0;
+
+  // The same violations divided by the row's or variable's own magnitude.
+  // Reported alongside, never instead of, the absolute figures.
+  double maxBoundResidualScaled = 0.0;
+  double maxConstraintResidualScaled = 0.0;
 
   // ---- Dual reconstruction, in ORIGINAL index order ----
   //
@@ -63,8 +84,10 @@ struct PostsolveResult {
 
 class Postsolver {
  public:
-  explicit Postsolver(double tolerance = DEFAULT_POSTSOLVE_TOLERANCE)
-      : tolerance_(tolerance) {}
+  explicit Postsolver(
+      double tolerance = DEFAULT_POSTSOLVE_TOLERANCE,
+      double relativeTolerance = DEFAULT_POSTSOLVE_RELATIVE_TOLERANCE)
+      : tolerance_(tolerance), relativeTolerance_(relativeTolerance) {}
 
   PostsolveResult process(
       const model::Model& originalModel,
@@ -114,6 +137,7 @@ class Postsolver {
 
  private:
   double tolerance_;
+  double relativeTolerance_;
 
   // Validates that the mapping/metadata produced by presolve is internally
   // consistent and safe to dereference before it is used to reconstruct a

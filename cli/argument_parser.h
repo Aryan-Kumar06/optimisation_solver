@@ -18,6 +18,13 @@ struct SolveOptions {
     std::optional<std::string> solver;
     std::optional<double> timeLimitSeconds;
     std::optional<std::string> outputPath;
+
+    // Machine-readable outputs for the benchmark harness. Separate from
+    // --output, which stays a human-readable solution listing.
+    std::optional<std::string> jsonPath;
+    std::optional<std::string> dumpModelPath;
+    std::optional<int> threadCount;
+
     bool help = false;
 };
 

@@ -57,6 +57,13 @@ struct SolverOptions {
     // shadow prices should tighten this.
     double tolerance = 1e-8;
     double timeLimitSeconds = 0.0;
+
+    // Worker threads for whichever engine runs. 0 selects hardware_concurrency,
+    // 1 forces serial. Exposed because a benchmark whose thread count varies
+    // with the host is not reproducible. PDLP and the QP engine still run
+    // serially below their own nonzero thresholds regardless of this value, so
+    // on small models it changes nothing.
+    int threadCount = 0;
 };
 
 struct DispatchDecision {

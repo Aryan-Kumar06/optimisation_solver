@@ -1,0 +1,1446 @@
+{
+  "tolerances": {
+    "feasibility_absolute": 1e-06,
+    "feasibility_relative": 1e-08,
+    "integrality_absolute": 1e-06,
+    "optimality_normalised": 1e-06,
+    "frozen": true
+  },
+  "results": [
+    {
+      "instance": "benchmarks/instances/miplib/mps/flugpl.mps",
+      "instance_name": "flugpl.mps",
+      "best_known_objective": 1201500.0,
+      "parse_check": {
+        "status": "agree",
+        "problem_class": "MILP",
+        "variables": 18,
+        "constraints": 18,
+        "nonzeros": 46,
+        "differences": [],
+        "difference_count": 0,
+        "independent_reader_warnings": []
+      },
+      "runs": [
+        {
+          "solver": "optimsolver:branch_and_cut",
+          "engine_use": {
+            "requested": "branch_and_cut",
+            "dispatched": "branch_and_cut",
+            "executed": "branch_and_cut",
+            "fallback": false,
+            "counts_for_requested": true,
+            "reason": null
+          },
+          "process": {
+            "run_status": "SUCCESS",
+            "exit_code": 0,
+            "terminating_signal": null,
+            "timed_out": false,
+            "killed_process_tree": false,
+            "escalated_to_sigkill": false,
+            "launch_failed": false,
+            "launch_error": null,
+            "wall_seconds": 0.426,
+            "timeout_seconds": 10,
+            "peak_memory_bytes": 1818624,
+            "stdout_truncated": false,
+            "stderr_truncated": false
+          },
+          "stage_seconds": {
+            "parse": 9.9e-05,
+            "presolve": 0.000149958,
+            "solve": 0.421637875,
+            "postsolve": 0.00011175
+          },
+          "orchestrator_wall_seconds": 0.42928845807909966,
+          "termination": {
+            "status": "optimal",
+            "message": "branch-and-cut",
+            "dispatched_engine": "branch_and_cut",
+            "executed_engine": "branch_and_cut",
+            "engine_reason": "engine forced by the caller"
+          },
+          "settings": {
+            "requested_engine": "branch_and_cut",
+            "time_limit_seconds": 9,
+            "tolerance": 1e-08,
+            "thread_count": 1
+          },
+          "solver_objective": 1201500,
+          "dual_bound": null,
+          "mip_gap": null,
+          "work": {
+            "iterations": null,
+            "nodes": 48377,
+            "solve_seconds": 0.421636
+          },
+          "self_reported": {
+            "max_bound_residual": 0,
+            "max_constraint_residual": 0,
+            "max_dual_residual": null,
+            "max_integrality_violation": 3.730349362740526e-14
+          },
+          "duals_unavailable_reason": "engine produced no duals",
+          "check": {
+            "verdict": "feasible",
+            "solver_status": "optimal",
+            "tolerances": {
+              "feasibility_absolute": 1e-06,
+              "feasibility_relative": 1e-08,
+              "integrality_absolute": 1e-06,
+              "optimality_normalised": 1e-06,
+              "frozen": true
+            },
+            "objective_recomputed": 1201499.9999999998,
+            "nonfinite": {
+              "count": 0,
+              "variables": []
+            },
+            "primal": {
+              "max_row_violation_abs": 3.637978807091713e-12,
+              "max_row_violation_scaled": 3.2481953634747447e-16,
+              "worst_row": "STD3",
+              "max_bound_violation_abs": 0.0,
+              "max_bound_violation_scaled": 0.0,
+              "worst_variable": null,
+              "rows_violating": 0,
+              "variables_violating": 0
+            },
+            "integrality": {
+              "checked": true,
+              "max_violation_abs": 3.730349362740526e-14,
+              "worst_variable": "ANM1",
+              "variables_violating": 0
+            },
+            "dual": {
+              "available": false,
+              "reason": "solver produced no duals; optimality is NOT independently verified",
+              "max_stationarity_abs": null,
+              "max_sign_violation_abs": null,
+              "max_complementarity_abs": null,
+              "dual_objective": null,
+              "gap_abs": null,
+              "gap_normalised": null
+            },
+            "best_known": {
+              "value": 1201500.0,
+              "abs_difference": 2.3283064365386963e-10,
+              "normalised_difference": 9.689161330098058e-17,
+              "agrees": true
+            },
+            "notes": [
+              "objective agrees with the best-known value, which is corroboration, not an optimality proof"
+            ]
+          },
+          "logs": {
+            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving flugpl                                      \u2502\n\u2502                                                      \u2502\n\u2502  Model      18 variables \u00b7 18 constraints            \u2502\n\u2502  Reduced    17 variables \u00b7 16 constraints            \u2502\n\u2502  Engine     branch_and_cut                           \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       1201500\n  Nodes           48377\n  Solve time      0.4216 s\n",
+            "stderr_tail": ""
+          },
+          "milp": {
+            "incumbent": 1201500,
+            "dual_bound": null,
+            "native_gap": null,
+            "native_gap_source": null,
+            "common_gap": null,
+            "common_gap_target": 0.0001,
+            "common_gap_within_target": null,
+            "bound_ordering": {
+              "checked": false,
+              "valid": null,
+              "violation": null
+            },
+            "bound_unavailable_reason": "engine reports no dual bound; MilpResult carries status, objective, primal and nodeCount only, so no native or common gap can be formed",
+            "reference_objective": 1201500.0,
+            "reference_kind": "proven_optimal",
+            "reference_relative_difference": 0.0,
+            "matches_reference": true,
+            "time_to_first_feasible": null,
+            "nodes": 48377,
+            "outcome": "reported_optimal_within_tolerance",
+            "notes": [
+              "feasibility and integrality independently validated; the optimality claim is the solver's and is not independently proven (no dual bound was supplied)"
+            ]
+          }
+        },
+        {
+          "solver": "highs:milp",
+          "engine_use": {
+            "requested": null,
+            "dispatched": "milp",
+            "executed": "milp",
+            "fallback": false,
+            "counts_for_requested": true,
+            "reason": null
+          },
+          "process": {
+            "run_status": "SUCCESS",
+            "exit_code": 0,
+            "terminating_signal": null,
+            "timed_out": false,
+            "killed_process_tree": false,
+            "escalated_to_sigkill": false,
+            "launch_failed": false,
+            "launch_error": null,
+            "wall_seconds": 0.467,
+            "timeout_seconds": 10,
+            "peak_memory_bytes": 72613888,
+            "stdout_truncated": false,
+            "stderr_truncated": false
+          },
+          "stage_seconds": null,
+          "orchestrator_wall_seconds": 0.47015804098919034,
+          "termination": {
+            "status": "optimal",
+            "message": "Optimization terminated successfully. (HiGHS Status 7: Optimal)",
+            "dispatched_engine": "milp",
+            "executed_engine": "milp",
+            "engine_reason": "reference solver, engine selected by --method"
+          },
+          "settings": {
+            "requested_engine": "milp",
+            "time_limit_seconds": 9.0,
+            "tolerance": null
+          },
+          "solver_objective": 1201500.0,
+          "dual_bound": 1201500.0,
+          "mip_gap": 0.0,
+          "work": {
+            "iterations": null,
+            "nodes": 94,
+            "solve_seconds": 0.3324168750550598
+          },
+          "self_reported": {
+            "max_bound_residual": null,
+            "max_constraint_residual": null,
+            "max_dual_residual": null,
+            "max_integrality_violation": null
+          },
+          "duals_unavailable_reason": "branch-and-bound produces no duals for the integer problem",
+          "check": {
+            "verdict": "feasible",
+            "solver_status": "optimal",
+            "tolerances": {
+              "feasibility_absolute": 1e-06,
+              "feasibility_relative": 1e-08,
+              "integrality_absolute": 1e-06,
+              "optimality_normalised": 1e-06,
+              "frozen": true
+            },
+            "objective_recomputed": 1201500.0,
+            "nonfinite": {
+              "count": 0,
+              "variables": []
+            },
+            "primal": {
+              "max_row_violation_abs": 3.552713678800501e-15,
+              "max_row_violation_scaled": 2.5376526277146434e-17,
+              "worst_row": "ANZ4",
+              "max_bound_violation_abs": 0.0,
+              "max_bound_violation_scaled": 0.0,
+              "worst_variable": null,
+              "rows_violating": 0,
+              "variables_violating": 0
+            },
+            "integrality": {
+              "checked": true,
+              "max_violation_abs": 3.552713678800501e-15,
+              "worst_variable": "ANM3",
+              "variables_violating": 0
+            },
+            "dual": {
+              "available": false,
+              "reason": "solver produced no duals; optimality is NOT independently verified",
+              "max_stationarity_abs": null,
+              "max_sign_violation_abs": null,
+              "max_complementarity_abs": null,
+              "dual_objective": null,
+              "gap_abs": null,
+              "gap_normalised": null
+            },
+            "best_known": {
+              "value": 1201500.0,
+              "abs_difference": 0.0,
+              "normalised_difference": 0.0,
+              "agrees": true
+            },
+            "notes": [
+              "objective agrees with the best-known value, which is corroboration, not an optimality proof"
+            ]
+          },
+          "logs": {
+            "stdout_tail": "",
+            "stderr_tail": ""
+          },
+          "milp": {
+            "incumbent": 1201500.0,
+            "dual_bound": 1201500.0,
+            "native_gap": 0.0,
+            "native_gap_source": "solver-reported",
+            "common_gap": 0.0,
+            "common_gap_target": 0.0001,
+            "common_gap_within_target": true,
+            "bound_ordering": {
+              "checked": true,
+              "valid": true,
+              "violation": 0.0
+            },
+            "bound_unavailable_reason": null,
+            "reference_objective": 1201500.0,
+            "reference_kind": "proven_optimal",
+            "reference_relative_difference": 0.0,
+            "matches_reference": true,
+            "time_to_first_feasible": null,
+            "nodes": 94,
+            "outcome": "reported_optimal_within_tolerance",
+            "notes": [
+              "feasibility and integrality independently validated; the optimality claim is the solver's and is not independently proven (no dual bound was supplied)"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "instance": "benchmarks/instances/miplib/mps/gen-ip054.mps",
+      "instance_name": "gen-ip054.mps",
+      "best_known_objective": 6840.96564179,
+      "parse_check": {
+        "status": "agree",
+        "problem_class": "MILP",
+        "variables": 30,
+        "constraints": 27,
+        "nonzeros": 532,
+        "differences": [],
+        "difference_count": 0,
+        "independent_reader_warnings": []
+      },
+      "runs": [
+        {
+          "solver": "optimsolver:branch_and_cut",
+          "engine_use": {
+            "requested": "branch_and_cut",
+            "dispatched": "branch_and_cut",
+            "executed": "branch_and_cut",
+            "fallback": false,
+            "counts_for_requested": true,
+            "reason": null
+          },
+          "process": {
+            "run_status": "SUCCESS",
+            "exit_code": 0,
+            "terminating_signal": null,
+            "timed_out": false,
+            "killed_process_tree": false,
+            "escalated_to_sigkill": false,
+            "launch_failed": false,
+            "launch_error": null,
+            "wall_seconds": 9.004,
+            "timeout_seconds": 10,
+            "peak_memory_bytes": 2572288,
+            "stdout_truncated": false,
+            "stderr_truncated": false
+          },
+          "stage_seconds": {
+            "parse": 0.000470292,
+            "presolve": 0.000706542,
+            "solve": 9.000978417,
+            "postsolve": 2.125e-06
+          },
+          "orchestrator_wall_seconds": 9.006346000125632,
+          "termination": {
+            "status": "limit_reached",
+            "message": "branch-and-cut",
+            "dispatched_engine": "branch_and_cut",
+            "executed_engine": "branch_and_cut",
+            "engine_reason": "engine forced by the caller"
+          },
+          "settings": {
+            "requested_engine": "branch_and_cut",
+            "time_limit_seconds": 9,
+            "tolerance": 1e-08,
+            "thread_count": 1
+          },
+          "solver_objective": 6931.926948958,
+          "dual_bound": null,
+          "mip_gap": null,
+          "work": {
+            "iterations": null,
+            "nodes": 298635,
+            "solve_seconds": 9.000973292
+          },
+          "self_reported": {
+            "max_bound_residual": 0,
+            "max_constraint_residual": 0,
+            "max_dual_residual": null,
+            "max_integrality_violation": 0
+          },
+          "duals_unavailable_reason": "engine produced no duals",
+          "check": {
+            "verdict": "feasible",
+            "solver_status": "limit_reached",
+            "tolerances": {
+              "feasibility_absolute": 1e-06,
+              "feasibility_relative": 1e-08,
+              "integrality_absolute": 1e-06,
+              "optimality_normalised": 1e-06,
+              "frozen": true
+            },
+            "objective_recomputed": 6931.926948957999,
+            "nonfinite": {
+              "count": 0,
+              "variables": []
+            },
+            "primal": {
+              "max_row_violation_abs": 0.0,
+              "max_row_violation_scaled": 0.0,
+              "worst_row": null,
+              "max_bound_violation_abs": 0.0,
+              "max_bound_violation_scaled": 0.0,
+              "worst_variable": null,
+              "rows_violating": 0,
+              "variables_violating": 0
+            },
+            "integrality": {
+              "checked": true,
+              "max_violation_abs": 0.0,
+              "worst_variable": null,
+              "variables_violating": 0
+            },
+            "dual": {
+              "available": false,
+              "reason": "solver produced no duals; optimality is NOT independently verified",
+              "max_stationarity_abs": null,
+              "max_sign_violation_abs": null,
+              "max_complementarity_abs": null,
+              "dual_objective": null,
+              "gap_abs": null,
+              "gap_normalised": null
+            },
+            "best_known": {
+              "value": 6840.96564179,
+              "abs_difference": 90.96130716799962,
+              "normalised_difference": 0.006603892586551665,
+              "agrees": false
+            },
+            "notes": []
+          },
+          "logs": {
+            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving gen-ip054                                   \u2502\n\u2502                                                      \u2502\n\u2502  Model      30 variables \u00b7 27 constraints            \u2502\n\u2502  Reduced    30 variables \u00b7 27 constraints            \u2502\n\u2502  Engine     branch_and_cut                           \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n! Limit Reached\n\n  Objective       6931.92695\n  Nodes           298635\n  Solve time      9.0010 s\n",
+            "stderr_tail": ""
+          },
+          "milp": {
+            "incumbent": 6931.926948958,
+            "dual_bound": null,
+            "native_gap": null,
+            "native_gap_source": null,
+            "common_gap": null,
+            "common_gap_target": 0.0001,
+            "common_gap_within_target": null,
+            "bound_ordering": {
+              "checked": false,
+              "valid": null,
+              "violation": null
+            },
+            "bound_unavailable_reason": "engine reports no dual bound; MilpResult carries status, objective, primal and nodeCount only, so no native or common gap can be formed",
+            "reference_objective": 6840.96564179,
+            "reference_kind": "proven_optimal",
+            "reference_relative_difference": 0.013122081037174481,
+            "matches_reference": false,
+            "time_to_first_feasible": null,
+            "nodes": 298635,
+            "outcome": "timeout_with_incumbent",
+            "notes": []
+          }
+        },
+        {
+          "solver": "highs:milp",
+          "engine_use": {
+            "requested": null,
+            "dispatched": "milp",
+            "executed": "milp",
+            "fallback": false,
+            "counts_for_requested": true,
+            "reason": null
+          },
+          "process": {
+            "run_status": "SUCCESS",
+            "exit_code": 0,
+            "terminating_signal": null,
+            "timed_out": false,
+            "killed_process_tree": false,
+            "escalated_to_sigkill": false,
+            "launch_failed": false,
+            "launch_error": null,
+            "wall_seconds": 9.374,
+            "timeout_seconds": 10,
+            "peak_memory_bytes": 87375872,
+            "stdout_truncated": false,
+            "stderr_truncated": false
+          },
+          "stage_seconds": null,
+          "orchestrator_wall_seconds": 9.37811708287336,
+          "termination": {
+            "status": "limit_reached",
+            "message": "Time limit reached. (HiGHS Status 13: Time limit reached)",
+            "dispatched_engine": "milp",
+            "executed_engine": "milp",
+            "engine_reason": "reference solver, engine selected by --method"
+          },
+          "settings": {
+            "requested_engine": "milp",
+            "time_limit_seconds": 9.0,
+            "tolerance": null
+          },
+          "solver_objective": 6862.285698294002,
+          "dual_bound": 6770.324401708003,
+          "mip_gap": 0.013400971721253412,
+          "work": {
+            "iterations": null,
+            "nodes": 24970,
+            "solve_seconds": 9.260112750111148
+          },
+          "self_reported": {
+            "max_bound_residual": null,
+            "max_constraint_residual": null,
+            "max_dual_residual": null,
+            "max_integrality_violation": null
+          },
+          "duals_unavailable_reason": "branch-and-bound produces no duals for the integer problem",
+          "check": {
+            "verdict": "feasible",
+            "solver_status": "limit_reached",
+            "tolerances": {
+              "feasibility_absolute": 1e-06,
+              "feasibility_relative": 1e-08,
+              "integrality_absolute": 1e-06,
+              "optimality_normalised": 1e-06,
+              "frozen": true
+            },
+            "objective_recomputed": 6862.285698294002,
+            "nonfinite": {
+              "count": 0,
+              "variables": []
+            },
+            "primal": {
+              "max_row_violation_abs": 0.0,
+              "max_row_violation_scaled": 0.0,
+              "worst_row": null,
+              "max_bound_violation_abs": 0.0,
+              "max_bound_violation_scaled": 0.0,
+              "worst_variable": null,
+              "rows_violating": 0,
+              "variables_violating": 0
+            },
+            "integrality": {
+              "checked": true,
+              "max_violation_abs": 1.4841860484336604e-14,
+              "worst_variable": "C0000021",
+              "variables_violating": 0
+            },
+            "dual": {
+              "available": false,
+              "reason": "solver produced no duals; optimality is NOT independently verified",
+              "max_stationarity_abs": null,
+              "max_sign_violation_abs": null,
+              "max_complementarity_abs": null,
+              "dual_objective": null,
+              "gap_abs": null,
+              "gap_normalised": null
+            },
+            "best_known": {
+              "value": 6840.96564179,
+              "abs_difference": 21.320056504002423,
+              "normalised_difference": 0.001555725736118303,
+              "agrees": false
+            },
+            "notes": []
+          },
+          "logs": {
+            "stdout_tail": "",
+            "stderr_tail": ""
+          },
+          "milp": {
+            "incumbent": 6862.285698294002,
+            "dual_bound": 6770.324401708003,
+            "native_gap": 0.013400971721253412,
+            "native_gap_source": "solver-reported",
+            "common_gap": 0.013400971721253282,
+            "common_gap_target": 0.0001,
+            "common_gap_within_target": false,
+            "bound_ordering": {
+              "checked": true,
+              "valid": true,
+              "violation": 0.0
+            },
+            "bound_unavailable_reason": null,
+            "reference_objective": 6840.96564179,
+            "reference_kind": "proven_optimal",
+            "reference_relative_difference": 0.003106844780493866,
+            "matches_reference": false,
+            "time_to_first_feasible": null,
+            "nodes": 24970,
+            "outcome": "timeout_with_incumbent",
+            "notes": []
+          }
+        }
+      ]
+    },
+    {
+      "instance": "benchmarks/instances/miplib/mps/mad.mps",
+      "instance_name": "mad.mps",
+      "best_known_objective": 0.0268,
+      "parse_check": {
+        "status": "agree",
+        "problem_class": "MILP",
+        "variables": 220,
+        "constraints": 51,
+        "nonzeros": 2808,
+        "differences": [],
+        "difference_count": 0,
+        "independent_reader_warnings": [
+          "free row 'F53' ignored"
+        ]
+      },
+      "runs": [
+        {
+          "solver": "optimsolver:branch_and_cut",
+          "engine_use": {
+            "requested": "branch_and_cut",
+            "dispatched": "branch_and_cut",
+            "executed": "branch_and_cut",
+            "fallback": false,
+            "counts_for_requested": true,
+            "reason": null
+          },
+          "process": {
+            "run_status": "SUCCESS",
+            "exit_code": 0,
+            "terminating_signal": null,
+            "timed_out": false,
+            "killed_process_tree": false,
+            "escalated_to_sigkill": false,
+            "launch_failed": false,
+            "launch_error": null,
+            "wall_seconds": 9.022,
+            "timeout_seconds": 10,
+            "peak_memory_bytes": 5373952,
+            "stdout_truncated": false,
+            "stderr_truncated": false
+          },
+          "stage_seconds": {
+            "parse": 0.002601291,
+            "presolve": 0.011858041,
+            "solve": 9.004588833,
+            "postsolve": 1.7375e-05
+          },
+          "orchestrator_wall_seconds": 9.025102915940806,
+          "termination": {
+            "status": "limit_reached",
+            "message": "branch-and-cut",
+            "dispatched_engine": "branch_and_cut",
+            "executed_engine": "branch_and_cut",
+            "engine_reason": "engine forced by the caller"
+          },
+          "settings": {
+            "requested_engine": "branch_and_cut",
+            "time_limit_seconds": 9,
+            "tolerance": 1e-08,
+            "thread_count": 1
+          },
+          "solver_objective": 0.3063999999999995,
+          "dual_bound": null,
+          "mip_gap": null,
+          "work": {
+            "iterations": null,
+            "nodes": 46809,
+            "solve_seconds": 9.004579917
+          },
+          "self_reported": {
+            "max_bound_residual": 0,
+            "max_constraint_residual": 0,
+            "max_dual_residual": null,
+            "max_integrality_violation": 8.365958766494775e-17
+          },
+          "duals_unavailable_reason": "engine produced no duals",
+          "check": {
+            "verdict": "feasible",
+            "solver_status": "limit_reached",
+            "tolerances": {
+              "feasibility_absolute": 1e-06,
+              "feasibility_relative": 1e-08,
+              "integrality_absolute": 1e-06,
+              "optimality_normalised": 1e-06,
+              "frozen": true
+            },
+            "objective_recomputed": 0.3063999999999995,
+            "nonfinite": {
+              "count": 0,
+              "variables": []
+            },
+            "primal": {
+              "max_row_violation_abs": 6.464807222008642e-16,
+              "max_row_violation_scaled": 2.0856908059132284e-16,
+              "worst_row": "F49",
+              "max_bound_violation_abs": 8.365958766494775e-17,
+              "max_bound_violation_scaled": 8.365958766494775e-17,
+              "worst_variable": "X38",
+              "rows_violating": 0,
+              "variables_violating": 0
+            },
+            "integrality": {
+              "checked": true,
+              "max_violation_abs": 8.365958766494775e-17,
+              "worst_variable": "X38",
+              "variables_violating": 0
+            },
+            "dual": {
+              "available": false,
+              "reason": "solver produced no duals; optimality is NOT independently verified",
+              "max_stationarity_abs": null,
+              "max_sign_violation_abs": null,
+              "max_complementarity_abs": null,
+              "dual_objective": null,
+              "gap_abs": null,
+              "gap_normalised": null
+            },
+            "best_known": {
+              "value": 0.0268,
+              "abs_difference": 0.2795999999999995,
+              "normalised_difference": 0.20972097209720944,
+              "agrees": false
+            },
+            "notes": []
+          },
+          "logs": {
+            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving mad                                         \u2502\n\u2502                                                      \u2502\n\u2502  Model      220 variables \u00b7 51 constraints           \u2502\n\u2502  Reduced    220 variables \u00b7 40 constraints           \u2502\n\u2502  Engine     branch_and_cut                           \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n! Limit Reached\n\n  Objective       0.3064\n  Nodes           46809\n  Solve time      9.0046 s\n",
+            "stderr_tail": ""
+          },
+          "milp": {
+            "incumbent": 0.3063999999999995,
+            "dual_bound": null,
+            "native_gap": null,
+            "native_gap_source": null,
+            "common_gap": null,
+            "common_gap_target": 0.0001,
+            "common_gap_within_target": null,
+            "bound_ordering": {
+              "checked": false,
+              "valid": null,
+              "violation": null
+            },
+            "bound_unavailable_reason": "engine reports no dual bound; MilpResult carries status, objective, primal and nodeCount only, so no native or common gap can be formed",
+            "reference_objective": 0.0268,
+            "reference_kind": "proven_optimal",
+            "reference_relative_difference": 0.2795999999999995,
+            "matches_reference": false,
+            "time_to_first_feasible": null,
+            "nodes": 46809,
+            "outcome": "timeout_with_incumbent",
+            "notes": []
+          }
+        },
+        {
+          "solver": "highs:milp",
+          "engine_use": {
+            "requested": null,
+            "dispatched": "milp",
+            "executed": "milp",
+            "fallback": false,
+            "counts_for_requested": true,
+            "reason": null
+          },
+          "process": {
+            "run_status": "SUCCESS",
+            "exit_code": 0,
+            "terminating_signal": null,
+            "timed_out": false,
+            "killed_process_tree": false,
+            "escalated_to_sigkill": false,
+            "launch_failed": false,
+            "launch_error": null,
+            "wall_seconds": 9.442,
+            "timeout_seconds": 10,
+            "peak_memory_bytes": 155385856,
+            "stdout_truncated": false,
+            "stderr_truncated": false
+          },
+          "stage_seconds": null,
+          "orchestrator_wall_seconds": 9.446732833050191,
+          "termination": {
+            "status": "limit_reached",
+            "message": "Time limit reached. (HiGHS Status 13: Time limit reached)",
+            "dispatched_engine": "milp",
+            "executed_engine": "milp",
+            "engine_reason": "reference solver, engine selected by --method"
+          },
+          "settings": {
+            "requested_engine": "milp",
+            "time_limit_seconds": 9.0,
+            "tolerance": null
+          },
+          "solver_objective": 0.2361999999998505,
+          "dual_bound": 0.0,
+          "mip_gap": 1.0,
+          "work": {
+            "iterations": null,
+            "nodes": 11902,
+            "solve_seconds": 9.320703083882108
+          },
+          "self_reported": {
+            "max_bound_residual": null,
+            "max_constraint_residual": null,
+            "max_dual_residual": null,
+            "max_integrality_violation": null
+          },
+          "duals_unavailable_reason": "branch-and-bound produces no duals for the integer problem",
+          "check": {
+            "verdict": "feasible",
+            "solver_status": "limit_reached",
+            "tolerances": {
+              "feasibility_absolute": 1e-06,
+              "feasibility_relative": 1e-08,
+              "integrality_absolute": 1e-06,
+              "optimality_normalised": 1e-06,
+              "frozen": true
+            },
+            "objective_recomputed": 0.2361999999998505,
+            "nonfinite": {
+              "count": 0,
+              "variables": []
+            },
+            "primal": {
+              "max_row_violation_abs": 3.2740476996195866e-13,
+              "max_row_violation_scaled": 3.2740476996185143e-13,
+              "worst_row": "F8",
+              "max_bound_violation_abs": 3.2744660649818866e-13,
+              "max_bound_violation_scaled": 3.2744660649818866e-13,
+              "worst_variable": "X118",
+              "rows_violating": 0,
+              "variables_violating": 0
+            },
+            "integrality": {
+              "checked": true,
+              "max_violation_abs": 3.2744660649818866e-13,
+              "worst_variable": "X118",
+              "variables_violating": 0
+            },
+            "dual": {
+              "available": false,
+              "reason": "solver produced no duals; optimality is NOT independently verified",
+              "max_stationarity_abs": null,
+              "max_sign_violation_abs": null,
+              "max_complementarity_abs": null,
+              "dual_objective": null,
+              "gap_abs": null,
+              "gap_normalised": null
+            },
+            "best_known": {
+              "value": 0.0268,
+              "abs_difference": 0.2093999999998505,
+              "normalised_difference": 0.16579572446545945,
+              "agrees": false
+            },
+            "notes": []
+          },
+          "logs": {
+            "stdout_tail": "",
+            "stderr_tail": ""
+          },
+          "milp": {
+            "incumbent": 0.2361999999998505,
+            "dual_bound": 0.0,
+            "native_gap": 1.0,
+            "native_gap_source": "solver-reported",
+            "common_gap": 0.2361999999998505,
+            "common_gap_target": 0.0001,
+            "common_gap_within_target": false,
+            "bound_ordering": {
+              "checked": true,
+              "valid": true,
+              "violation": 0.0
+            },
+            "bound_unavailable_reason": null,
+            "reference_objective": 0.0268,
+            "reference_kind": "proven_optimal",
+            "reference_relative_difference": 0.2093999999998505,
+            "matches_reference": false,
+            "time_to_first_feasible": null,
+            "nodes": 11902,
+            "outcome": "timeout_with_incumbent",
+            "notes": []
+          }
+        }
+      ]
+    },
+    {
+      "instance": "benchmarks/instances/miplib/mps/mas74.mps",
+      "instance_name": "mas74.mps",
+      "best_known_objective": 11801.18572,
+      "parse_check": {
+        "status": "agree",
+        "problem_class": "MILP",
+        "variables": 151,
+        "constraints": 13,
+        "nonzeros": 1706,
+        "differences": [],
+        "difference_count": 0,
+        "independent_reader_warnings": []
+      },
+      "runs": [
+        {
+          "solver": "optimsolver:branch_and_cut",
+          "engine_use": {
+            "requested": "branch_and_cut",
+            "dispatched": "branch_and_cut",
+            "executed": "branch_and_cut",
+            "fallback": false,
+            "counts_for_requested": true,
+            "reason": null
+          },
+          "process": {
+            "run_status": "SUCCESS",
+            "exit_code": 0,
+            "terminating_signal": null,
+            "timed_out": false,
+            "killed_process_tree": false,
+            "escalated_to_sigkill": false,
+            "launch_failed": false,
+            "launch_error": null,
+            "wall_seconds": 9.007,
+            "timeout_seconds": 10,
+            "peak_memory_bytes": 3424256,
+            "stdout_truncated": false,
+            "stderr_truncated": false
+          },
+          "stage_seconds": {
+            "parse": 0.0009435,
+            "presolve": 0.001638291,
+            "solve": 9.001645,
+            "postsolve": 9.667e-06
+          },
+          "orchestrator_wall_seconds": 9.010045000119135,
+          "termination": {
+            "status": "limit_reached",
+            "message": "branch-and-cut",
+            "dispatched_engine": "branch_and_cut",
+            "executed_engine": "branch_and_cut",
+            "engine_reason": "engine forced by the caller"
+          },
+          "settings": {
+            "requested_engine": "branch_and_cut",
+            "time_limit_seconds": 9,
+            "tolerance": 1e-08,
+            "thread_count": 1
+          },
+          "solver_objective": 12600.314393700002,
+          "dual_bound": null,
+          "mip_gap": null,
+          "work": {
+            "iterations": null,
+            "nodes": 159410,
+            "solve_seconds": 9.001637667
+          },
+          "self_reported": {
+            "max_bound_residual": 0,
+            "max_constraint_residual": 0,
+            "max_dual_residual": null,
+            "max_integrality_violation": 4.2099308275872823e-16
+          },
+          "duals_unavailable_reason": "engine produced no duals",
+          "check": {
+            "verdict": "feasible",
+            "solver_status": "limit_reached",
+            "tolerances": {
+              "feasibility_absolute": 1e-06,
+              "feasibility_relative": 1e-08,
+              "integrality_absolute": 1e-06,
+              "optimality_normalised": 1e-06,
+              "frozen": true
+            },
+            "objective_recomputed": 12600.314393700008,
+            "nonfinite": {
+              "count": 0,
+              "variables": []
+            },
+            "primal": {
+              "max_row_violation_abs": 0.0,
+              "max_row_violation_scaled": 0.0,
+              "worst_row": null,
+              "max_bound_violation_abs": 4.2099308275872823e-16,
+              "max_bound_violation_scaled": 4.2099308275872823e-16,
+              "worst_variable": "x125",
+              "rows_violating": 0,
+              "variables_violating": 0
+            },
+            "integrality": {
+              "checked": true,
+              "max_violation_abs": 4.2099308275872823e-16,
+              "worst_variable": "x125",
+              "variables_violating": 0
+            },
+            "dual": {
+              "available": false,
+              "reason": "solver produced no duals; optimality is NOT independently verified",
+              "max_stationarity_abs": null,
+              "max_sign_violation_abs": null,
+              "max_complementarity_abs": null,
+              "dual_objective": null,
+              "gap_abs": null,
+              "gap_normalised": null
+            },
+            "best_known": {
+              "value": 11801.18572,
+              "abs_difference": 799.1286737000082,
+              "normalised_difference": 0.03274781968964577,
+              "agrees": false
+            },
+            "notes": []
+          },
+          "logs": {
+            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving mas74                                       \u2502\n\u2502                                                      \u2502\n\u2502  Model      151 variables \u00b7 13 constraints           \u2502\n\u2502  Reduced    151 variables \u00b7 13 constraints           \u2502\n\u2502  Engine     branch_and_cut                           \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n! Limit Reached\n\n  Objective       12600.3144\n  Nodes           159410\n  Solve time      9.0016 s\n",
+            "stderr_tail": ""
+          },
+          "milp": {
+            "incumbent": 12600.314393700002,
+            "dual_bound": null,
+            "native_gap": null,
+            "native_gap_source": null,
+            "common_gap": null,
+            "common_gap_target": 0.0001,
+            "common_gap_within_target": null,
+            "bound_ordering": {
+              "checked": false,
+              "valid": null,
+              "violation": null
+            },
+            "bound_unavailable_reason": "engine reports no dual bound; MilpResult carries status, objective, primal and nodeCount only, so no native or common gap can be formed",
+            "reference_objective": 11801.18572,
+            "reference_kind": "proven_optimal",
+            "reference_relative_difference": 0.06342132812968199,
+            "matches_reference": false,
+            "time_to_first_feasible": null,
+            "nodes": 159410,
+            "outcome": "timeout_with_incumbent",
+            "notes": []
+          }
+        },
+        {
+          "solver": "highs:milp",
+          "engine_use": {
+            "requested": null,
+            "dispatched": "milp",
+            "executed": "milp",
+            "fallback": false,
+            "counts_for_requested": true,
+            "reason": null
+          },
+          "process": {
+            "run_status": "SUCCESS",
+            "exit_code": 0,
+            "terminating_signal": null,
+            "timed_out": false,
+            "killed_process_tree": false,
+            "escalated_to_sigkill": false,
+            "launch_failed": false,
+            "launch_error": null,
+            "wall_seconds": 9.433,
+            "timeout_seconds": 10,
+            "peak_memory_bytes": 100171776,
+            "stdout_truncated": false,
+            "stderr_truncated": false
+          },
+          "stage_seconds": null,
+          "orchestrator_wall_seconds": 9.437472417019308,
+          "termination": {
+            "status": "limit_reached",
+            "message": "Time limit reached. (HiGHS Status 13: Time limit reached)",
+            "dispatched_engine": "milp",
+            "executed_engine": "milp",
+            "engine_reason": "reference solver, engine selected by --method"
+          },
+          "settings": {
+            "requested_engine": "milp",
+            "time_limit_seconds": 9.0,
+            "tolerance": null
+          },
+          "solver_objective": 12161.371257200128,
+          "dual_bound": 10635.163985336929,
+          "mip_gap": 0.12549631448506346,
+          "work": {
+            "iterations": null,
+            "nodes": 4284,
+            "solve_seconds": 9.296042166883126
+          },
+          "self_reported": {
+            "max_bound_residual": null,
+            "max_constraint_residual": null,
+            "max_dual_residual": null,
+            "max_integrality_violation": null
+          },
+          "duals_unavailable_reason": "branch-and-bound produces no duals for the integer problem",
+          "check": {
+            "verdict": "feasible",
+            "solver_status": "limit_reached",
+            "tolerances": {
+              "feasibility_absolute": 1e-06,
+              "feasibility_relative": 1e-08,
+              "integrality_absolute": 1e-06,
+              "optimality_normalised": 1e-06,
+              "frozen": true
+            },
+            "objective_recomputed": 12161.371257200128,
+            "nonfinite": {
+              "count": 0,
+              "variables": []
+            },
+            "primal": {
+              "max_row_violation_abs": 9.998766472563148e-07,
+              "max_row_violation_scaled": 9.319909104340095e-12,
+              "worst_row": "c6",
+              "max_bound_violation_abs": 0.0,
+              "max_bound_violation_scaled": 0.0,
+              "worst_variable": null,
+              "rows_violating": 0,
+              "variables_violating": 0
+            },
+            "integrality": {
+              "checked": true,
+              "max_violation_abs": 0.0,
+              "worst_variable": null,
+              "variables_violating": 0
+            },
+            "dual": {
+              "available": false,
+              "reason": "solver produced no duals; optimality is NOT independently verified",
+              "max_stationarity_abs": null,
+              "max_sign_violation_abs": null,
+              "max_complementarity_abs": null,
+              "dual_objective": null,
+              "gap_abs": null,
+              "gap_normalised": null
+            },
+            "best_known": {
+              "value": 11801.18572,
+              "abs_difference": 360.18553720012824,
+              "normalised_difference": 0.015030554000928283,
+              "agrees": false
+            },
+            "notes": []
+          },
+          "logs": {
+            "stdout_tail": "",
+            "stderr_tail": ""
+          },
+          "milp": {
+            "incumbent": 12161.371257200128,
+            "dual_bound": 10635.163985336929,
+            "native_gap": 0.12549631448506346,
+            "native_gap_source": "solver-reported",
+            "common_gap": 0.12549631448506346,
+            "common_gap_target": 0.0001,
+            "common_gap_within_target": false,
+            "bound_ordering": {
+              "checked": true,
+              "valid": true,
+              "violation": 0.0
+            },
+            "bound_unavailable_reason": null,
+            "reference_objective": 11801.18572,
+            "reference_kind": "proven_optimal",
+            "reference_relative_difference": 0.029617181285118713,
+            "matches_reference": false,
+            "time_to_first_feasible": null,
+            "nodes": 4284,
+            "outcome": "timeout_with_incumbent",
+            "notes": []
+          }
+        }
+      ]
+    },
+    {
+      "instance": "benchmarks/instances/miplib/mps/pk1.mps",
+      "instance_name": "pk1.mps",
+      "best_known_objective": 11.0,
+      "parse_check": {
+        "status": "agree",
+        "problem_class": "MILP",
+        "variables": 86,
+        "constraints": 45,
+        "nonzeros": 915,
+        "differences": [],
+        "difference_count": 0,
+        "independent_reader_warnings": []
+      },
+      "runs": [
+        {
+          "solver": "optimsolver:branch_and_cut",
+          "engine_use": {
+            "requested": "branch_and_cut",
+            "dispatched": "branch_and_cut",
+            "executed": "branch_and_cut",
+            "fallback": false,
+            "counts_for_requested": true,
+            "reason": null
+          },
+          "process": {
+            "run_status": "SUCCESS",
+            "exit_code": 0,
+            "terminating_signal": null,
+            "timed_out": false,
+            "killed_process_tree": false,
+            "escalated_to_sigkill": false,
+            "launch_failed": false,
+            "launch_error": null,
+            "wall_seconds": 9.009,
+            "timeout_seconds": 10,
+            "peak_memory_bytes": 3522560,
+            "stdout_truncated": false,
+            "stderr_truncated": false
+          },
+          "stage_seconds": {
+            "parse": 0.000487708,
+            "presolve": 0.002214833,
+            "solve": 9.003796209,
+            "postsolve": 4.791e-06
+          },
+          "orchestrator_wall_seconds": 9.012777124997228,
+          "termination": {
+            "status": "limit_reached",
+            "message": "branch-and-cut",
+            "dispatched_engine": "branch_and_cut",
+            "executed_engine": "branch_and_cut",
+            "engine_reason": "engine forced by the caller"
+          },
+          "settings": {
+            "requested_engine": "branch_and_cut",
+            "time_limit_seconds": 9,
+            "tolerance": 1e-08,
+            "thread_count": 1
+          },
+          "solver_objective": 16.99999999999999,
+          "dual_bound": null,
+          "mip_gap": null,
+          "work": {
+            "iterations": null,
+            "nodes": 52393,
+            "solve_seconds": 9.0037895
+          },
+          "self_reported": {
+            "max_bound_residual": 0,
+            "max_constraint_residual": 0,
+            "max_dual_residual": null,
+            "max_integrality_violation": 4.24654675080986e-15
+          },
+          "duals_unavailable_reason": "engine produced no duals",
+          "check": {
+            "verdict": "feasible",
+            "solver_status": "limit_reached",
+            "tolerances": {
+              "feasibility_absolute": 1e-06,
+              "feasibility_relative": 1e-08,
+              "integrality_absolute": 1e-06,
+              "optimality_normalised": 1e-06,
+              "frozen": true
+            },
+            "objective_recomputed": 16.99999999999999,
+            "nonfinite": {
+              "count": 0,
+              "variables": []
+            },
+            "primal": {
+              "max_row_violation_abs": 1.1368683772161603e-13,
+              "max_row_violation_scaled": 1.5673736818237492e-15,
+              "worst_row": "c1",
+              "max_bound_violation_abs": 0.0,
+              "max_bound_violation_scaled": 0.0,
+              "worst_variable": null,
+              "rows_violating": 0,
+              "variables_violating": 0
+            },
+            "integrality": {
+              "checked": true,
+              "max_violation_abs": 4.24654675080986e-15,
+              "worst_variable": "x46",
+              "variables_violating": 0
+            },
+            "dual": {
+              "available": false,
+              "reason": "solver produced no duals; optimality is NOT independently verified",
+              "max_stationarity_abs": null,
+              "max_sign_violation_abs": null,
+              "max_complementarity_abs": null,
+              "dual_objective": null,
+              "gap_abs": null,
+              "gap_normalised": null
+            },
+            "best_known": {
+              "value": 11.0,
+              "abs_difference": 5.999999999999989,
+              "normalised_difference": 0.20689655172413765,
+              "agrees": false
+            },
+            "notes": []
+          },
+          "logs": {
+            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving pk1                                         \u2502\n\u2502                                                      \u2502\n\u2502  Model      86 variables \u00b7 45 constraints            \u2502\n\u2502  Reduced    86 variables \u00b7 45 constraints            \u2502\n\u2502  Engine     branch_and_cut                           \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n! Limit Reached\n\n  Objective       17\n  Nodes           52393\n  Solve time      9.0038 s\n",
+            "stderr_tail": ""
+          },
+          "milp": {
+            "incumbent": 16.99999999999999,
+            "dual_bound": null,
+            "native_gap": null,
+            "native_gap_source": null,
+            "common_gap": null,
+            "common_gap_target": 0.0001,
+            "common_gap_within_target": null,
+            "bound_ordering": {
+              "checked": false,
+              "valid": null,
+              "violation": null
+            },
+            "bound_unavailable_reason": "engine reports no dual bound; MilpResult carries status, objective, primal and nodeCount only, so no native or common gap can be formed",
+            "reference_objective": 11.0,
+            "reference_kind": "proven_optimal",
+            "reference_relative_difference": 0.3529411764705878,
+            "matches_reference": false,
+            "time_to_first_feasible": null,
+            "nodes": 52393,
+            "outcome": "timeout_with_incumbent",
+            "notes": []
+          }
+        },
+        {
+          "solver": "highs:milp",
+          "engine_use": {
+            "requested": null,
+            "dispatched": "milp",
+            "executed": "milp",
+            "fallback": false,
+            "counts_for_requested": true,
+            "reason": null
+          },
+          "process": {
+            "run_status": "SUCCESS",
+            "exit_code": 0,
+            "terminating_signal": null,
+            "timed_out": false,
+            "killed_process_tree": false,
+            "escalated_to_sigkill": false,
+            "launch_failed": false,
+            "launch_error": null,
+            "wall_seconds": 9.738,
+            "timeout_seconds": 10,
+            "peak_memory_bytes": 74039296,
+            "stdout_truncated": false,
+            "stderr_truncated": false
+          },
+          "stage_seconds": null,
+          "orchestrator_wall_seconds": 9.745361166773364,
+          "termination": {
+            "status": "limit_reached",
+            "message": "Time limit reached. (HiGHS Status 13: Time limit reached)",
+            "dispatched_engine": "milp",
+            "executed_engine": "milp",
+            "engine_reason": "reference solver, engine selected by --method"
+          },
+          "settings": {
+            "requested_engine": "milp",
+            "time_limit_seconds": 9.0,
+            "tolerance": null
+          },
+          "solver_objective": 15.99999999999972,
+          "dual_bound": 0.0,
+          "mip_gap": 1.0,
+          "work": {
+            "iterations": null,
+            "nodes": 20845,
+            "solve_seconds": 9.55987612507306
+          },
+          "self_reported": {
+            "max_bound_residual": null,
+            "max_constraint_residual": null,
+            "max_dual_residual": null,
+            "max_integrality_violation": null
+          },
+          "duals_unavailable_reason": "branch-and-bound produces no duals for the integer problem",
+          "check": {
+            "verdict": "feasible",
+            "solver_status": "limit_reached",
+            "tolerances": {
+              "feasibility_absolute": 1e-06,
+              "feasibility_relative": 1e-08,
+              "integrality_absolute": 1e-06,
+              "optimality_normalised": 1e-06,
+              "frozen": true
+            },
+            "objective_recomputed": 15.99999999999972,
+            "nonfinite": {
+              "count": 0,
+              "variables": []
+            },
+            "primal": {
+              "max_row_violation_abs": 1.0231815394945443e-12,
+              "max_row_violation_scaled": 1.3516268685529005e-15,
+              "worst_row": "c1",
+              "max_bound_violation_abs": 0.0,
+              "max_bound_violation_scaled": 0.0,
+              "worst_variable": null,
+              "rows_violating": 0,
+              "variables_violating": 0
+            },
+            "integrality": {
+              "checked": true,
+              "max_violation_abs": 0.0,
+              "worst_variable": null,
+              "variables_violating": 0
+            },
+            "dual": {
+              "available": false,
+              "reason": "solver produced no duals; optimality is NOT independently verified",
+              "max_stationarity_abs": null,
+              "max_sign_violation_abs": null,
+              "max_complementarity_abs": null,
+              "dual_objective": null,
+              "gap_abs": null,
+              "gap_normalised": null
+            },
+            "best_known": {
+              "value": 11.0,
+              "abs_difference": 4.999999999999719,
+              "normalised_difference": 0.17857142857142033,
+              "agrees": false
+            },
+            "notes": []
+          },
+          "logs": {
+            "stdout_tail": "",
+            "stderr_tail": ""
+          },
+          "milp": {
+            "incumbent": 15.99999999999972,
+            "dual_bound": 0.0,
+            "native_gap": 1.0,
+            "native_gap_source": "solver-reported",
+            "common_gap": 1.0,
+            "common_gap_target": 0.0001,
+            "common_gap_within_target": false,
+            "bound_ordering": {
+              "checked": true,
+              "valid": true,
+              "violation": 0.0
+            },
+            "bound_unavailable_reason": null,
+            "reference_objective": 11.0,
+            "reference_kind": "proven_optimal",
+            "reference_relative_difference": 0.31249999999998795,
+            "matches_reference": false,
+            "time_to_first_feasible": null,
+            "nodes": 20845,
+            "outcome": "timeout_with_incumbent",
+            "notes": []
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 #include "cli.h"
 #include "argument_parser.h"
 #include "mascot.h"
+#include "json_report.h"
 
 #include "model/model.h"
 #include "mps/mps_reader.h"
@@ -13,6 +14,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <iomanip>
+#include <chrono>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -86,30 +88,71 @@ bool exportSolutionToFile(const model::Model& model,
     return true;
 }
 
+// Writes the structured record when --json was given. Every exit path below
+// goes through this: a refusal, a proof of infeasibility and a timeout are all
+// OUTCOMES a benchmark has to record, and returning without one makes them
+// indistinguishable from a crash.
+bool emitJsonRecord(const JsonReportInput& report,
+                    const solver::SolveResult& solveResult,
+                    const std::optional<std::string>& jsonPath,
+                    std::ostream& err) {
+    if (!jsonPath.has_value()) {
+        return true;
+    }
+    std::ofstream jsonFile(*jsonPath);
+    if (!jsonFile.is_open()) {
+        printError(err, "Output error",
+                   "Unable to open JSON file '" + *jsonPath + "' for writing.");
+        return false;
+    }
+    writeJsonReport(jsonFile, report, solveResult);
+    jsonFile.close();
+    if (!jsonFile) {
+        printError(err, "Output error",
+                   "Failed to write the JSON record to '" + *jsonPath + "'.");
+        return false;
+    }
+    return true;
+}
+
 int solveModel(const model::Model& model,
                const solver::SolverOptions& solverOptions,
                const std::optional<std::string>& outputPath,
                std::ostream& out,
                std::ostream& err,
-               const TerminalStyle& style) {
+               const TerminalStyle& style,
+               JsonReportInput* report = nullptr,
+               const std::optional<std::string>& jsonPath = std::nullopt) {
+    const auto emit = [&](const solver::SolveResult& r) {
+        return report == nullptr || emitJsonRecord(*report, r, jsonPath, err);
+    };
+
     solver::SolveResult solveResult;
+    const auto solveStart = std::chrono::steady_clock::now();
     try {
         solveResult = solver::solve(model, solverOptions);
     } catch (const std::exception& ex) {
         printError(err, "Solver failed", ex.what());
         return 1;
     }
+    if (report != nullptr) {
+        report->solveSeconds =
+            std::chrono::duration<double>(std::chrono::steady_clock::now() - solveStart).count();
+    }
 
     if (solveResult.status == solver::SolveStatus::InvalidModel) {
         printError(err, "Solver error: Invalid model", solveResult.message);
+        emit(solveResult);
         return 1;
     }
     if (solveResult.status == solver::SolveStatus::NumericalFailure) {
         printError(err, "Solver error: Numerical failure", solveResult.message);
+        emit(solveResult);
         return 1;
     }
     if (solveResult.status == solver::SolveStatus::Unsupported) {
         printError(err, "Solver error: Unsupported problem", solveResult.message);
+        emit(solveResult);
         return 1;
     }
 
@@ -140,10 +183,13 @@ int solveModel(const model::Model& model,
             out << "  No feasible solution available.\n";
             if (outputPath.has_value()) {
                 printError(err, "Output unavailable", "No feasible solution was found to write.");
+                emit(solveResult);
                 return 1;
             }
         }
-        return 0;
+        // Proved infeasible, proved unbounded, or a limit with no incumbent:
+        // all are legitimate outcomes and each still has to produce a record.
+        return emit(solveResult) ? 0 : 1;
     }
 
     if (solveResult.hasDuals) {
@@ -158,11 +204,12 @@ int solveModel(const model::Model& model,
 
     if (outputPath.has_value()) {
         if (!exportSolutionToFile(model, solveResult, *outputPath, out, err, style)) {
+            emit(solveResult);
             return 1;
         }
     }
 
-    return 0;
+    return emit(solveResult) ? 0 : 1;
 }
 
 int solveFile(const std::string& modelPath,
@@ -171,19 +218,44 @@ int solveFile(const std::string& modelPath,
               const std::optional<std::string>& outputPath,
               std::ostream& out,
               std::ostream& err,
-              const TerminalStyle& style) {
+              const TerminalStyle& style,
+              const std::optional<std::string>& jsonPath,
+              const std::optional<std::string>& dumpModelPath,
+              const std::optional<int>& threadCount) {
     mps::MpsReader reader;
     model::Model model;
+    const auto parseStart = std::chrono::steady_clock::now();
     try {
         model = reader.read(modelPath);
     } catch (const std::exception& ex) {
         printError(err, "Failed to read MPS file", "Path: " + modelPath + "\n" + ex.what());
         return 1;
     }
+    const double parseSeconds =
+        std::chrono::duration<double>(std::chrono::steady_clock::now() - parseStart).count();
 
     if (!model.validate()) {
         printError(err, "Invalid model", "Model failed structural validation.");
         return 1;
+    }
+
+    // Parse-only mode: dump what the reader produced and stop. Deliberately
+    // before any solving, so the dump reflects the ORIGINAL model untouched by
+    // presolve -- it exists to be diffed against an independent reader.
+    if (dumpModelPath.has_value()) {
+        std::ofstream dumpFile(*dumpModelPath);
+        if (!dumpFile.is_open()) {
+            printError(err, "Output error",
+                       "Unable to open '" + *dumpModelPath + "' for writing.");
+            return 1;
+        }
+        writeModelDump(dumpFile, model);
+        dumpFile.close();
+        if (!dumpFile) {
+            printError(err, "Output error", "Failed to write the model dump.");
+            return 1;
+        }
+        return 0;
     }
 
     solver::SolverOptions solverOptions;
@@ -193,8 +265,28 @@ int solveFile(const std::string& modelPath,
     if (timeLimitSeconds.has_value()) {
         solverOptions.timeLimitSeconds = *timeLimitSeconds;
     }
+    if (threadCount.has_value()) {
+        solverOptions.threadCount = *threadCount;
+    }
 
-    return solveModel(model, solverOptions, outputPath, out, err, style);
+    JsonReportInput report;
+    report.instancePath = modelPath;
+    report.requestedEngine = solverName.value_or(std::string{});
+    report.timeLimitSeconds = timeLimitSeconds.value_or(0.0);
+    report.threadCount = threadCount.value_or(0);
+    report.tolerance = solverOptions.tolerance;
+    report.parseSeconds = parseSeconds;
+    report.originalVariables = model.variables.size();
+    report.originalConstraints = model.constraints.size();
+    report.originalModel = &model;
+    if (jsonPath.has_value()) {
+        // Only hashed when a record is actually being written; it is a full
+        // pass over the file and pointless otherwise.
+        report.instanceSha256 = sha256File(modelPath);
+    }
+
+    return solveModel(model, solverOptions, outputPath, out, err, style,
+                      &report, jsonPath);
 }
 
 // Session state maintained throughout interactive mode
@@ -754,7 +846,8 @@ int run(int argc, char* argv[], std::ostream& out, std::ostream& err, std::istre
     if (parseResult.command == Command::Solve) {
         TerminalStyle style = TerminalStyle::forStream(out);
         const auto& opts = parseResult.solveOptions;
-        return solveFile(opts.modelPath, opts.solver, opts.timeLimitSeconds, opts.outputPath, out, err, style);
+        return solveFile(opts.modelPath, opts.solver, opts.timeLimitSeconds, opts.outputPath,
+                         out, err, style, opts.jsonPath, opts.dumpModelPath, opts.threadCount);
     }
 
     printError(err, "Unhandled command", "");
