@@ -435,6 +435,42 @@ void testBetterSolutionInLaterMixedBranchIsNotPruned() {
         "later mixed branch containing global optimum must be explored");
 }
 
+void testUnboundedIntegerDomainRejected() {
+    model::Model m;
+    m.name = "unbounded_integer_domain";
+
+    m.variables = {
+        var(
+            "x",
+            model::VariableType::Integer,
+            0.0,
+            INF)
+    };
+
+    m.objective.sense =
+        model::ObjectiveSense::Minimize;
+
+    m.objective.linearTerms = {
+        {0, 1.0}
+    };
+
+    const auto r =
+        miqp::BranchAndBoundSolver{}.solve(m);
+
+    require(
+        r.status ==
+            miqp::MiqpStatus::RelaxationFailure,
+        "MIQP with unbounded integer domain "
+        "must be rejected explicitly");
+
+    require(
+        r.message.find(
+            "finite lower and upper bounds") !=
+            std::string::npos,
+        "rejection should explain finite "
+        "integer-bound requirement");
+}
+
 }  // namespace
 
 int main() {
@@ -473,6 +509,9 @@ int main() {
 
     run("better solution in later mixed branch is not pruned",
         testBetterSolutionInLaterMixedBranchIsNotPruned);
+
+    run("unbounded integer domain rejected",
+        testUnboundedIntegerDomainRejected);
 
     return failures == 0
         ? EXIT_SUCCESS

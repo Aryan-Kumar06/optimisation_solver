@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cstddef>
 #include <limits>
+#include <string>
 #include <vector>
 
 namespace miqp {
@@ -59,43 +60,26 @@ int chooseBranchVariable(const model::Model& model,
     return best;
 }
 
-bool nodeRowsDefinitelyInfeasible(const model::Model& model,
-                                  const Node& node,
-                                  double tolerance) {
-    for (const auto& constraint : model.constraints) {
-        double minActivity = 0.0;
-        double maxActivity = 0.0;
+bool hasUnsupportedUnboundedIntegerDomain(
+    const model::Model& model,
+    std::size_t& offendingIndex) {
 
-        for (const auto& term : constraint.linearTerms) {
-            if (term.value == 0.0) {
-                continue;
-            }
+    for (std::size_t j = 0;
+         j < model.variables.size();
+         ++j) {
 
-            const std::size_t j =
-                static_cast<std::size_t>(term.variableIndex);
+        const auto& variable =
+            model.variables[j];
 
-            if (j >= node.lower.size()) {
-                return true;
-            }
-
-            if (term.value > 0.0) {
-                minActivity += term.value * node.lower[j];
-                maxActivity += term.value * node.upper[j];
-            } else {
-                minActivity += term.value * node.upper[j];
-                maxActivity += term.value * node.lower[j];
-            }
+        if (variable.type ==
+            model::VariableType::Continuous) {
+            continue;
         }
 
-        if (std::isfinite(constraint.lowerBound) &&
-            maxActivity <
-                constraint.lowerBound - tolerance) {
-            return true;
-        }
+        if (!std::isfinite(variable.lowerBound) ||
+            !std::isfinite(variable.upperBound)) {
 
-        if (std::isfinite(constraint.upperBound) &&
-            minActivity >
-                constraint.upperBound + tolerance) {
+            offendingIndex = j;
             return true;
         }
     }
@@ -103,21 +87,91 @@ bool nodeRowsDefinitelyInfeasible(const model::Model& model,
     return false;
 }
 
-double modelObjective(const model::Model& model,
-                      const std::vector<double>& x) {
-    double value = model.objective.offset;
+bool nodeRowsDefinitelyInfeasible(const model::Model& model,
+                                  const Node& node,
+                                  double tolerance) {
+    for (const auto& constraint :
+         model.constraints) {
+
+        double minActivity = 0.0;
+        double maxActivity = 0.0;
+
+        for (const auto& term :
+             constraint.linearTerms) {
+
+            if (term.value == 0.0) {
+                continue;
+            }
+
+            const std::size_t j =
+                static_cast<std::size_t>(
+                    term.variableIndex);
+
+            if (j >= node.lower.size()) {
+                return true;
+            }
+
+            if (term.value > 0.0) {
+                minActivity +=
+                    term.value * node.lower[j];
+
+                maxActivity +=
+                    term.value * node.upper[j];
+            } else {
+                minActivity +=
+                    term.value * node.upper[j];
+
+                maxActivity +=
+                    term.value * node.lower[j];
+            }
+        }
+
+        if (std::isfinite(
+                constraint.lowerBound) &&
+            maxActivity <
+                constraint.lowerBound -
+                    tolerance) {
+            return true;
+        }
+
+        if (std::isfinite(
+                constraint.upperBound) &&
+            minActivity >
+                constraint.upperBound +
+                    tolerance) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+double modelObjective(
+    const model::Model& model,
+    const std::vector<double>& x) {
+
+    double value =
+        model.objective.offset;
 
     for (const auto& term :
          model.objective.linearTerms) {
+
         const std::size_t j =
             static_cast<std::size_t>(
                 term.variableIndex);
 
-        value += term.value * x[j];
+        if (j >= x.size()) {
+            return std::numeric_limits<
+                double>::quiet_NaN();
+        }
+
+        value +=
+            term.value * x[j];
     }
 
     for (const auto& term :
          model.objective.quadraticTerms) {
+
         const std::size_t i =
             static_cast<std::size_t>(
                 term.variableIndex1);
@@ -126,7 +180,14 @@ double modelObjective(const model::Model& model,
             static_cast<std::size_t>(
                 term.variableIndex2);
 
-        value += term.value * x[i] * x[j];
+        if (i >= x.size() ||
+            j >= x.size()) {
+            return std::numeric_limits<
+                double>::quiet_NaN();
+        }
+
+        value +=
+            term.value * x[i] * x[j];
     }
 
     return value;
@@ -140,9 +201,9 @@ MiqpResult BranchAndBoundSolver::solve(
 
     MiqpResult result;
 
-    // ---------------------------------------------------------------------
-    // 1. Structural validation
-    // ---------------------------------------------------------------------
+    // ---------------------------------------------------------------
+    // 1. Structural model validation
+    // ---------------------------------------------------------------
 
     if (!model.validate()) {
         result.status =
@@ -154,16 +215,46 @@ MiqpResult BranchAndBoundSolver::solve(
         return result;
     }
 
-    // ---------------------------------------------------------------------
-    // 2. Convexity validation
+    // ---------------------------------------------------------------
+    // 2. Integer-domain validation
     //
-    // The current MIQP implementation only supports:
+    // This B&B implementation creates children using floor()/ceil()
+    // and stores explicit finite node bounds.
     //
-    //   minimize convex quadratic objective
-    //   maximize concave quadratic objective
+    // Unbounded integer domains are therefore not supported yet.
+    // Reject them explicitly instead of relying on undefined/implicit
+    // behaviour involving +/- infinity.
+    // ---------------------------------------------------------------
+
+    std::size_t unboundedIntegerIndex = 0;
+
+    if (hasUnsupportedUnboundedIntegerDomain(
+            model,
+            unboundedIntegerIndex)) {
+
+        result.status =
+            MiqpStatus::RelaxationFailure;
+
+        result.message =
+            "MIQP currently requires finite lower and upper bounds "
+            "for every integer/binary variable; variable " +
+            std::to_string(
+                unboundedIntegerIndex) +
+            " has an unbounded integer domain";
+
+        return result;
+    }
+
+    // ---------------------------------------------------------------
+    // 3. Convexity validation
     //
-    // Non-convex MIQP must never be passed to the convex QP engine.
-    // ---------------------------------------------------------------------
+    // Supported:
+    //
+    //   minimize: Hessian PSD
+    //   maximize: Hessian NSD
+    //
+    // Non-convex MIQP is intentionally rejected.
+    // ---------------------------------------------------------------
 
     const qp::ConvexityCheck convexity =
         qp::checkConvexity(model);
@@ -172,7 +263,8 @@ MiqpResult BranchAndBoundSolver::solve(
         result.status =
             MiqpStatus::RelaxationFailure;
 
-        result.message = convexity.reason;
+        result.message =
+            convexity.reason;
 
         return result;
     }
@@ -181,25 +273,29 @@ MiqpResult BranchAndBoundSolver::solve(
         model.objective.sense ==
         model::ObjectiveSense::Maximize;
 
-    // ---------------------------------------------------------------------
-    // 3. Timing
-    // ---------------------------------------------------------------------
+    // ---------------------------------------------------------------
+    // 4. Timing
+    // ---------------------------------------------------------------
 
-    const auto start = Clock::now();
+    const auto start =
+        Clock::now();
 
     const auto elapsed = [&]() {
         return std::chrono::duration<double>(
             Clock::now() - start).count();
     };
 
-    // ---------------------------------------------------------------------
-    // 4. Build the root node from the original variable bounds
-    // ---------------------------------------------------------------------
+    // ---------------------------------------------------------------
+    // 5. Root node
+    // ---------------------------------------------------------------
 
     Node root;
 
-    root.lower.reserve(model.variables.size());
-    root.upper.reserve(model.variables.size());
+    root.lower.reserve(
+        model.variables.size());
+
+    root.upper.reserve(
+        model.variables.size());
 
     for (const auto& variable :
          model.variables) {
@@ -212,52 +308,61 @@ MiqpResult BranchAndBoundSolver::solve(
     }
 
     std::vector<Node> stack;
-    stack.push_back(std::move(root));
+    stack.push_back(
+        std::move(root));
 
-    // ---------------------------------------------------------------------
-    // 5. Incumbent storage
-    // ---------------------------------------------------------------------
+    // ---------------------------------------------------------------
+    // 6. Incumbent
+    // ---------------------------------------------------------------
 
     bool hasIncumbent = false;
 
     double incumbent =
         maximize
-            ? -std::numeric_limits<double>::infinity()
-            :  std::numeric_limits<double>::infinity();
+            ? -std::numeric_limits<
+                  double>::infinity()
+            : std::numeric_limits<
+                  double>::infinity();
 
     std::vector<double> incumbentX;
 
-    // ---------------------------------------------------------------------
-    // IMPORTANT NUMERICAL NOTE
+    // ---------------------------------------------------------------
+    // CURRENT B&B BOUND LIMITATION
     //
-    // The QP engine uses ADMM and currently returns a numerically obtained
-    // primal objective.
+    // qp_engine currently returns a numerical ADMM primal solution
+    // and primal objective.
     //
-    // That primal objective is NOT a mathematically certified branch-and-
-    // bound node bound.
+    // That primal objective is NOT a mathematically certified
+    // branch-and-bound node bound.
     //
-    // For minimization, B&B requires a certified LOWER bound.
-    // A primal feasible QP objective is generally an UPPER bound on the
-    // continuous relaxation optimum.
+    // For minimization B&B requires a valid LOWER bound.
+    // A primal feasible QP objective is generally an UPPER bound on
+    // the true continuous-relaxation optimum.
     //
-    // For maximization, the analogous reverse issue applies.
+    // For maximization B&B requires a valid UPPER bound, and the
+    // analogous problem occurs.
     //
-    // Therefore:
+    // Therefore relaxationResult.primalObjective is intentionally
+    // NOT used for node pruning.
     //
-    //     relaxationResult.primalObjective
+    // Correctness is preserved by exhausting the B&B tree and using
+    // only logically justified pruning such as proven infeasibility.
     //
-    // MUST NOT be used to prune branch-and-bound nodes.
+    // Consequence:
+    // this implementation may explore substantially more nodes than
+    // an MIQP solver with certified QP dual bounds.
     //
-    // Until the QP engine exposes a certified dual bound or some rigorously
-    // justified numerical bound, optimality is established by exhausting
-    // the branch-and-bound tree rather than objective-bound pruning.
-    // ---------------------------------------------------------------------
+    // Future work:
+    // expose a mathematically valid QP lower bound for minimization
+    // / upper bound for maximization before objective pruning is
+    // reintroduced.
+    // ---------------------------------------------------------------
 
     while (!stack.empty()) {
 
-        // -----------------------------------------------------------------
-        // 6. Global time limit
-        // -----------------------------------------------------------------
+        // -----------------------------------------------------------
+        // 7. Time limit
+        // -----------------------------------------------------------
 
         if (options.timeLimitSeconds > 0.0 &&
             elapsed() >=
@@ -269,7 +374,8 @@ MiqpResult BranchAndBoundSolver::solve(
             result.message =
                 "MIQP time limit reached";
 
-            result.primal = incumbentX;
+            result.primal =
+                incumbentX;
 
             if (hasIncumbent) {
                 result.objectiveValue =
@@ -279,9 +385,9 @@ MiqpResult BranchAndBoundSolver::solve(
             return result;
         }
 
-        // -----------------------------------------------------------------
-        // 7. Global node limit
-        // -----------------------------------------------------------------
+        // -----------------------------------------------------------
+        // 8. Node limit
+        // -----------------------------------------------------------
 
         if (options.nodeLimit > 0 &&
             result.nodeCount >=
@@ -293,7 +399,8 @@ MiqpResult BranchAndBoundSolver::solve(
             result.message =
                 "MIQP node limit reached";
 
-            result.primal = incumbentX;
+            result.primal =
+                incumbentX;
 
             if (hasIncumbent) {
                 result.objectiveValue =
@@ -303,9 +410,9 @@ MiqpResult BranchAndBoundSolver::solve(
             return result;
         }
 
-        // -----------------------------------------------------------------
-        // 8. Pop one branch-and-bound node
-        // -----------------------------------------------------------------
+        // -----------------------------------------------------------
+        // 9. Pop node
+        // -----------------------------------------------------------
 
         Node node =
             std::move(stack.back());
@@ -314,30 +421,35 @@ MiqpResult BranchAndBoundSolver::solve(
 
         ++result.nodeCount;
 
-        // -----------------------------------------------------------------
-        // 9. Build the continuous QP relaxation
-        // -----------------------------------------------------------------
+        // -----------------------------------------------------------
+        // 10. Build continuous relaxation
+        // -----------------------------------------------------------
 
-        model::Model relaxation = model;
+        model::Model relaxation =
+            model;
 
         bool inconsistent = false;
 
         for (std::size_t j = 0;
-             j < relaxation.variables.size();
+             j <
+             relaxation.variables.size();
              ++j) {
 
             relaxation.variables[j].type =
                 model::VariableType::Continuous;
 
-            relaxation.variables[j].lowerBound =
-                node.lower[j];
+            relaxation.variables[j].
+                lowerBound =
+                    node.lower[j];
 
-            relaxation.variables[j].upperBound =
-                node.upper[j];
+            relaxation.variables[j].
+                upperBound =
+                    node.upper[j];
 
             if (node.lower[j] >
                 node.upper[j] +
-                    options.integralityTolerance) {
+                    options.
+                        integralityTolerance) {
 
                 inconsistent = true;
                 break;
@@ -348,12 +460,12 @@ MiqpResult BranchAndBoundSolver::solve(
             continue;
         }
 
-        // -----------------------------------------------------------------
-        // 10. Cheap exact row/bound infeasibility check
+        // -----------------------------------------------------------
+        // 11. Exact row/bound interval infeasibility check
         //
-        // This is safe pruning because it proves that no point satisfying
-        // the current node bounds can satisfy one of the rows.
-        // -----------------------------------------------------------------
+        // This is safe pruning: a row is impossible under the
+        // current node bounds.
+        // -----------------------------------------------------------
 
         if (nodeRowsDefinitelyInfeasible(
                 model,
@@ -362,9 +474,9 @@ MiqpResult BranchAndBoundSolver::solve(
             continue;
         }
 
-        // -----------------------------------------------------------------
-        // 11. Translate to qp_engine model
-        // -----------------------------------------------------------------
+        // -----------------------------------------------------------
+        // 12. Translate QP
+        // -----------------------------------------------------------
 
         qp::QpTranslation translation;
         qp::QpModel qpModel;
@@ -374,11 +486,12 @@ MiqpResult BranchAndBoundSolver::solve(
                 qp::fromModel(
                     relaxation,
                     translation);
-
-        } catch (const std::exception& error) {
+        } catch (
+            const std::exception& error) {
 
             result.status =
-                MiqpStatus::RelaxationFailure;
+                MiqpStatus::
+                    RelaxationFailure;
 
             result.message =
                 error.what();
@@ -386,17 +499,19 @@ MiqpResult BranchAndBoundSolver::solve(
             return result;
         }
 
-        // -----------------------------------------------------------------
-        // 12. Configure the numerical QP solve
-        // -----------------------------------------------------------------
+        // -----------------------------------------------------------
+        // 13. QP options
+        // -----------------------------------------------------------
 
         qp::AdmmOptions qpOptions;
 
         const double qpTolerance =
             std::min(
-                options.integralityTolerance *
+                options.
+                    integralityTolerance *
                     0.1,
-                options.feasibilityTolerance *
+                options.
+                    feasibilityTolerance *
                     0.1);
 
         qpOptions.primalTolerance =
@@ -408,15 +523,18 @@ MiqpResult BranchAndBoundSolver::solve(
         qpOptions.threadCount =
             options.threadCount;
 
-        if (options.timeLimitSeconds > 0.0) {
+        if (options.timeLimitSeconds >
+            0.0) {
 
             qpOptions.timeLimitSeconds =
                 std::max(
                     0.0,
-                    options.timeLimitSeconds -
+                    options.
+                        timeLimitSeconds -
                         elapsed());
 
-            if (qpOptions.timeLimitSeconds <=
+            if (qpOptions.
+                    timeLimitSeconds <=
                 0.0) {
 
                 result.status =
@@ -437,27 +555,26 @@ MiqpResult BranchAndBoundSolver::solve(
             }
         }
 
-        // -----------------------------------------------------------------
-        // 13. Solve the continuous relaxation
-        // -----------------------------------------------------------------
+        // -----------------------------------------------------------
+        // 14. Solve continuous QP relaxation
+        // -----------------------------------------------------------
 
-        const qp::AdmmResult relaxationResult =
-            qp::QpSolver{}.solve(
-                qpModel,
-                qpOptions);
+        const qp::AdmmResult
+            relaxationResult =
+                qp::QpSolver{}.solve(
+                    qpModel,
+                    qpOptions);
 
         result.qpIterations +=
             relaxationResult.iterations;
 
-        // -----------------------------------------------------------------
-        // 14. Handle relaxation statuses
-        // -----------------------------------------------------------------
+        // -----------------------------------------------------------
+        // 15. Relaxation status handling
+        // -----------------------------------------------------------
 
         if (relaxationResult.status ==
             qp::QpStatus::Infeasible) {
 
-            // This node has no feasible
-            // continuous relaxation.
             continue;
         }
 
@@ -468,7 +585,8 @@ MiqpResult BranchAndBoundSolver::solve(
                 MiqpStatus::TimeLimit;
 
             result.message =
-                "QP relaxation reached the MIQP time limit";
+                "QP relaxation reached "
+                "the MIQP time limit";
 
             result.primal =
                 incumbentX;
@@ -484,19 +602,19 @@ MiqpResult BranchAndBoundSolver::solve(
         if (relaxationResult.status ==
             qp::QpStatus::Unbounded) {
 
-            // An unbounded continuous relaxation does
-            // NOT prove that the original mixed-integer
-            // problem is unbounded.
-            //
-            // We currently do not have a valid
-            // mixed-integer unboundedness certificate.
+            // An unbounded continuous relaxation
+            // does NOT constitute a certificate that
+            // the mixed-integer problem is unbounded.
+
             result.status =
-                MiqpStatus::RelaxationFailure;
+                MiqpStatus::
+                    RelaxationFailure;
 
             result.message =
                 "QP relaxation is unbounded; "
-                "no mixed-integer unboundedness "
-                "certificate is available";
+                "no valid mixed-integer "
+                "unboundedness certificate "
+                "is available";
 
             return result;
         }
@@ -505,58 +623,54 @@ MiqpResult BranchAndBoundSolver::solve(
             qp::QpStatus::Optimal) {
 
             result.status =
-                MiqpStatus::RelaxationFailure;
+                MiqpStatus::
+                    RelaxationFailure;
 
             result.message =
                 "QP relaxation failed: " +
-                relaxationResult.statusMessage;
+                relaxationResult.
+                    statusMessage;
 
             return result;
         }
 
-        if (relaxationResult.primal.size() !=
+        if (relaxationResult.
+                primal.size() !=
             model.variables.size()) {
 
             result.status =
-                MiqpStatus::RelaxationFailure;
+                MiqpStatus::
+                    RelaxationFailure;
 
             result.message =
-                "QP relaxation returned an incomplete "
-                "primal solution";
+                "QP relaxation returned "
+                "an incomplete primal solution";
 
             return result;
         }
 
-        // -----------------------------------------------------------------
-        // 15. DO NOT prune using primalObjective
+        // -----------------------------------------------------------
+        // 16. IMPORTANT:
+        // No objective-bound pruning occurs here.
         //
-        // There used to be code here similar to:
-        //
-        //     if (hasIncumbent &&
-        //         prunable(relaxationObjective,
-        //                  incumbent, ...)) {
-        //         continue;
-        //     }
-        //
-        // That was mathematically unsafe because the ADMM primal objective
-        // is not a certified relaxation lower/upper bound.
-        //
-        // No objective-based node pruning is performed here.
-        // -----------------------------------------------------------------
+        // relaxationResult.primalObjective is intentionally ignored
+        // as a B&B pruning bound.
+        // -----------------------------------------------------------
 
-        // -----------------------------------------------------------------
-        // 16. Check integrality
-        // -----------------------------------------------------------------
+        // -----------------------------------------------------------
+        // 17. Look for a genuinely fractional integer variable
+        // -----------------------------------------------------------
 
         int branch =
             chooseBranchVariable(
                 model,
                 relaxationResult.primal,
-                options.integralityTolerance);
+                options.
+                    integralityTolerance);
 
-        // -----------------------------------------------------------------
-        // 17. Near-integral candidate
-        // -----------------------------------------------------------------
+        // -----------------------------------------------------------
+        // 18. Solution appears integer within normal tolerance
+        // -----------------------------------------------------------
 
         if (branch < 0) {
 
@@ -564,13 +678,15 @@ MiqpResult BranchAndBoundSolver::solve(
                 roundedCandidate =
                     relaxationResult.primal;
 
-            // Round only integer/binary variables.
             for (std::size_t j = 0;
-                 j < roundedCandidate.size();
+                 j <
+                 roundedCandidate.size();
                  ++j) {
 
-                if (model.variables[j].type !=
-                    model::VariableType::Continuous) {
+                if (model.variables[j].
+                        type !=
+                    model::VariableType::
+                        Continuous) {
 
                     roundedCandidate[j] =
                         std::round(
@@ -578,26 +694,30 @@ MiqpResult BranchAndBoundSolver::solve(
                 }
             }
 
-            // -------------------------------------------------------------
-            // 18. Revalidate rounded candidate
-            // -------------------------------------------------------------
+            // -------------------------------------------------------
+            // 19. Validate rounded candidate
+            // -------------------------------------------------------
 
-            const FeasibilityCheck feasibility =
-                checkFeasibility(
-                    model,
-                    roundedCandidate,
-                    options.feasibilityTolerance,
-                    options.integralityTolerance);
+            const FeasibilityCheck
+                feasibility =
+                    checkFeasibility(
+                        model,
+                        roundedCandidate,
+                        options.
+                            feasibilityTolerance,
+                        options.
+                            integralityTolerance);
 
-            const FeasibilityCheck roundingSafety =
-                checkRoundingSafety(
-                    model,
-                    relaxationResult.primal,
-                    roundedCandidate);
+            const FeasibilityCheck
+                roundingSafety =
+                    checkRoundingSafety(
+                        model,
+                        relaxationResult.primal,
+                        roundedCandidate);
 
-            // -------------------------------------------------------------
-            // 19. Candidate is truly feasible
-            // -------------------------------------------------------------
+            // -------------------------------------------------------
+            // 20. Feasible integer candidate
+            // -------------------------------------------------------
 
             if (feasibility.feasible &&
                 roundingSafety.feasible) {
@@ -607,37 +727,50 @@ MiqpResult BranchAndBoundSolver::solve(
                         model,
                         roundedCandidate);
 
+                if (!std::isfinite(
+                        candidate)) {
+
+                    result.status =
+                        MiqpStatus::
+                            RelaxationFailure;
+
+                    result.message =
+                        "failed to evaluate "
+                        "MIQP incumbent "
+                        "objective";
+
+                    return result;
+                }
+
                 if (!hasIncumbent ||
                     better(
                         candidate,
                         incumbent,
                         maximize,
-                        options.objectiveTolerance)) {
+                        options.
+                            objectiveTolerance)) {
 
                     hasIncumbent = true;
-                    incumbent = candidate;
+
+                    incumbent =
+                        candidate;
 
                     incumbentX =
                         std::move(
                             roundedCandidate);
                 }
 
-                // This node has produced a feasible
-                // integer solution and needs no further
-                // branching.
                 continue;
             }
 
-            // -------------------------------------------------------------
-            // 20. Candidate only looked integral because of tolerance
+            // -------------------------------------------------------
+            // 21. Candidate only appeared integral because of
+            // numerical tolerance.
             //
-            // Rounding changed feasibility.
-            //
-            // We must NOT accept it.
-            //
-            // Instead branch on the tiny remaining
-            // fractional component.
-            // -------------------------------------------------------------
+            // Retry using essentially machine precision so that a
+            // tiny but real fractional component can still create a
+            // valid B&B branch.
+            // -------------------------------------------------------
 
             branch =
                 chooseBranchVariable(
@@ -646,19 +779,43 @@ MiqpResult BranchAndBoundSolver::solve(
                     std::numeric_limits<
                         double>::epsilon());
 
+            // -------------------------------------------------------
+            // CRITICAL NUMERICAL SAFETY:
+            //
+            // If no fractional integer variable remains, we have:
+            //
+            //   - no valid incumbent,
+            //   - no infeasibility certificate,
+            //   - and no legal branch to continue from.
+            //
+            // Silently continuing here would incorrectly treat the
+            // node as exhausted and could lead to false Optimal or
+            // Infeasible status.
+            //
+            // Therefore terminate with RelaxationFailure instead.
+            // -------------------------------------------------------
+
             if (branch < 0) {
 
-                // Nothing meaningful remains to branch on.
-                //
-                // Reject the invalid rounded candidate
-                // rather than making it an incumbent.
-                continue;
+                result.status =
+                    MiqpStatus::
+                        RelaxationFailure;
+
+                result.message =
+                    "QP relaxation produced an "
+                    "approximately integral point, "
+                    "but the rounded candidate failed "
+                    "final feasibility validation and "
+                    "no fractional integer variable "
+                    "remains to branch on";
+
+                return result;
             }
         }
 
-        // -----------------------------------------------------------------
-        // 21. Branch on selected integer variable
-        // -----------------------------------------------------------------
+        // -----------------------------------------------------------
+        // 22. Create B&B children
+        // -----------------------------------------------------------
 
         const std::size_t j =
             static_cast<std::size_t>(
@@ -667,16 +824,28 @@ MiqpResult BranchAndBoundSolver::solve(
         const double value =
             relaxationResult.primal[j];
 
+        if (!std::isfinite(value)) {
+
+            result.status =
+                MiqpStatus::
+                    RelaxationFailure;
+
+            result.message =
+                "QP relaxation returned a "
+                "non-finite value for the "
+                "branching variable";
+
+            return result;
+        }
+
         const double down =
             std::floor(value);
 
         const double up =
             std::ceil(value);
 
-        // Down branch:
-        //
-        // x_j <= floor(value)
-        Node lowerChild = node;
+        Node lowerChild =
+            node;
 
         lowerChild.depth =
             node.depth + 1;
@@ -686,10 +855,8 @@ MiqpResult BranchAndBoundSolver::solve(
                 lowerChild.upper[j],
                 down);
 
-        // Up branch:
-        //
-        // x_j >= ceil(value)
-        Node upperChild = node;
+        Node upperChild =
+            node;
 
         upperChild.depth =
             node.depth + 1;
@@ -699,47 +866,47 @@ MiqpResult BranchAndBoundSolver::solve(
                 upperChild.lower[j],
                 up);
 
-        // -----------------------------------------------------------------
-        // 22. Ensure children actually tighten the current node
-        //
-        // This prevents a numerically near-integral point from creating a
-        // child identical to its parent.
-        // -----------------------------------------------------------------
-
-        const bool upperTightens =
-            upperChild.lower[j] >
-            node.lower[j];
+        // -----------------------------------------------------------
+        // 23. Do not create a child identical to its parent
+        // -----------------------------------------------------------
 
         const bool lowerTightens =
             lowerChild.upper[j] <
             node.upper[j];
 
-        // LIFO:
-        // push upper first so lower/down branch
-        // is explored first.
+        const bool upperTightens =
+            upperChild.lower[j] >
+            node.lower[j];
+
+        // Push upper first because the stack is LIFO.
+        // This causes the down/lower child to be processed first.
 
         if (upperTightens &&
             upperChild.lower[j] <=
                 upperChild.upper[j] +
-                    options.integralityTolerance) {
+                    options.
+                        integralityTolerance) {
 
             stack.push_back(
-                std::move(upperChild));
+                std::move(
+                    upperChild));
         }
 
         if (lowerTightens &&
             lowerChild.lower[j] <=
                 lowerChild.upper[j] +
-                    options.integralityTolerance) {
+                    options.
+                        integralityTolerance) {
 
             stack.push_back(
-                std::move(lowerChild));
+                std::move(
+                    lowerChild));
         }
     }
 
-    // ---------------------------------------------------------------------
-    // 23. Tree exhausted
-    // ---------------------------------------------------------------------
+    // ---------------------------------------------------------------
+    // 24. Entire B&B tree exhausted
+    // ---------------------------------------------------------------
 
     if (!hasIncumbent) {
 
@@ -747,17 +914,17 @@ MiqpResult BranchAndBoundSolver::solve(
             MiqpStatus::Infeasible;
 
         result.message =
-            "all convex QP relaxations were "
-            "infeasible or exhausted";
+            "all branch-and-bound nodes "
+            "were exhausted without a "
+            "feasible integer solution";
 
         return result;
     }
 
-    // Because there are no unexplored nodes left, the best feasible
-    // integer incumbent is globally optimal over the explored MIQP tree.
-    //
-    // This proof does NOT depend on the ADMM primal objective being a
-    // certified bound.
+    // Since every B&B node has been exhausted and no uncertified
+    // objective pruning was used, the best incumbent found is the
+    // global optimum over the represented finite integer domain.
+
     result.status =
         MiqpStatus::Optimal;
 
