@@ -549,6 +549,7 @@ SolveResult solveReduced(const model::Model& presolvedModel,
             result = solveTrivially(presolvedModel, std::move(result));
             break;
 
+        case Engine::Nlp: // Defensive: affine dispatcher rejects this engine.
         case Engine::Unsupported:
             result.status = SolveStatus::Unsupported;
             result.message = decision.reason;
@@ -585,6 +586,14 @@ SolveResult solve(const model::Model& model, const SolverOptions& options) {
     if (!model.validate()) {
         result.status = SolveStatus::InvalidModel;
         result.message = "model failed structural validation";
+        result.solveSeconds = secondsSince(start);
+        return result;
+    }
+
+    if (options.forceEngine == Engine::Nlp) {
+        result.status = SolveStatus::Unsupported;
+        result.message = "NLP requires nlp::Problem and an explicit initial point (CLI: solve model.nlp)";
+        result.engineReason = result.message;
         result.solveSeconds = secondsSince(start);
         return result;
     }

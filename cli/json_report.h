@@ -20,6 +20,7 @@
 #include "presolve/presolve_result.h"
 #include "solver/classifier.h"
 #include "solver/solve_result.h"
+#include "solver/nlp.h"
 
 #include <iosfwd>
 #include <string>
@@ -60,6 +61,11 @@ struct JsonReportInput {
 bool writeJsonReport(std::ostream& out,
                      const JsonReportInput& input,
                      const solver::SolveResult& result);
+
+// Nonlinear reports preserve first-order status and KKT multiplier semantics.
+// They share provenance/options fields, but have an explicit NLP schema.
+bool writeJsonReport(std::ostream& out, const JsonReportInput& input,
+                     const solver::NlpSolveResult& result);
 
 // Dumps the parsed model exactly as model::Model holds it, so an independent
 // reader can be diffed against it field by field. This is the only way to test

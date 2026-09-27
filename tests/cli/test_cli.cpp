@@ -195,6 +195,23 @@ void test_argument_parser_direct() {
     std::cout << "[PASSED] test_argument_parser_direct\n";
 }
 
+void test_nlp_argument_parser() {
+    const char* explicitArgs[] = {"optimsolver", "solve-nlp", "--iterations", "12", "test.data", "--solver", "nlp"};
+    auto parsed = cli::ArgumentParser::parse(7, explicitArgs);
+    assert(parsed.success && parsed.command == cli::Command::SolveNlp);
+    assert(parsed.solveOptions.iterationLimit == 12);
+    assert(parsed.solveOptions.modelPath == "test.data");
+    const char* autoArgs[] = {"optimsolver", "solve", "test.NLP", "--tolerance", "1e-7"};
+    parsed = cli::ArgumentParser::parse(5, autoArgs);
+    assert(parsed.success && parsed.command == cli::Command::SolveNlp);
+    assert(parsed.solveOptions.tolerance == 1e-7);
+    const char* affineArgs[] = {"optimsolver", "solve", "test.mps", "--iterations", "10"};
+    assert(!cli::ArgumentParser::parse(5, affineArgs).success);
+    const char* helpArgs[] = {"optimsolver", "solve", "test.nlp", "-h"};
+    parsed = cli::ArgumentParser::parse(4, helpArgs);
+    assert(parsed.isHelp && parsed.command == cli::Command::SolveNlp);
+}
+
 void test_solve_missing_model_file() {
     std::string out, err;
     int code = runCli({"optimsolver", "solve", "non_existent_path_12345.mps"}, out, err);
@@ -581,6 +598,7 @@ int main() {
     test_solve_invalid_time_limit();
     test_solve_invalid_solver();
     test_argument_parser_direct();
+    test_nlp_argument_parser();
     test_solve_missing_model_file();
     test_solve_real_model_pipeline();
     test_solve_infeasible_model();

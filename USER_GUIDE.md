@@ -447,3 +447,18 @@ To run a specific test target:
 # Run end-to-end pipeline tests
 ./build/test_end_to_end
 ```
+
+## Smooth nonlinear programming
+
+Use `optimsolver solve model.nlp` (or `solve-nlp model.nlp`) for continuous smooth nonlinear objectives
+and constraints. This accepts a versioned expression-DAG format, separate from
+MPS and the natural-language frontend. `solve-nlp --help` lists the available
+budgets and JSON reporting options. Successful termination means **first-order
+stationarity**, with original-unit feasibility and KKT residual checks; it does
+not certify a global optimum. See the [NLP guide](nlp_engine/README.md) for C++
+modeling examples, the file format, solver design, statuses and current limits.
+
+The interactive Open Model flow also accepts `.nlp` files. Automatic selection
+chooses NLP; `--solver nlp` makes that selection explicit. `--json` writes a
+versioned diagnostic record and `--output` writes the evaluated iterate with
+status and feasibility labels. NLP does not use affine presolve/postsolve.

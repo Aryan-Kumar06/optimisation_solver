@@ -163,3 +163,20 @@ The orchestrator classifies the original model once, runs presolve once, and pas
 | **Engines** | PDLP (First-Order LP), Dual Simplex, Branch-and-Cut (MILP), ADMM (QP) | Infeasible interior-point barrier solver |
 | **Postsolve** | Full primal reconstruction, Objective re-evaluation, Dual reconstruction (shadow prices & reduced costs), Bound provenance validation, Fail-closed error handling | Support for dual reconstruction through variable substitution passes |
 | **CLI & UX** | Interactive menu, Batch solve mode, Mascot banner, Solve dashboard, Solution export, TTY detection, CMake install | Real-time solve progression streaming |
+
+## Smooth nonlinear models
+
+`nlp::Problem` and `nlp::Model` use a separate nonlinear pipeline through the
+`solver::solve(problem, initial, nlp::Options)` overload. This path bypasses
+linear presolve/postsolve, reuses `qp_engine` for elastic SQP subproblems, and
+returns `solver::NlpSolveResult` with shared classification/engine metadata,
+first-order stationarity and original-unit KKT
+residuals. The affine `SolveResult::Optimal` contract is unchanged. See the
+[NLP design and numerical limitations](../nlp_engine/README.md) for the
+architecture decision, expression AD, globalization, scaling and validation.
+
+The shared CLI parser routes `.nlp` files from `solve`, or accepts an explicit
+`solve-nlp` command. Interactive model state stores the nonlinear input snapshot
+separately and uses the same orchestrator/report writer. Nonlinear JSON uses the
+`optimsolver.nlp.v1` schema; affine reports retain their existing schema. Engine
+mismatches are rejected before affine presolve or nonlinear evaluation.

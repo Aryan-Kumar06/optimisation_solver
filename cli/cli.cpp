@@ -1,3 +1,4 @@
+#include "nlp_cli.h"
 #include "cli.h"
 #include "argument_parser.h"
 #include "mascot.h"
@@ -295,6 +296,8 @@ struct InteractiveSession {
     std::string modelPath;
     std::string modelName;
     model::Model model;
+    std::optional<nlp::Input> nlpInput;
+    solver::NlpSolveResult lastNlpResult;
     solver::Classification classification;
 
     std::optional<std::string> forcedEngine;
@@ -321,9 +324,13 @@ void displayCurrentModelCard(std::ostream& out, const InteractiveSession& sessio
     out << "  " << s.dim() << "Problem type     " << s.reset() << s.bold()
         << solver::toString(session.classification.problemClass) << s.reset() << "\n";
     out << "  " << s.dim() << "Variables        " << s.reset()
-        << formatNumber(session.model.variables.size()) << "\n";
+        << formatNumber(session.classification.hints.numColumns) << "\n";
     out << "  " << s.dim() << "Constraints      " << s.reset()
-        << formatNumber(session.model.constraints.size()) << "\n";
+        << formatNumber(session.classification.hints.numRows) << "\n";
+    if (session.nlpInput) {
+        out << "  Jacobian         Evaluated during solve\n\n";
+        return;
+    }
     out << "  " << s.dim() << "Nonzeros         " << s.reset()
         << formatNumber(nonzeros) << "\n\n";
 }
@@ -332,7 +339,7 @@ void displayModelInfoScreen(std::ostream& out, std::istream& in, const Interacti
     printHeaderBox(out, "MODEL INFORMATION", s);
     if (!session.hasModel) {
         out << "  " << s.boldYellow() << "No model is currently loaded." << s.reset() << "\n";
-        out << "  Please select " << s.boldCyan() << "[1] Open MPS Model" << s.reset() << " first.\n\n";
+        out << "  Please select " << s.boldCyan() << "[1] Open MPS Model or NLP Model" << s.reset() << " first.\n\n";
         out << "  " << s.dim() << "Press Enter to return..." << s.reset();
         std::string dummy;
         std::getline(in, dummy);
@@ -344,6 +351,17 @@ void displayModelInfoScreen(std::ostream& out, std::istream& in, const Interacti
     auto slashPos = fileName.find_last_of("/\\");
     if (slashPos != std::string::npos) {
         fileName = fileName.substr(slashPos + 1);
+    }
+
+    if (session.nlpInput) {
+        displayCurrentModelCard(out, session, s);
+        out << "  Smooth continuous minimization; nonlinear constraints and variable bounds.\n"
+            << "  Engine: nlp_sqp. Success means first-order stationarity.\n"
+            << "  Affine presolve/postsolve: not applicable.\n\n"
+            << "  Press Enter to return...";
+        std::string dummy;
+        std::getline(in, dummy);
+        return;
     }
 
     int nContinuous = 0, nInteger = 0, nBinary = 0;
@@ -369,13 +387,13 @@ void displayModelInfoScreen(std::ostream& out, std::istream& in, const Interacti
     out << "      " << solver::toString(session.classification.problemClass) << "\n\n";
 
     out << "  " << s.bold() << "Variables" << s.reset() << "\n";
-    out << "      " << formatNumber(session.model.variables.size()) << "\n";
+    out << "      " << formatNumber(session.classification.hints.numColumns) << "\n";
     out << "      Continuous    " << formatNumber(nContinuous) << "\n";
     out << "      Integer       " << formatNumber(nInteger) << "\n";
     out << "      Binary        " << formatNumber(nBinary) << "\n\n";
 
     out << "  " << s.bold() << "Constraints" << s.reset() << "\n";
-    out << "      " << formatNumber(session.model.constraints.size()) << "\n\n";
+    out << "      " << formatNumber(session.classification.hints.numRows) << "\n\n";
 
     out << "  " << s.bold() << "Matrix nonzeros" << s.reset() << "\n";
     out << "      " << formatNumber(nonzeros) << "\n\n";
@@ -416,7 +434,7 @@ void displaySettingsScreen(std::ostream& out, std::istream& in, InteractiveSessi
         choice = trim(choice);
 
         if (choice == "1") {
-            out << "\n  Available: auto, pdlp, dual_simplex, branch_and_cut, qp\n";
+            out << "\n  Available: auto, pdlp, dual_simplex, branch_and_cut, qp, nlp\n";
             out << "  Enter solver (or 'auto' for default): ";
             std::string eng;
             if (!std::getline(in, eng)) break;
@@ -480,7 +498,9 @@ void displayHelpScreen(std::ostream& out, std::istream& in, const TerminalStyle&
     out << "      --solver pdlp\n";
     out << "      --solver dual_simplex\n";
     out << "      --solver branch_and_cut\n";
-    out << "      --solver qp\n\n";
+    out << "      --solver qp\n";
+    out << "      --solver nlp (for .nlp models)\n";
+    out << "      optimsolver solve model.nlp (or solve-nlp model.nlp)\n\n";
 
     out << "  " << s.bold() << "Other options:" << s.reset() << "\n";
     out << "      --time-limit <seconds>\n";
@@ -498,8 +518,8 @@ void displayHelpScreen(std::ostream& out, std::istream& in, const TerminalStyle&
 
 bool openModelPrompt(std::ostream& out, std::istream& in, InteractiveSession& session, const TerminalStyle& s) {
     while (in.good()) {
-        printHeaderBox(out, "OPEN MPS MODEL", s);
-        out << "  Enter path to an MPS file (or press Enter to cancel):\n  > ";
+        printHeaderBox(out, "OPEN MODEL (MPS / NLP)", s);
+        out << "  Enter path to an MPS or .nlp file (or press Enter to cancel):\n  > ";
         std::string rawPath;
         if (!std::getline(in, rawPath)) {
             return false;
@@ -512,8 +532,15 @@ bool openModelPrompt(std::ostream& out, std::istream& in, InteractiveSession& se
 
         mps::MpsReader reader;
         model::Model loadedModel;
+        std::optional<nlp::Input> loadedNlp;
         try {
-            loadedModel = reader.read(path);
+            if (ArgumentParser::isNlpPath(path)) {
+                std::ifstream file(path);
+                if (!file) throw std::runtime_error("cannot open NLP model");
+                loadedNlp.emplace(nlp::read(file));
+            } else {
+                loadedModel = reader.read(path);
+            }
         } catch (const std::exception& ex) {
             out << "\n  " << s.boldRed() << "✗ Could not load model" << s.reset() << "\n\n";
             out << "  Reason:\n  " << ex.what() << "\n\n";
@@ -531,7 +558,7 @@ bool openModelPrompt(std::ostream& out, std::istream& in, InteractiveSession& se
             return false;
         }
 
-        if (!loadedModel.validate()) {
+        if (!loadedNlp && !loadedModel.validate()) {
             out << "\n  " << s.boldRed() << "✗ Could not load model" << s.reset() << "\n\n";
             out << "  Reason:\n  Model failed structural validation.\n\n";
             out << "  " << s.boldCyan() << "[1]" << s.reset() << " Try another file\n";
@@ -552,7 +579,9 @@ bool openModelPrompt(std::ostream& out, std::istream& in, InteractiveSession& se
         session.modelPath = path;
         session.modelName = loadedModel.name.empty() ? path : loadedModel.name;
         session.model = std::move(loadedModel);
-        session.classification = solver::classify(session.model);
+        session.nlpInput = std::move(loadedNlp);
+        session.classification = session.nlpInput ? solver::classify(session.nlpInput->model) : solver::classify(session.model);
+        session.lastNlpResult = {};
         session.hasLastResult = false;
 
         std::string fileName = session.modelPath;
@@ -574,6 +603,21 @@ void solveInteractive(std::ostream& out, std::ostream& err, std::istream& in, In
     }
 
     printHeaderBox(out, "SOLVING", s);
+    if (session.nlpInput) {
+        SolveOptions options;
+        options.modelPath = session.modelPath;
+        options.solver = session.forcedEngine;
+        options.timeLimitSeconds = session.timeLimitSeconds;
+        options.outputPath = session.outputPath;
+        printHeaderBox(out, "SOLVE RESULT", s);
+        session.lastNlpResult = {};
+        runNlp(options, out, err, &*session.nlpInput, &session.lastNlpResult);
+        session.hasLastResult = session.lastNlpResult.hasPrimal;
+        out << "\n  Press Enter to continue...";
+        std::string dummy;
+        std::getline(in, dummy);
+        return;
+    }
 
     std::string fileName = session.modelPath;
     auto slashPos = fileName.find_last_of("/\\");
@@ -668,10 +712,10 @@ void solveInteractive(std::ostream& out, std::ostream& err, std::istream& in, In
 
     printDivider("MODEL SIZE");
     out << "  " << s.dim() << "Variables             " << s.reset()
-        << formatNumber(session.model.variables.size()) << " → "
+        << formatNumber(session.classification.hints.numColumns) << " → "
         << formatNumber(solveResult.reducedVariableCount) << "\n";
     out << "  " << s.dim() << "Constraints           " << s.reset()
-        << formatNumber(session.model.constraints.size()) << " → "
+        << formatNumber(session.classification.hints.numRows) << " → "
         << formatNumber(solveResult.reducedConstraintCount) << "\n\n";
 
     printDivider("SOLUTION");
@@ -831,7 +875,9 @@ int run(int argc, char* argv[], std::ostream& out, std::ostream& err, std::istre
     }
 
     if (parseResult.isHelp) {
-        if (parseResult.command == Command::Solve) {
+        if (parseResult.command == Command::SolveNlp) {
+            out << ArgumentParser::getNlpHelp();
+        } else if (parseResult.command == Command::Solve) {
             printSolveHelp(out);
         } else {
             printWelcome(out);
@@ -842,6 +888,9 @@ int run(int argc, char* argv[], std::ostream& out, std::ostream& err, std::istre
     if (parseResult.command == Command::Interactive) {
         return runInteractive(out, err, in);
     }
+
+    if (parseResult.command == Command::SolveNlp)
+        return runNlp(parseResult.solveOptions, out, err);
 
     if (parseResult.command == Command::Solve) {
         TerminalStyle style = TerminalStyle::forStream(out);

@@ -1,0 +1,18 @@
+nlp 1
+variables 2
+-inf inf -1.2
+-inf inf 1
+nodes 11
+var 0
+var 1
+const 100
+const 1
+square 0
+sub 1 4
+square 5
+mul 2 6
+sub 3 0
+square 8
+add 7 9
+objective 10
+constraints 0
