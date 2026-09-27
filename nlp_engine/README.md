@@ -8,11 +8,23 @@ subject to lower_c <= c(x) <= upper_c
            lower_x <= x <= upper_x
 ```
 
-It is a local, first-order elastic SQP implementation. `FirstOrderStationary`
-means the reported point and multipliers satisfy the original-unit KKT tests.
-It is not a global optimum, second-order minimum, or infeasibility certificate.
-This implementation has regression and reference coverage, but is not a claim
-of parity with the maturity, performance, or problem coverage of IPOPT/SNOPT.
+It is a local, first-order elastic SQP implementation.
+
+Scope, stated once and not qualified away elsewhere in this document:
+
+- This is a **local, first-order** NLP solver.
+- `FirstOrderStationary` means the returned point and multipliers satisfy the
+  original-unit first-order KKT tests. It is **not global optimality**, and not
+  a second-order (local minimum) certificate - a saddle point or a maximum
+  satisfies the same tests.
+- The solver provides **no infeasibility certificate**. `NoProgress` and
+  `SubproblemFailure` mean this method stopped making progress, never that the
+  problem is proven infeasible.
+- **No parity with IPOPT or SNOPT** is claimed, in maturity, performance,
+  robustness or problem coverage.
+- **Large-scale performance has not been established.** Measured coverage is
+  small-to-moderate problems (the largest in the suite is n=300); above
+  `denseBfgsLimit` the curvature model changes and is untested at scale.
 
 ## Architecture and repository fit
 
@@ -85,7 +97,8 @@ Supported operations: constants, variables, `+ - * /`, unary minus, `exp`, `log`
 There is no nonsmooth `abs`, min/max, conditional expression, or arbitrary code
 execution. Values and first derivatives must be finite: e.g. `sqrt(0)` fails
 because its derivative is singular. Unused expressions are not evaluated.
-There is no exact Hessian AD in this version.
+There is no exact Hessian AD, no exact Hessian callback and no Hessian-vector
+product callback; see *No second-order information* below.
 
 For external simulators, derive from `Problem`: provide bound vectors and an
 `Evaluation` containing f, gradient, constraints and a valid sparse Jacobian.
@@ -121,10 +134,9 @@ consistent but mathematically wrong derivatives unless independently checked.
    Project trial points to hard bounds to remove QP roundoff.
 6. Update curvature using Lagrangian gradients at both points with the **same**
    current multipliers. Powell damping preserves positive curvature for
-   nonconvex objectives; unsafe updates reset to the identity. Dense BFGS uses
-   O(n^2) storage only through `denseBfgsLimit` (default 256, capped at 2048).
-   Larger models use a bounded scalar spectral diagonal; their convergence can
-   be much slower on strongly coupled curvature.
+   nonconvex objectives; unsafe updates reset to the identity. The curvature
+   representation depends on the problem size; see *Curvature* below, because
+   crossing the threshold changes the algorithm and not merely a budget.
 
 The merit line search is the chosen globalization strategy; there is no filter
 or second-order correction. Elastic steps provide feasibility recovery when a
@@ -132,6 +144,68 @@ linearization is inconsistent. No-descent cases increase the penalty within a
 cap, then report `NoProgress`; stationary infeasibility is not misreported as
 proven infeasibility. The method can stall at degenerate starts (e.g. x=0 in
 x^2=1), at constraint qualification failures, or from the Maratos effect.
+
+## Curvature: bounded memory, not limited-memory BFGS
+
+The curvature approximation has two regimes, and they are **not equivalent**.
+
+- While `n <= denseBfgsLimit` the solver uses **dense damped BFGS**, storing the
+  full `n x n` approximation. This costs **O(n^2) memory** and O(n^2) work per
+  update.
+- The default threshold is **256**, so dense BFGS holds up to 65,536 doubles.
+  The option is capped at 2048.
+- **Above the threshold the solver does not use BFGS at all.** It switches to a
+  single **diagonal spectral** curvature estimate: one scalar
+  `clamp(y'y / s'y, 1e-6, 1e6)` repeated on the diagonal.
+- That estimate carries **no off-diagonal information**. For strongly coupled
+  nonlinear problems, where the Hessian's cross terms drive the step, this can
+  make convergence **substantially slower** - more iterations, more evaluations
+  and more QP solves - and a problem that converges below the threshold may
+  reach `IterationLimit` above it. Raising `denseBfgsLimit` changes the
+  algorithm, not just a limit.
+- **This is not a limited-memory BFGS implementation.** No history of `(s, y)`
+  pairs is retained above the threshold, and there is no L-BFGS or L-SR1
+  two-loop recursion anywhere in this module. Limited-memory curvature is listed
+  under remaining work below; it is not implemented.
+
+The large-dimensional path is therefore a deliberate memory bound with a real
+convergence cost, not a drop-in substitute for dense BFGS. No claim is made
+about its performance on large coupled problems; see *Validation* below for what
+has actually been measured.
+
+## No second-order information
+
+- There is **no exact Hessian callback**, and no way to supply one. `Problem`
+  requests only f, its gradient, c and the Jacobian.
+- There is **no Hessian-vector product callback**.
+- All curvature is a secant approximation built from first derivatives only.
+- There is **no second-order optimality certificate**. `FirstOrderStationary`
+  reports that the original-unit first-order KKT tests hold at the returned
+  point. It does **not** imply a local minimum, and it does **not** imply a
+  global minimum.
+- A first-order stationary **saddle point or maximum satisfies exactly the same
+  tests** and is reported with the same status. `Solver().solve(Model({{}},
+  -square(x)), {0})` returns `FirstOrderStationary` at the maximum x=0, and the
+  test suite asserts that. Nothing in the reported result distinguishes a
+  minimum from a saddle, because no curvature test is performed at the solution.
+
+## Initial point
+
+- The supplied start is **projected onto the variable bounds** before the first
+  evaluation: `x_j <- clamp(x_j, lower_j, upper_j)`. Every reported point,
+  objective and residual refers to the projected start, never the supplied one.
+- **Nonlinear constraint violations are not repaired at initialization.** No
+  feasibility phase runs before the first iteration. The first reported iterate
+  is the projected start carrying whatever row violation it has. Elastic
+  restoration runs later, and only when a linearization proves inconsistent.
+- If the **projected** point is outside the evaluation domain, the solve returns
+  `EvaluationFailure` - including when the supplied point was inside the domain
+  and only the projection moved it out. Projection strictly precedes evaluation.
+- The solver **does not invent a new nonlinear-feasible starting point.** It
+  never searches for an alternative start and never reports one.
+- A start whose feasible region is reachable only by first *increasing* the
+  constraint violation can stall at `NoProgress`. That is a limitation of a
+  local merit-based method, not an infeasibility finding.
 
 ## Results and tolerances
 
@@ -219,10 +293,46 @@ python3 nlp_engine/benchmarks/reference.py --binary build-nlp/optimsolver
 
 SciPy is needed only for the optional reference test. C++ and CLI tests have no
 new external dependencies. Release checks use throwing assertions, so NDEBUG
-cannot disable them. Coverage includes central-difference AD checks, HS71,
-Rosenbrock, active/ranged sides, fixed variables, duplicate equalities, domain
-backtracking, restoration, nonconvexity, scaling, sparse diagonal curvature,
-concurrent solves, invalid callbacks, NaNs, parser failures and budgets.
+cannot disable them.
+
+`nlp_tests` covers central-difference AD checks, HS71, Rosenbrock, active/ranged
+sides, fixed variables, duplicate equalities, domain backtracking, restoration,
+nonconvexity, scaling, sparse diagonal curvature, concurrent solves, invalid
+callbacks, NaNs, parser failures and budgets.
+
+`nlp_elastic_kkt_tests` covers the elastic formulation, the initial point and
+the multiplier convention, and re-derives the KKT tests **independently**: it
+re-evaluates the original nonlinear problem at each returned point and
+recomputes feasibility, `grad f + J' lambda + z` and signed complementarity from
+scratch, so a run that reported converged residuals while returning a point that
+does not satisfy them fails. Specifically:
+
+- lower-side and upper-side violations of a nonlinear inequality, each repaired
+  through the elastic column of the matching sign;
+- ranged rows violated on either side, terminating on the *opposite* side, which
+  pins the multiplier sign to the **active** side rather than the violated one;
+- equality restoration with both a positive and a negative multiplier;
+- a contrast case proving restoration is engaged only when the hard
+  linearization is inconsistent, not unconditionally;
+- the per-iteration violation trace, showing the original nonlinear violation
+  actually falls from the start's value to within tolerance;
+- projection of an out-of-bounds start, projection strictly preceding the first
+  evaluation, non-repair of nonlinear rows at initialization, and a stall that
+  reports `NoProgress` rather than infeasibility;
+- positive/negative equality multipliers, dependent equalities, a fixed variable
+  combined with an equality row, active lower and upper bounds, both active
+  ranged sides, and inactive rows/bounds giving zero multipliers;
+- the independent QP residual gate rejecting an inner solve that returned
+  `Optimal`. ADMM's own test is relative and measured on its equilibrated
+  system, so a badly conditioned linearization satisfies it while its absolute
+  unscaled residual is ~1.6e-5; the gate overrules the inner status. Removing
+  the residual half of the gate makes that case report `FirstOrderStationary`,
+  which is what the test prevents.
+
+Each of these was confirmed to fail against a deliberately mutated solver:
+dropping either elastic column breaks the corresponding side's restoration,
+dropping the residual gate produces the false `FirstOrderStationary` above, and
+removing the bound projection changes the first reported iterate.
 The reference script independently recomputes objectives and feasibility and
 compares 15 problems with SLSQP and analytic objective values. Optional JSON
 reports record the SciPy version/seed; timings are machine-specific, not a

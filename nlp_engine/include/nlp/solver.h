@@ -16,8 +16,13 @@ struct Options {
     double tolerance = 1e-6, timeLimitSeconds = 0;
     double initialPenalty = 10, maximumPenalty = 1e8;
     double regularization = 1e-8;
-    // Dense damped BFGS only below this dimension; diagonal spectral curvature
-    // above it preserves sparse QPs. Explicit bounded memory, no dense Jacobian.
+    // Dense damped BFGS is used only while n <= denseBfgsLimit; it stores the
+    // full n x n approximation, so O(n^2) memory. ABOVE this threshold there is
+    // no BFGS at all: curvature becomes a single scalar spectral diagonal with
+    // NO off-diagonal information. That is strictly weaker, and on strongly
+    // coupled nonlinear problems convergence can be substantially slower or hit
+    // the iteration limit. This is NOT a limited-memory BFGS: no (s,y) history
+    // is kept. Changing this value changes the algorithm, not just a budget.
     int denseBfgsLimit = 256;
     // Positive original-coordinate units; empty means all ones.
     std::vector<double> variableScale;
@@ -36,6 +41,18 @@ struct Result : Iteration {
     long long qpIterations = 0;
     double solveSeconds = 0;
 };
+// Local first-order elastic SQP. Curvature is a BFGS secant approximation built
+// from FIRST derivatives only: there is no exact Hessian callback, no
+// Hessian-vector product callback, and no second-order optimality certificate.
+// FirstOrderStationary therefore does not imply a local minimum and does not
+// imply a global minimum; a stationary saddle point or maximum is reported with
+// the same status. No status is an infeasibility certificate.
+//
+// `initial` is PROJECTED onto the variable bounds before the first evaluation.
+// Nonlinear constraint violations are not repaired at initialization, and no
+// replacement start is invented. If the projected point lies outside the
+// evaluation domain the result is EvaluationFailure, even when the supplied
+// point was inside it.
 class Solver {
 public:
     Result solve(const Problem& problem, const std::vector<double>& initial,
