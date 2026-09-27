@@ -22,6 +22,7 @@ import argparse
 import json
 import math
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -36,7 +37,12 @@ import verify  # noqa: E402
 
 DEFAULT_BINARY = os.path.join(ROOT, "build-release", "optimsolver")
 DEFAULT_RUNNER = os.path.join(ROOT, "build-release", "bench_runner")
-HIGHS_ADAPTER = os.path.join(HERE, "adapters", "highs_ref.py")
+# Native HiGHS is the default reference. The SciPy route is kept for when the
+# executable is absent, but it is NOT comparable on memory: measured, a SciPy
+# run peaked at ~30 MB having solved nothing at all, because that is Python,
+# NumPy and SciPy loading rather than the solver.
+HIGHS_NATIVE_ADAPTER = os.path.join(HERE, "adapters", "highs_native.py")
+HIGHS_SCIPY_ADAPTER = os.path.join(HERE, "adapters", "highs_ref.py")
 
 
 # ---------------------------------------------------------------------------
@@ -165,15 +171,56 @@ def run_optimsolver(runner, binary, instance, engine, timeout, workdir, threads=
                    command, solve_json, record_json, timeout)
 
 
-def run_highs(runner, instance, method, timeout, workdir):
+def run_highs(runner, instance, method, timeout, workdir, threads=1):
+    """Measure the `highs` binary ALONE, then convert its output afterwards.
+
+    The solver runs under bench_runner with no interpreter in the process, so
+    peak memory is the solver's. Parsing happens after the measured run, because
+    a Python wrapper inside it costs 11.0 MB of interpreter startup against
+    HiGHS's own 3.7 MB on afiro -- the wrapper would have been most of the
+    number.
+
+    Falls back to the SciPy adapter when the executable is absent, and labels
+    the row `highs-scipy` so a reader can see the memory figures are not
+    comparable.
+    """
     solve_json = os.path.join(workdir, "solve.json")
     record_json = os.path.join(workdir, "record.json")
-    command = [sys.executable, HIGHS_ADAPTER, instance,
-               "--method", method, "--out", solve_json]
+    native = shutil.which("highs")
+
+    if native is None:
+        command = [sys.executable, HIGHS_SCIPY_ADAPTER, instance,
+                   "--method", method, "--out", solve_json]
+        if timeout > 0:
+            command += ["--time-limit", str(max(0.1, timeout - 1.0))]
+        return _invoke(runner, f"highs-scipy:{method}", instance,
+                       command, solve_json, record_json, timeout)
+
+    solution = os.path.join(workdir, "highs_solution.txt")
+    command = [native, instance, "--solution_file", solution,
+               "--threads", str(threads), "--parallel", "off"]
+    if method == "ipm":
+        command += ["--solver", "ipm"]
+    elif method != "milp":
+        command += ["--solver", "simplex"]
     if timeout > 0:
-        command += ["--time-limit", str(max(0.1, timeout - 1.0))]
-    return _invoke(runner, f"highs:{method}", instance,
-                   command, solve_json, record_json, timeout)
+        command += ["--time_limit", str(max(0.1, timeout - 1.0))]
+
+    record = _invoke(runner, f"highs:{method}", instance,
+                     command, solve_json, record_json, timeout)
+
+    # bench_runner has already exited, so nothing below is measured.
+    log = os.path.join(workdir, "highs_log.txt")
+    with open(log, "w") as handle:
+        handle.write((record.get("logs") or {}).get("stdout") or "")
+    subprocess.run([sys.executable, HIGHS_NATIVE_ADAPTER, instance,
+                    "--parse-only", "--solution", solution, "--log", log,
+                    "--out", solve_json, "--threads", str(threads)],
+                   capture_output=True, text=True)
+    if os.path.exists(solve_json):
+        with open(solve_json) as handle:
+            record["solve"] = json.load(handle)
+    return record
 
 
 def _invoke(runner, name, instance, command, solve_json, record_json, timeout):
@@ -537,7 +584,7 @@ def main():
                 if solver == "highs":
                     method = "milp" if model.is_integer_model() else "highs-ds"
                     record = run_highs(args.runner, instance, method,
-                                       args.timeout, workdir)
+                                       args.timeout, workdir, threads=args.threads)
                 else:
                     engine = None if solver == "auto" else solver
                     record = run_optimsolver(args.runner, args.binary, instance,

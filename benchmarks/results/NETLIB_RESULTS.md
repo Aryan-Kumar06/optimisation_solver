@@ -1,10 +1,10 @@
 # Netlib LP benchmark results
 
-Generated 2026-09-27 04:31 UTC from `netlib_lp.json`.
+Generated 2026-09-27 04:38 UTC from `netlib_lp.json`.
 
 ## Provenance
 
-- Commit: `fc9d1e67079f73660a42247a9e460a94f2737094`
+- Commit: `c2e5fd881ad607b8bcdd0acf89db1af7d6a3b03c`
 - Build: Release (`-O3 -DNDEBUG`), single-threaded (`--threads 1`)
 - Compiler: Apple clang version 15.0.0 (clang-1500.3.9.4)
 - Platform: Darwin 24.3.0 arm64
@@ -44,8 +44,8 @@ is kept in `solver_status`.
 
 | solver | verified optimal | matches published objective | feasible point | infeasible point | peak MB |
 |---|---|---|---|---|---|
-| `highs:highs-ds` | **8/8** | 8/8 | 8/8 | 0 | 76.3 |
-| `optimsolver:dual_simplex` | **6/8** | 6/8 | 8/8 | 0 | 9.4 |
+| `highs:highs-ds` | **8/8** | 8/8 | 8/8 | 0 | 5.1 |
+| `optimsolver:dual_simplex` | **6/8** | 6/8 | 8/8 | 0 | 9.1 |
 | `optimsolver:pdlp` | **6/8** | 8/8 | 8/8 | 0 | 3.5 |
 
 ## Per instance
