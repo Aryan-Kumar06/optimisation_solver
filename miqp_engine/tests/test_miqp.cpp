@@ -231,22 +231,250 @@ void run(const char* name, void (*test)()) {
     }
 }
 
+void testNoUnsafePrimalObjectivePruningMinimization() {
+    model::Model m;
+    m.name = "no_unsafe_pruning_min";
+
+    m.variables = {
+        var("x", model::VariableType::Integer, 0.0, 3.0)
+    };
+
+    // (x - 1.6)^2
+    //
+    // = x^2 - 3.2x + 2.56
+    //
+    // Continuous relaxation optimum:
+    //     x = 1.6
+    //
+    // Branches:
+    //     x <= 1  -> best integer x = 1, objective = 0.36
+    //     x >= 2  -> best integer x = 2, objective = 0.16
+    //
+    // The down branch is explored first and gives an incumbent of 0.36.
+    // The up branch contains the true global optimum and MUST NOT be
+    // discarded using an uncertified QP primal objective.
+
+    m.objective.sense =
+        model::ObjectiveSense::Minimize;
+
+    m.objective.offset = 2.56;
+
+    m.objective.linearTerms = {
+        {0, -3.2}
+    };
+
+    m.objective.quadraticTerms = {
+        {0, 0, 1.0}
+    };
+
+    const auto r =
+        miqp::BranchAndBoundSolver{}.solve(m);
+
+    require(
+        r.status == miqp::MiqpStatus::Optimal,
+        "minimization pruning regression should solve");
+
+    require(
+        r.primal.size() == 1,
+        "minimization regression should return one variable");
+
+    require(
+        std::abs(r.primal[0] - 2.0) < 1e-8,
+        "global minimization optimum must be x=2");
+
+    require(
+        std::abs(r.objectiveValue - 0.16) < 2e-4,
+        "minimization objective must equal 0.16");
+
+    require(
+        r.nodeCount >= 3,
+        "solver must explore the branch containing the better integer solution");
+}
+
+void testNoUnsafePrimalObjectivePruningMaximization() {
+    model::Model m;
+    m.name = "no_unsafe_pruning_max";
+
+    m.variables = {
+        var("x", model::VariableType::Integer, 0.0, 3.0)
+    };
+
+    // -(x - 1.6)^2
+    //
+    // = -x^2 + 3.2x - 2.56
+    //
+    // This is concave, so it is a valid quadratic maximization.
+    //
+    // Continuous relaxation optimum:
+    //     x = 1.6
+    //
+    // Integer branches:
+    //     x <= 1 -> x = 1, objective = -0.36
+    //     x >= 2 -> x = 2, objective = -0.16
+    //
+    // For maximization, -0.16 is better than -0.36.
+    // Therefore the second branch again contains the global optimum.
+
+    m.objective.sense =
+        model::ObjectiveSense::Maximize;
+
+    m.objective.offset = -2.56;
+
+    m.objective.linearTerms = {
+        {0, 3.2}
+    };
+
+    m.objective.quadraticTerms = {
+        {0, 0, -1.0}
+    };
+
+    const auto r =
+        miqp::BranchAndBoundSolver{}.solve(m);
+
+    require(
+        r.status == miqp::MiqpStatus::Optimal,
+        "maximization pruning regression should solve");
+
+    require(
+        r.primal.size() == 1,
+        "maximization regression should return one variable");
+
+    require(
+        std::abs(r.primal[0] - 2.0) < 1e-8,
+        "global maximization optimum must be x=2");
+
+    require(
+        std::abs(r.objectiveValue - (-0.16)) < 2e-4,
+        "maximization objective must equal -0.16");
+
+    require(
+        r.nodeCount >= 3,
+        "solver must explore the branch containing the better maximization solution");
+}
+
+void testBetterSolutionInLaterMixedBranchIsNotPruned() {
+    model::Model m;
+    m.name = "mixed_later_branch_optimum";
+
+    m.variables = {
+        var("x", model::VariableType::Integer, 0.0, 3.0),
+        var("y", model::VariableType::Continuous, 0.0, 3.0)
+    };
+
+    // Force y = x.
+    m.constraints = {
+        row("link",
+            0.0,
+            0.0,
+            {
+                {0, -1.0},
+                {1,  1.0}
+            })
+    };
+
+    // (x - 1.6)^2 + (y - 1.6)^2
+    //
+    // = x^2 + y^2
+    //   - 3.2x - 3.2y
+    //   + 5.12
+    //
+    // Since y = x, the continuous relaxation optimum is:
+    //
+    //     x = y = 1.6
+    //
+    // Integer x <= 1:
+    //     x = y = 1
+    //     objective = 0.72
+    //
+    // Integer x >= 2:
+    //     x = y = 2
+    //     objective = 0.32
+    //
+    // So once again the later branch contains the true optimum.
+
+    m.objective.sense =
+        model::ObjectiveSense::Minimize;
+
+    m.objective.offset = 5.12;
+
+    m.objective.linearTerms = {
+        {0, -3.2},
+        {1, -3.2}
+    };
+
+    m.objective.quadraticTerms = {
+        {0, 0, 1.0},
+        {1, 1, 1.0}
+    };
+
+    const auto r =
+        miqp::BranchAndBoundSolver{}.solve(m);
+
+    require(
+        r.status == miqp::MiqpStatus::Optimal,
+        "mixed later-branch regression should solve");
+
+    require(
+        r.primal.size() == 2,
+        "mixed regression should return two variables");
+
+    require(
+        std::abs(r.primal[0] - 2.0) < 1e-8,
+        "mixed regression integer optimum must be x=2");
+
+    require(
+        std::abs(r.primal[1] - 2.0) < 2e-4,
+        "equality constraint should give y=2");
+
+    require(
+        std::abs(r.objectiveValue - 0.32) < 4e-4,
+        "mixed regression objective must equal 0.32");
+
+    require(
+        r.nodeCount >= 3,
+        "later mixed branch containing global optimum must be explored");
+}
+
 }  // namespace
 
 int main() {
     run("mixed constrained minimization requires branching",
         testMixedConstrainedMinimizationRequiresBranching);
-    run("concave maximization", testConcaveMaximization);
-    run("non-convex rejected inside engine", testNonConvexRejectedInsideEngine);
-    run("infeasible", testInfeasible);
-    run("node limit", testNodeLimit);
-    run("time limit", testTimeLimit);
+
+    run("concave maximization",
+        testConcaveMaximization);
+
+    run("non-convex rejected inside engine",
+        testNonConvexRejectedInsideEngine);
+
+    run("infeasible",
+        testInfeasible);
+
+    run("node limit",
+        testNodeLimit);
+
+    run("time limit",
+        testTimeLimit);
+
     run("unbounded relaxation is not MIQP certificate",
         testUnboundedRelaxationDoesNotClaimMiqpUnbounded);
+
     run("near-integral rounded candidate is revalidated and branched",
-    testNearIntegralRoundedCandidateIsRevalidatedAndBranched);
+        testNearIntegralRoundedCandidateIsRevalidatedAndBranched);
 
     run("binary variable path",
         testBinaryVariablePath);
-    return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+
+    run("no unsafe primal objective pruning - minimization",
+        testNoUnsafePrimalObjectivePruningMinimization);
+
+    run("no unsafe primal objective pruning - maximization",
+        testNoUnsafePrimalObjectivePruningMaximization);
+
+    run("better solution in later mixed branch is not pruned",
+        testBetterSolutionInLaterMixedBranchIsNotPruned);
+
+    return failures == 0
+        ? EXIT_SUCCESS
+        : EXIT_FAILURE;
 }
