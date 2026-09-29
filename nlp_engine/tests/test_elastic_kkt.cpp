@@ -1,5 +1,5 @@
 // Elastic restoration, initial-point projection, multiplier signs, and the
-// independent QP residual gate.
+// independent residual validation of the constructed QP.
 //
 // Every success case is re-verified INDEPENDENTLY of Result's own fields: the
 // original nonlinear problem is re-evaluated at the returned point and the KKT
@@ -254,7 +254,9 @@ int main() {
 
         // Dependent equalities: x+y=2 and 2(x+y)=4 have a singular Jacobian
         // and NON-UNIQUE multipliers, so only the stationarity combination is
-        // checkable. verifyIndependently does exactly that.
+        // checkable. verifyIndependently does exactly that. LICQ fails here and
+        // FirstOrderStationary is still reported: the status does not imply a
+        // constraint qualification or unique multipliers.
         {
             auto r = stationary("dependent equalities",
                 Model({{}, {}}, square(x) + square(y), {x + y, 2 * (x + y)}, {{2, 2}, {4, 4}}), {0, 0});
@@ -297,18 +299,19 @@ int main() {
             Model({{-10, 10}}, square(x + 3), {x}, {{-2, -1}}), {0}).constraintMultipliers[0], -2, 1e-5, "ranged lower active");
 
         // -------------------------------------------------------------------
-        // 6. The independent QP residual gate.
+        // 6. Independent residual validation of the constructed QP.
         //
         // A successful inner QP status must not by itself produce a successful
         // NLP result. ADMM's own termination test is RELATIVE and measured on
         // its Ruiz-equilibrated system; the gate recomputes ABSOLUTE residuals
-        // in unscaled SQP coordinates. With row scaling disabled, the badly
-        // conditioned linearization below satisfies ADMM's test -- it returns
-        // Optimal -- while its absolute primal residual is ~1.6e-5, far above
-        // the gate's threshold. The gate rejects it, and no FirstOrderStationary
-        // result is produced.
+        // of the QP the solver constructed, in unscaled SQP coordinates. It does
+        // not rebuild the SQP model from the original nonlinear problem. With
+        // row scaling disabled, the badly conditioned linearization below
+        // satisfies ADMM's test -- it returns Optimal -- while its absolute
+        // primal residual is ~1.6e-5, far above the gate's threshold. The gate
+        // rejects it, and no FirstOrderStationary result is produced.
         // -------------------------------------------------------------------
-        std::cout << "independent QP residual gate\n";
+        std::cout << "independent residual validation of the constructed QP\n";
         {
             Options o; o.scaleConstraints = false;
             Model illConditioned({{}, {}}, square(x) + square(y),
@@ -320,7 +323,7 @@ int main() {
             check(r.status != Status::FirstOrderStationary, "false stationary result");
             // "validation: Optimal" is the signature that matters: the inner
             // solver reported success and the residual gate overruled it.
-            check(r.message.find("independent residual validation: Optimal") != std::string::npos,
+            check(r.message.find("independent residual validation of the constructed QP: Optimal") != std::string::npos,
                   "rejection did not come from the residual gate on an Optimal QP: " + r.message);
             check(r.message.find("not an NLP infeasibility certificate") != std::string::npos,
                   "subproblem failure must not read as an infeasibility proof");
@@ -332,7 +335,7 @@ int main() {
             auto r = Solver().solve(Model({{}}, square(x), {x}, {{2, infinity}}), {0}, o);
             check(r.status == Status::SubproblemFailure,
                   "starved QP budget " + std::to_string(budget) + " gave " + toString(r.status));
-            check(r.message.find("independent residual validation") != std::string::npos,
+            check(r.message.find("independent residual validation of the constructed QP") != std::string::npos,
                   "starved QP not rejected by the gate");
         }
 

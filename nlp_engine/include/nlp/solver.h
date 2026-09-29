@@ -46,7 +46,10 @@ struct Result : Iteration {
 // Hessian-vector product callback, and no second-order optimality certificate.
 // FirstOrderStationary therefore does not imply a local minimum and does not
 // imply a global minimum; a stationary saddle point or maximum is reported with
-// the same status. No status is an infeasibility certificate.
+// the same status. It means only that the returned point satisfies the
+// implemented original-unit KKT residual checks: it does not imply LICQ, MFCQ or
+// any other constraint qualification, and the multipliers are not guaranteed to
+// be unique. No status is an infeasibility certificate.
 //
 // `initial` is PROJECTED onto the variable bounds before the first evaluation.
 // Nonlinear constraint violations are not repaired at initialization, and no

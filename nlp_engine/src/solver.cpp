@@ -173,7 +173,9 @@ Result Solver::solve(const Problem& problem,const Vec& initial,const Options& o)
                 q=qp::QpSolver().solve(sub,qo);r.qpIterations+=q.iterations;
                 if(q.status==qp::QpStatus::TimeLimit) return finish(Status::TimeLimit,"time limit in QP");
                 if(q.primal.size()!=static_cast<size_t>(nv)||q.constraintDual.size()!=static_cast<size_t>(m+nv)||!finite(q.primal)||!finite(q.constraintDual)) continue;
-                // Independently gate the inner solve in its original (SQP) units.
+                // Independently gate the inner solve against the constructed QP,
+                // in its unscaled SQP units. This checks the QP solve, not the
+                // construction of the QP from the nonlinear problem.
                 Vec ax,px,aty;sub.A.multiply(q.primal,ax);sub.P.multiply(q.primal,px);sub.A.transposeMultiply(q.constraintDual,aty);
                 double pr=0;for(int i=0;i<m+nv;++i) pr=std::max(pr,violation(ax[i],{sub.l[i],sub.u[i]}));
                 for(int j=0;j<nv;++j) px[j]+=sub.q[j]+aty[j];
@@ -184,7 +186,7 @@ Result Solver::solve(const Problem& problem,const Vec& initial,const Options& o)
                 for(int j=0;j<n;++j) z[j]=q.constraintDual[m+j]/scale[j];
                 break;
             }
-            if(direction.empty()) return finish(Status::SubproblemFailure,std::string("QP failed independent residual validation: ")+qp::toString(q.status)+", primal="+std::to_string(lastPr)+", dual="+std::to_string(lastDu)+" (not an NLP infeasibility certificate)");
+            if(direction.empty()) return finish(Status::SubproblemFailure,std::string("QP failed independent residual validation of the constructed QP: ")+qp::toString(q.status)+", primal="+std::to_string(lastPr)+", dual="+std::to_string(lastDu)+" (not an NLP infeasibility certificate)");
             r.constraintMultipliers=lambda;r.boundMultipliers=z;
             residuals(r,e,vb,cb);r.feasible=r.primalResidual<=o.tolerance;
             if(r.feasible&&r.dualResidual<=o.tolerance&&r.complementarity<=o.tolerance)

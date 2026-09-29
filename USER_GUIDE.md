@@ -455,7 +455,8 @@ and constraints. This accepts a versioned expression-DAG format, separate from
 MPS and the natural-language frontend. `solve-nlp --help` lists the available
 budgets and JSON reporting options. Successful termination means **first-order
 stationarity**, with original-unit feasibility and KKT residual checks; it does
-not certify a global optimum. See the [NLP guide](nlp_engine/README.md) for C++
+not certify a global optimum, does not imply LICQ, MFCQ or another constraint
+qualification, and does not guarantee unique multipliers. See the [NLP guide](nlp_engine/README.md) for C++
 modeling examples, the file format, solver design, statuses and current limits.
 
 The interactive Open Model flow also accepts `.nlp` files. Automatic selection

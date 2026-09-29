@@ -17,6 +17,10 @@ Scope, stated once and not qualified away elsewhere in this document:
   original-unit first-order KKT tests. It is **not global optimality**, and not
   a second-order (local minimum) certificate - a saddle point or a maximum
   satisfies the same tests.
+- `FirstOrderStationary` means only that the returned point satisfies the
+  implemented original-unit KKT residual checks. It does **not** imply LICQ,
+  MFCQ or any other constraint qualification, and the multipliers are **not
+  guaranteed to be unique** (the dependent-equality test is an example).
 - The solver provides **no infeasibility certificate**. `NoProgress` and
   `SubproblemFailure` mean this method stopped making progress, never that the
   problem is proven infeasible.
@@ -124,10 +128,17 @@ consistent but mathematically wrong derivatives unless independently checked.
    Elastic variables receive a positive L1 penalty and small quadratic
    regularization. Variable bounds remain hard. Rank-deficient Jacobians do not
    require an unregularized equality-KKT inverse.
-4. Independently validate the QP primal and stationarity residuals in the SQP
-   coordinates. Inner solver status alone is insufficient. Inner tolerances
-   tighten with curvature magnitude. QP time limits receive the remaining
-   outer budget; inner factorization/evaluation calls are not preemptible.
+4. Independent residual validation of the constructed QP: recompute the QP
+   primal and stationarity residuals from the QP data the solver assembled, in
+   unscaled SQP coordinates. Inner solver status alone is insufficient. This
+   checks the inner solve only; it does **not** independently rebuild the SQP
+   model from the original nonlinear problem, so an error in constructing the
+   QP (for example, wrong gradient or Jacobian scaling) is not detected by this
+   gate. Such an error cannot by itself produce `FirstOrderStationary`, which is
+   decided only by the original-unit KKT tests on a fresh evaluation of the
+   nonlinear problem. Inner tolerances tighten with curvature magnitude. QP time
+   limits receive the remaining outer budget; inner factorization/evaluation
+   calls are not preemptible.
 5. Increase the L1 merit penalty using row-scaled multiplier estimates. Backtrack
    on `f + penalty * sum(scaled constraint violations)` using Armijo decrease
    of the linearized merit model. Reject domain errors/nonfinite evaluations.
@@ -219,6 +230,8 @@ in **original units**, each at most `Options::tolerance`:
 
 Upper-side multipliers are positive; lower-side multipliers are negative;
 equality/fixed-variable multipliers are unrestricted and can be nonunique.
+No constraint qualification is checked or assumed, so when LICQ fails (as with
+dependent equalities) any multipliers passing the tests may be returned.
 These are KKT estimates, not globally valid sensitivity information. Reports
 include objective, residuals, iteration/evaluation/QP counts, rejected trials,
 elastic subproblems and elapsed time. A callback can inspect each current
@@ -322,10 +335,12 @@ does not satisfy them fails. Specifically:
 - positive/negative equality multipliers, dependent equalities, a fixed variable
   combined with an equality row, active lower and upper bounds, both active
   ranged sides, and inactive rows/bounds giving zero multipliers;
-- the independent QP residual gate rejecting an inner solve that returned
-  `Optimal`. ADMM's own test is relative and measured on its equilibrated
-  system, so a badly conditioned linearization satisfies it while its absolute
-  unscaled residual is ~1.6e-5; the gate overrules the inner status. Removing
+- independent residual validation of the constructed QP rejecting an inner
+  solve that returned `Optimal`. ADMM's own test is relative and measured on its
+  equilibrated system, so a badly conditioned linearization satisfies it while
+  its absolute unscaled residual is ~1.6e-5; the gate overrules the inner
+  status. The gate validates the returned solution against the QP as built; it
+  does not reconstruct that QP from the nonlinear problem. Removing
   the residual half of the gate makes that case report `FirstOrderStationary`,
   which is what the test prevents.
 
