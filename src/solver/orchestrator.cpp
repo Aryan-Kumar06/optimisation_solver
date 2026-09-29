@@ -502,6 +502,7 @@ SolveResult runMiqp(const model::Model& reduced, const SolverOptions& options,
     engineOptions.timeLimitSeconds = options.timeLimitSeconds;
     engineOptions.nodeLimit = options.nodeLimit;
     engineOptions.integralityTolerance = std::max(1e-7, options.tolerance);
+    engineOptions.feasibilityTolerance = std::max(1e-7, options.tolerance);
     engineOptions.objectiveTolerance = std::max(1e-9, options.tolerance);
     engineOptions.threadCount = options.threadCount;
 

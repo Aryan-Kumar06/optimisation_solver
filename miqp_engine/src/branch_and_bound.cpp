@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cstddef>
 #include <limits>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -62,7 +63,8 @@ int chooseBranchVariable(const model::Model& model,
 
 bool hasUnsupportedUnboundedIntegerDomain(
     const model::Model& model,
-    std::size_t& offendingIndex) {
+    std::size_t& offendingIndex,
+    std::string& details) {
 
     for (std::size_t j = 0;
          j < model.variables.size();
@@ -76,15 +78,62 @@ bool hasUnsupportedUnboundedIntegerDomain(
             continue;
         }
 
-        if (!std::isfinite(variable.lowerBound) ||
-            !std::isfinite(variable.upperBound)) {
+        const bool finiteLower = std::isfinite(variable.lowerBound);
+        const bool finiteUpper = std::isfinite(variable.upperBound);
 
+        if (!finiteLower || !finiteUpper) {
             offendingIndex = j;
+            std::ostringstream ss;
+            ss << "variable " << j;
+            if (!variable.name.empty()) {
+                ss << " ('" << variable.name << "')";
+            }
+            ss << " has bounds [" << variable.lowerBound << ", " << variable.upperBound << "]";
+            details = ss.str();
             return true;
         }
     }
 
     return false;
+}
+
+double computeQpStationarityResidual(
+    const qp::QpModel& qpModel,
+    const std::vector<double>& x,
+    const std::vector<double>& y) {
+
+    for (double v : x) {
+        if (!std::isfinite(v)) {
+            return std::numeric_limits<double>::infinity();
+        }
+    }
+    for (double v : y) {
+        if (!std::isfinite(v)) {
+            return std::numeric_limits<double>::infinity();
+        }
+    }
+
+    std::vector<double> g;
+    qpModel.P.multiply(x, g);
+    for (std::size_t j = 0; j < g.size(); ++j) {
+        g[j] += qpModel.q[j];
+    }
+    if (qpModel.hasConstraints() &&
+        y.size() == static_cast<std::size_t>(qpModel.numConstraints())) {
+        std::vector<double> Aty;
+        qpModel.A.transposeMultiply(y, Aty);
+        for (std::size_t j = 0; j < g.size(); ++j) {
+            g[j] += Aty[j];
+        }
+    }
+    double worst = 0.0;
+    for (double v : g) {
+        if (!std::isfinite(v)) {
+            return std::numeric_limits<double>::infinity();
+        }
+        worst = std::max(worst, std::abs(v));
+    }
+    return worst;
 }
 
 bool nodeRowsDefinitelyInfeasible(const model::Model& model,
@@ -227,19 +276,20 @@ MiqpResult BranchAndBoundSolver::solve(
     // ---------------------------------------------------------------
 
     std::size_t unboundedIntegerIndex = 0;
+    std::string unboundedDetails;
 
     if (hasUnsupportedUnboundedIntegerDomain(
             model,
-            unboundedIntegerIndex)) {
+            unboundedIntegerIndex,
+            unboundedDetails)) {
 
         result.status =
             MiqpStatus::RelaxationFailure;
 
         result.message =
             "MIQP currently requires finite lower and upper bounds "
-            "for every integer/binary variable; variable " +
-            std::to_string(
-                unboundedIntegerIndex) +
+            "for every integer/binary variable; " +
+            unboundedDetails +
             " has an unbounded integer domain";
 
         return result;
@@ -575,6 +625,14 @@ MiqpResult BranchAndBoundSolver::solve(
         if (relaxationResult.status ==
             qp::QpStatus::Infeasible) {
 
+            // Pruning justification and numerical certification boundary:
+            // The underlying ADMM QP solver detects infeasibility via a numerical
+            // Farkas certificate (a dual iterate difference ray satisfying
+            // ||A^T delta_y|| <= eps with supporting hyperplane separation).
+            // This is a numerical certificate, NOT a rigorous rational proof.
+            // Under this numerical certificate, no feasible point exists for
+            // the continuous relaxation, so all mixed-integer restrictions in
+            // this subtree are considered infeasible and the node is pruned.
             continue;
         }
 
@@ -646,6 +704,63 @@ MiqpResult BranchAndBoundSolver::solve(
                 "QP relaxation returned "
                 "an incomplete primal solution";
 
+            return result;
+        }
+
+        // -----------------------------------------------------------
+        // 15b. Independent validation of the continuous QP relaxation
+        //
+        // Do NOT blindly equate QpStatus::Optimal with a certified QP optimum.
+        // We independently validate:
+        //   1. Finite primal values
+        //   2. Variable-bound feasibility on the relaxation node
+        //   3. Linear constraint feasibility on the relaxation
+        //   4. Finite relaxation objective value
+        //   5. QP stationarity residual ||P*x + q + A^T*y||_inf
+        // -----------------------------------------------------------
+
+        for (std::size_t j = 0; j < relaxationResult.primal.size(); ++j) {
+            if (!std::isfinite(relaxationResult.primal[j])) {
+                result.status = MiqpStatus::RelaxationFailure;
+                result.message = "QP relaxation returned a non-finite primal value for variable " +
+                                 std::to_string(j);
+                return result;
+            }
+        }
+
+        const FeasibilityCheck continuousFeasibility = checkFeasibility(
+            relaxation,
+            relaxationResult.primal,
+            options.feasibilityTolerance,
+            1.0 /* integrality check not applied to continuous relaxation */);
+        if (!continuousFeasibility.feasible) {
+            result.status = MiqpStatus::RelaxationFailure;
+            result.message = "QP relaxation reported Optimal but failed independent feasibility validation: " +
+                             continuousFeasibility.reason;
+            return result;
+        }
+
+        const double relaxationObjective = modelObjective(relaxation, relaxationResult.primal);
+        if (!std::isfinite(relaxationObjective)) {
+            result.status = MiqpStatus::RelaxationFailure;
+            result.message = "QP relaxation objective evaluation is non-finite";
+            return result;
+        }
+
+        const double stationarityResidual = computeQpStationarityResidual(
+            qpModel,
+            relaxationResult.primal,
+            relaxationResult.constraintDual);
+
+        // Stationarity tolerance: first-order ADMM dual residual target
+        // scaled by a numerical tolerance buffer.
+        const double stationarityTolerance = std::max(1e-4, options.feasibilityTolerance * 100.0);
+        if (!std::isfinite(stationarityResidual) || stationarityResidual > stationarityTolerance) {
+            result.status = MiqpStatus::RelaxationFailure;
+            result.message = "QP relaxation failed independent stationarity validation: residual " +
+                             std::to_string(stationarityResidual) +
+                             " exceeds tolerance " +
+                             std::to_string(stationarityTolerance);
             return result;
         }
 

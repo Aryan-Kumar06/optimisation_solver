@@ -435,40 +435,102 @@ void testBetterSolutionInLaterMixedBranchIsNotPruned() {
         "later mixed branch containing global optimum must be explored");
 }
 
-void testUnboundedIntegerDomainRejected() {
+void testUnboundedIntegerDomainsRejected() {
+    // 1. (finite, +inf)
+    {
+        model::Model m;
+        m.name = "unbounded_upper_integer";
+        m.variables = {var("x", model::VariableType::Integer, 0.0, INF)};
+        m.objective.sense = model::ObjectiveSense::Minimize;
+        m.objective.linearTerms = {{0, 1.0}};
+        const auto r = miqp::BranchAndBoundSolver{}.solve(m);
+        require(r.status == miqp::MiqpStatus::RelaxationFailure,
+                "integer variable with [0, +inf) must be rejected");
+        require(r.message.find("finite lower and upper bounds") != std::string::npos,
+                "failure message should explain finite bound requirement");
+    }
+
+    // 2. (-inf, finite)
+    {
+        model::Model m;
+        m.name = "unbounded_lower_integer";
+        m.variables = {var("x", model::VariableType::Integer, -INF, 5.0)};
+        m.objective.sense = model::ObjectiveSense::Minimize;
+        m.objective.linearTerms = {{0, 1.0}};
+        const auto r = miqp::BranchAndBoundSolver{}.solve(m);
+        require(r.status == miqp::MiqpStatus::RelaxationFailure,
+                "integer variable with (-inf, 5] must be rejected");
+        require(r.message.find("finite lower and upper bounds") != std::string::npos,
+                "failure message should explain finite bound requirement");
+    }
+
+    // 3. (-inf, +inf)
+    {
+        model::Model m;
+        m.name = "unbounded_both_integer";
+        m.variables = {var("x", model::VariableType::Integer, -INF, INF)};
+        m.objective.sense = model::ObjectiveSense::Minimize;
+        m.objective.linearTerms = {{0, 1.0}};
+        const auto r = miqp::BranchAndBoundSolver{}.solve(m);
+        require(r.status == miqp::MiqpStatus::RelaxationFailure,
+                "integer variable with (-inf, +inf) must be rejected");
+        require(r.message.find("finite lower and upper bounds") != std::string::npos,
+                "failure message should explain finite bound requirement");
+    }
+
+    // 4. Binary variable with unbounded bound
+    {
+        model::Model m;
+        m.name = "unbounded_binary";
+        m.variables = {var("b", model::VariableType::Binary, -INF, 1.0)};
+        m.objective.sense = model::ObjectiveSense::Minimize;
+        m.objective.linearTerms = {{0, 1.0}};
+        const auto r = miqp::BranchAndBoundSolver{}.solve(m);
+        require(r.status == miqp::MiqpStatus::RelaxationFailure,
+                "binary variable with -inf bound must be rejected");
+    }
+}
+
+void testPureContinuousModelThroughMiqp() {
     model::Model m;
-    m.name = "unbounded_integer_domain";
-
+    m.name = "pure_continuous_qp";
     m.variables = {
-        var(
-            "x",
-            model::VariableType::Integer,
-            0.0,
-            INF)
+        var("x", model::VariableType::Continuous, 0.0, 10.0),
+        var("y", model::VariableType::Continuous, 0.0, 10.0)
     };
-
-    m.objective.sense =
-        model::ObjectiveSense::Minimize;
-
-    m.objective.linearTerms = {
-        {0, 1.0}
+    m.constraints = {
+        row("sum", 2.0, INF, {{0, 1.0}, {1, 1.0}})
     };
+    m.objective.sense = model::ObjectiveSense::Minimize;
+    m.objective.quadraticTerms = {{0, 0, 1.0}, {1, 1, 1.0}};
+    // min x^2 + y^2 s.t. x + y >= 2, x,y >= 0 -> optimum at (1, 1), obj = 2.0
+    const auto r = miqp::BranchAndBoundSolver{}.solve(m);
+    require(r.status == miqp::MiqpStatus::Optimal, "pure continuous QP should solve");
+    require(r.nodeCount == 1, "root node only for pure continuous model");
+    require(r.primal.size() == 2, "two variables returned");
+    require(std::abs(r.primal[0] - 1.0) < 1e-4, "x optimum is 1.0");
+    require(std::abs(r.primal[1] - 1.0) < 1e-4, "y optimum is 1.0");
+    require(std::abs(r.objectiveValue - 2.0) < 1e-3, "objective is 2.0");
+}
 
-    const auto r =
-        miqp::BranchAndBoundSolver{}.solve(m);
+void testIncumbentReplacementAcrossMultipleNodes() {
+    model::Model m;
+    m.name = "incumbent_replacement";
+    m.variables = {
+        var("b0", model::VariableType::Binary, 0.0, 1.0),
+        var("b1", model::VariableType::Binary, 0.0, 1.0)
+    };
+    m.objective.sense = model::ObjectiveSense::Minimize;
+    m.objective.offset = 0.68;
+    m.objective.linearTerms = {{0, -0.4}, {1, -1.6}};
+    m.objective.quadraticTerms = {{0, 0, 1.0}, {1, 1, 1.0}};
 
-    require(
-        r.status ==
-            miqp::MiqpStatus::RelaxationFailure,
-        "MIQP with unbounded integer domain "
-        "must be rejected explicitly");
-
-    require(
-        r.message.find(
-            "finite lower and upper bounds") !=
-            std::string::npos,
-        "rejection should explain finite "
-        "integer-bound requirement");
+    const auto r = miqp::BranchAndBoundSolver{}.solve(m);
+    require(r.status == miqp::MiqpStatus::Optimal, "incumbent replacement test should solve");
+    require(r.primal.size() == 2, "primal size 2");
+    require(std::abs(r.primal[0]) < 1e-7, "b0 = 0");
+    require(std::abs(r.primal[1] - 1.0) < 1e-7, "b1 = 1");
+    require(std::abs(r.objectiveValue - 0.08) < 1e-4, "objective value matches optimum");
 }
 
 }  // namespace
@@ -510,8 +572,14 @@ int main() {
     run("better solution in later mixed branch is not pruned",
         testBetterSolutionInLaterMixedBranchIsNotPruned);
 
-    run("unbounded integer domain rejected",
-        testUnboundedIntegerDomainRejected);
+    run("unbounded integer domains rejected",
+        testUnboundedIntegerDomainsRejected);
+
+    run("pure continuous model through MIQP",
+        testPureContinuousModelThroughMiqp);
+
+    run("incumbent replacement across multiple nodes",
+        testIncumbentReplacementAcrossMultipleNodes);
 
     return failures == 0
         ? EXIT_SUCCESS
