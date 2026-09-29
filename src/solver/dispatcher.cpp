@@ -37,6 +37,7 @@ const char* toString(Engine value) noexcept {
         case Engine::Pdlp:         return "pdlp";
         case Engine::DualSimplex:  return "dual_simplex";
         case Engine::BranchAndCut: return "branch_and_cut";
+        case Engine::Nlp:          return "nlp_sqp";
         case Engine::Qp:           return "qp";
         case Engine::Miqp:         return "miqp";
         case Engine::Infeasible:   return "infeasible";
@@ -56,6 +57,7 @@ std::optional<Engine> parseEngine(std::string_view name) noexcept {
     if (name == "branch_and_cut") {
         return Engine::BranchAndCut;
     }
+    if (name == "nlp" || name == "nlp_sqp") return Engine::Nlp;
     if (name == "qp") {
         return Engine::Qp;
     }
@@ -72,6 +74,11 @@ DispatchDecision dispatch(
     const SolverOptions& options
 ) {
     DispatchDecision decision;
+    if (classification.problemClass == ProblemClass::NLP || options.forceEngine == Engine::Nlp) {
+        decision.engine = Engine::Unsupported;
+        decision.reason = "NLP requires nlp::Problem and an explicit initial point; affine presolve is not applicable";
+        return decision;
+    }
 
     // Presolve's verdict outranks everything: there is nothing left to solve.
     if (presolveResult.infeasible) {

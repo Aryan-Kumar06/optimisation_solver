@@ -41,3 +41,6 @@ benchmarks/instances/*/tools/
 benchmarks/instances/netlib/netlib_readme.txt
 __pycache__/
 *.pyc
+
+# Dropped in the working directory by the HiGHS binary on every run.
+Highs.log

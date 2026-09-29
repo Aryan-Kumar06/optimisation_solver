@@ -1,6 +1,7 @@
 #pragma once
 
 #include "model/model.h"
+#include "solver/nlp.h"
 #include "solver/classifier.h"
 #include "solver/dispatcher.h"
 #include "solver/solve_result.h"

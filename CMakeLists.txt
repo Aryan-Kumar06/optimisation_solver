@@ -154,6 +154,7 @@ add_subdirectory(pdlp_engine)
 add_subdirectory(milp_engine)
 add_subdirectory(qp_engine)
 add_subdirectory(miqp_engine)
+add_subdirectory(nlp_engine)
 
 # Classifier and dispatcher. Classification runs before presolve (its reductions
 # differ by problem class); engine selection runs after (presolve changes size,
@@ -199,6 +200,7 @@ add_test(NAME test_pdlp_adapter COMMAND test_pdlp_adapter)
 # target that links all three engines at once.
 add_library(solver_orchestrator
     src/solver/orchestrator.cpp
+    src/solver/nlp.cpp
 )
 target_include_directories(solver_orchestrator PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(solver_orchestrator PUBLIC
@@ -207,6 +209,7 @@ target_link_libraries(solver_orchestrator PUBLIC
     milp_engine
     qp_engine
     miqp_engine
+    nlp_engine
     postsolver
 )
 target_compile_features(solver_orchestrator PUBLIC cxx_std_17)
@@ -276,6 +279,8 @@ add_test(NAME test_milp_enumeration COMMAND test_milp_enumeration)
 
 # Command-line interface application layer
 add_library(optimsolver_cli
+    cli/nlp_cli.cpp
+    cli/nlp_json_report.cpp
     cli/argument_parser.cpp
     cli/cli.cpp
     cli/mascot.cpp
@@ -375,3 +380,20 @@ foreach(optimsolver_test_target IN ITEMS
     test_branching pdlp_tests qp_tests)
     optimsolver_enable_assertions(${optimsolver_test_target})
 endforeach()
+
+# NLP input/CLI contract requires no third-party Python packages.
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(Python3_Interpreter_FOUND)
+    add_test(NAME nlp_cli COMMAND ${Python3_EXECUTABLE}
+        ${PROJECT_SOURCE_DIR}/nlp_engine/tests/test_cli.py $<TARGET_FILE:optimsolver>)
+    option(NLP_REFERENCE_TESTS "Run optional SciPy SLSQP comparisons" OFF)
+    if(NLP_REFERENCE_TESTS)
+        add_test(NAME nlp_reference COMMAND ${Python3_EXECUTABLE}
+            ${PROJECT_SOURCE_DIR}/nlp_engine/benchmarks/reference.py --binary $<TARGET_FILE:optimsolver>)
+        set_tests_properties(nlp_reference PROPERTIES TIMEOUT 180)
+    endif()
+endif()
+
+add_executable(test_nlp_integration tests/pipeline/test_nlp_integration.cpp)
+target_link_libraries(test_nlp_integration PRIVATE solver_orchestrator)
+add_test(NAME nlp_pipeline COMMAND test_nlp_integration)

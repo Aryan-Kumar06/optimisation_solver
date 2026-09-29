@@ -28,6 +28,9 @@ enum class Engine {
     // objectives only after mathematical convexity validation.
     Miqp,
 
+    // Elastic SQP for nlp::Problem, with first-order local termination.
+    Nlp,
+
     // Presolve proved infeasibility; no engine runs.
     Infeasible,
 
