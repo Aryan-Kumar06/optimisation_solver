@@ -183,6 +183,8 @@ void printWelcome(std::ostream& out) {
     out << "  optimsolver solve <model.mps>\n\n";
     out << s.bold() << "Commands" << s.reset() << "\n";
     out << "  " << s.bold() << "solve" << s.reset() << " <model.mps>       Solve an optimization problem in MPS format\n\n";
+    out << "  solve <model.nlp>       Solve a smooth nonlinear model\n";
+    out << "  solve-nlp <file>        Explicit NLP input (see solve-nlp --help)\n\n";
     out << s.bold() << "Options" << s.reset() << "\n";
     out << "  -h, --help              Show this help message\n\n";
     out << s.dim() << "Run 'optimsolver solve --help' for options specific to the solve command." << s.reset() << "\n";
@@ -198,12 +200,14 @@ void printSolveHelp(std::ostream& out) {
     out << "  <model.mps>             Path to input problem file in MPS format (required)\n\n";
     out << s.bold() << "Options" << s.reset() << "\n";
     out << "  --solver <name>         Force a specific solver engine:\n";
-    out << "                          pdlp, dual_simplex, branch_and_cut, qp\n";
+    out << "                          pdlp, dual_simplex, branch_and_cut, qp, nlp\n";
     out << "  --time-limit <seconds>  Maximum solve time budget in seconds (positive number)\n";
     out << "  --output <file>         Write reconstructed original-space solution to file\n";
     out << "  -h, --help              Show this help message\n\n";
     out << s.bold() << "Examples" << s.reset() << "\n";
     out << "  optimsolver solve model.mps\n";
+    out << "  optimsolver solve model.nlp (NLP options: solve-nlp --help)\n";
+    out << "  NLP success means first-order stationarity, not global optimality.\n";
     out << "  optimsolver solve model.mps --solver dual_simplex\n";
     out << "  optimsolver solve model.mps --time-limit 60 --output solution.txt\n";
 }
@@ -281,7 +285,7 @@ void printInteractiveMenu(std::ostream& out, const TerminalStyle& s, bool hasMod
         out << "  " << s.boldCyan() << "[6]" << s.reset() << "  Exit\n\n";
         out << "  " << s.dim() << "Select an option [1-6]: " << s.reset();
     } else {
-        out << "  " << s.boldCyan() << "[1]" << s.reset() << "  Open MPS Model\n";
+        out << "  " << s.boldCyan() << "[1]" << s.reset() << "  Open MPS Model or NLP Model\n";
         out << "  " << s.boldCyan() << "[2]" << s.reset() << "  Solver Settings\n";
         out << "  " << s.boldCyan() << "[3]" << s.reset() << "  Model Information\n";
         out << "  " << s.boldCyan() << "[4]" << s.reset() << "  Help\n";

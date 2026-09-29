@@ -206,3 +206,14 @@ optimisation_solver/
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
+
+## Smooth nonlinear programming
+
+The `nlp_engine` module provides an elastic SQP solver, expression DAG with
+reverse automatic differentiation, sparse Jacobians, and a callback API. It
+reuses the QP engine and reports verified **first-order stationarity**, not
+global optimality. `FirstOrderStationary` means the returned point satisfies the
+implemented original-unit KKT residual checks; it does not imply LICQ, MFCQ or
+another constraint qualification, and multiplier uniqueness is not guaranteed.
+Run `optimsolver solve-nlp model.nlp`; see the
+[NLP architecture, API, numerical limits, and examples](nlp_engine/README.md).
