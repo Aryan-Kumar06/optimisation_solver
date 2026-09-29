@@ -24,6 +24,10 @@ enum class Engine {
     // ADMM engine for convex quadratic objectives. Continuous variables only.
     Qp,
 
+    // Branch-and-bound over convex QP relaxations. Mixed-integer quadratic
+    // objectives only after mathematical convexity validation.
+    Miqp,
+
     // Elastic SQP for nlp::Problem, with first-order local termination.
     Nlp,
 
@@ -60,6 +64,10 @@ struct SolverOptions {
     // shadow prices should tighten this.
     double tolerance = 1e-8;
     double timeLimitSeconds = 0.0;
+
+    // Branch-and-bound node budget. <= 0 means unlimited. Used by both MILP
+    // and MIQP tree searches; ignored by continuous engines.
+    std::int64_t nodeLimit = 0;
 
     // Worker threads for whichever engine runs. 0 selects hardware_concurrency,
     // 1 forces serial. Exposed because a benchmark whose thread count varies
