@@ -273,7 +273,15 @@ void download(std::vector<T>& target, const T* source, std::size_t count, cudaSt
         cudaGetLastError();
         return std::string("cannot query CUDA device: ") + cudaGetErrorString(propertyStatus);
     }
-    if (properties.computeMode == cudaComputeModeProhibited) {
+    // cudaDeviceProp::computeMode was removed in CUDA 13; the attribute query
+    // works on every supported toolkit (12.8+).
+    int computeMode = cudaComputeModeDefault;
+    const cudaError_t modeStatus = cudaDeviceGetAttribute(&computeMode, cudaDevAttrComputeMode, device);
+    if (modeStatus != cudaSuccess) {
+        cudaGetLastError();
+        return std::string("cannot query CUDA device: ") + cudaGetErrorString(modeStatus);
+    }
+    if (computeMode == cudaComputeModeProhibited) {
         return "CUDA device " + std::to_string(device) + " is in prohibited compute mode";
     }
     if (name != nullptr) {
