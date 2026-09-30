@@ -9,6 +9,7 @@
 #include "qp/scaling.h"
 #include "qp/qp_types.h"
 
+#include <limits>
 #include <vector>
 
 namespace qp {
@@ -89,6 +90,39 @@ struct AdmmOptions {
     bool usePolishing = true;
     int polishingIterations = 200;
 };
+
+// ============================================================================
+// Optimality check in the ORIGINAL problem's units
+// ============================================================================
+//
+// The single definition of "converged" for this engine. The ADMM loop
+// terminates on it, and QpSolver re-applies it after polishing before it will
+// return Optimal. It is evaluated on the caller's (unscaled) problem because
+// that is what every consumer -- postsolve, MIQP node bounds, NLP subproblems --
+// actually checks. The loop previously terminated on Ruiz-SCALED residuals with
+// sqrt(n + m) factors instead: measured on randomly generated QPs, 31 of 400
+// Optimal results then failed this check at the requested tolerance, rising to
+// 121 of 375 when coefficients spanned 1e-4 to 1e4, and presolved Maros-Meszaros
+// qship08s came back Optimal with a variable bound violated in original units.
+//
+//   primal: every row i satisfies  dist(A_i x, [l_i, u_i])
+//                                    <= primalTolerance * max(1, |A_i x|, |l_i|, |u_i|)
+//           (infinite bounds excluded from the scale) -- per row, like postsolve;
+//   dual:   ||P x + q + A'y||_inf  <= dualTolerance * max(1, ||Px||, ||A'y||, ||q||)
+//   and every number involved finite.
+struct KktCheck {
+    double primalViolation = std::numeric_limits<double>::infinity();  // worst absolute row violation
+    double dualResidual = std::numeric_limits<double>::infinity();     // ||P x + q + A'y||_inf
+    bool primalMet = false;
+    bool dualMet = false;
+    bool finite = false;
+    [[nodiscard]] bool met() const noexcept { return finite && primalMet && dualMet; }
+};
+[[nodiscard]] KktCheck checkKkt(const QpModel& model,
+                                const std::vector<double>& x,
+                                const std::vector<double>& y,
+                                double primalTolerance,
+                                double dualTolerance);
 
 // ============================================================================
 // ADMM result

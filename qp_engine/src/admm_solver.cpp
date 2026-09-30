@@ -30,6 +30,44 @@ double primalObjective(const QpModel& model, const std::vector<double>& x) {
 
 }  // namespace
 
+KktCheck checkKkt(const QpModel& model, const std::vector<double>& x,
+                  const std::vector<double>& y, double primalTolerance, double dualTolerance) {
+    KktCheck out;
+    const int n = model.numVariables();
+    const int m = model.numConstraints();
+    if (x.size() != static_cast<std::size_t>(n) || y.size() != static_cast<std::size_t>(m)) return out;
+    for (double v : x) if (!std::isfinite(v)) return out;
+    for (double v : y) if (!std::isfinite(v)) return out;
+
+    std::vector<double> ax, px, aty(static_cast<std::size_t>(n), 0.0);
+    model.A.multiply(x, ax);
+    model.P.multiply(x, px);
+    if (m > 0) model.A.transposeMultiply(y, aty);
+
+    out.primalViolation = 0.0;
+    out.primalMet = true;
+    for (int i = 0; i < m; ++i) {
+        const auto ui = static_cast<std::size_t>(i);
+        const double v = ax[ui], lo = model.l[ui], hi = model.u[ui];
+        const double violation = std::max({0.0, lo - v, v - hi});
+        double scale = std::max(1.0, std::abs(v));
+        if (std::isfinite(lo)) scale = std::max(scale, std::abs(lo));
+        if (std::isfinite(hi)) scale = std::max(scale, std::abs(hi));
+        out.primalViolation = std::max(out.primalViolation, violation);
+        if (!(violation <= primalTolerance * scale)) out.primalMet = false;
+    }
+    double dual = 0.0, dualScale = 1.0;
+    for (int j = 0; j < n; ++j) {
+        const auto uj = static_cast<std::size_t>(j);
+        dual = std::max(dual, std::abs(px[uj] + model.q[uj] + aty[uj]));
+        dualScale = std::max({dualScale, std::abs(px[uj]), std::abs(aty[uj]), std::abs(model.q[uj])});
+    }
+    out.dualResidual = dual;
+    out.dualMet = dual <= dualTolerance * dualScale;
+    out.finite = std::isfinite(out.primalViolation) && std::isfinite(dual) && std::isfinite(dualScale);
+    return out;
+}
+
 AdmmSolver::AdmmSolver(const QpModel& problem, const AdmmOptions& options)
     : original_(problem), options_(options) {
     if (options_.rho <= 0.0) options_.rho = 1.0;
@@ -58,6 +96,27 @@ AdmmSolver::AdmmSolver(const QpModel& problem, const AdmmOptions& options)
         result_.status = QpStatus::InvalidProblem;
         result_.statusMessage = e.what();
         return;
+    }
+
+    // This is a CONVEX-QP engine. A negative diagonal entry proves P is not
+    // positive semidefinite, and ADMM then converges happily to a stationary
+    // point that need not be a minimum: on min -x^2/2 over [-1, 1] it returned
+    // Optimal at x = 0, the MAXIMUM. Full PSD verification is a dense
+    // factorisation and belongs to the caller (the public pipeline runs
+    // qp::checkConvexity before dispatch); this O(nnz) test is the necessary
+    // condition the engine can afford on every call.
+    {
+        const auto& start = problem.P.csrRowStart();
+        const auto& column = problem.P.csrColumnIndex();
+        const auto& value = problem.P.csrValues();
+        for (int i = 0; i < problem.numVariables(); ++i)
+            for (auto k = start[static_cast<std::size_t>(i)]; k < start[static_cast<std::size_t>(i) + 1]; ++k)
+                if (column[static_cast<std::size_t>(k)] == i && value[static_cast<std::size_t>(k)] < 0.0) {
+                    result_.status = QpStatus::InvalidProblem;
+                    result_.statusMessage = "P has a negative diagonal entry, so it is not positive "
+                                            "semidefinite; this engine solves convex QPs only";
+                    return;
+                }
     }
 
     if (options_.useRuizScaling) {
@@ -116,11 +175,31 @@ AdmmResult AdmmSolver::solve() {
     const int m = scaled_.numConstraints();
 
     if (n == 0) {
-        result_.status = QpStatus::Optimal;
-        result_.statusMessage = "zero variables";
-        result_.primalObjective = 0.0;
-        result_.iterations = 0;
+        // With no variables every row's activity is 0, so each row must admit
+        // 0. A row that does not is a complete infeasibility certificate on its
+        // own. This used to return Optimal unconditionally -- including for a
+        // row requiring 0 in [1, 2], with a reported primal residual of 1.0.
         result_.primal.clear();
+        result_.constraintDual.assign(static_cast<std::size_t>(m), 0.0);
+        result_.iterations = 0;
+        result_.primalObjective = 0.0;
+        result_.primalResidual = 0.0;
+        result_.dualResidual = 0.0;
+        for (int i = 0; i < m; ++i) {
+            const double lo = original_.l[static_cast<std::size_t>(i)];
+            const double hi = original_.u[static_cast<std::size_t>(i)];
+            const double violation = std::max({0.0, lo, -hi});
+            result_.primalResidual = std::max(result_.primalResidual, violation);
+            if (violation > 0.0) {
+                result_.status = QpStatus::Infeasible;
+                result_.statusMessage = "infeasible: with no variables, row " + std::to_string(i) +
+                                        " requires 0 to lie in [" + std::to_string(lo) + ", " +
+                                        std::to_string(hi) + "]";
+                return result_;
+            }
+        }
+        result_.status = QpStatus::Optimal;
+        result_.statusMessage = "zero variables; every row admits the empty point";
         return result_;
     }
 
@@ -265,8 +344,6 @@ AdmmResult AdmmSolver::solve() {
             (k + 1) % options_.terminationCheckFrequency == 0 ||
             k + 1 == options_.iterationLimit;
         if (doCheck) {
-            const double absTol = options_.primalTolerance;
-            const double relTol = options_.dualTolerance;
 
             double AxNorm = 0.0;
             double zNorm = 0.0;
@@ -277,8 +354,6 @@ AdmmResult AdmmSolver::solve() {
             AxNorm = std::sqrt(AxNorm);
             zNorm  = std::sqrt(zNorm);
 
-            const double epsPri = std::sqrt(static_cast<double>(n + m)) * absTol +
-                                  relTol * std::max({AxNorm, zNorm, 1.0});
 
             double AtzNorm = 0.0;
             if (m > 0) {
@@ -311,11 +386,34 @@ AdmmResult AdmmSolver::solve() {
             dNorm = std::sqrt(dNorm);
             PxNorm = std::sqrt(PxNorm);
             qNorm = std::sqrt(qNorm);
-            const double epsDual = std::sqrt(static_cast<double>(n)) * absTol +
-                                   relTol * std::max({PxNorm, AtzNorm, qNorm, 1.0});
+            // A non-finite iterate is a numerical breakdown. Stop and report
+            // it: carrying on only burns the remaining budget and ends as an
+            // iteration limit, which says "needs more time" when the truth is
+            // "cannot continue".
+            bool finiteIterate = std::isfinite(rNorm) && std::isfinite(dNorm);
+            for (int j = 0; finiteIterate && j < n; ++j)
+                finiteIterate = std::isfinite(x_[static_cast<std::size_t>(j)]);
+            for (int i = 0; finiteIterate && i < m; ++i)
+                finiteIterate = std::isfinite(y_[static_cast<std::size_t>(i)]);
+            if (!finiteIterate) {
+                result_.status = QpStatus::NumericalFailure;
+                result_.statusMessage = "iterate became non-finite";
+                result_.iterations = k + 1;
+                if (hasBest) { x_ = bestX; y_ = bestY; }
+                break;
+            }
 
-            const bool primalOK = (m > 0) ? (rNorm <= epsPri) : true;
-            const bool dualOK   = (dNorm <= epsDual);
+            // Convergence is judged in the ORIGINAL problem's units; see
+            // checkKkt. The scaled norms above still drive rho adaptation.
+            std::vector<double> xOriginal = x_, yOriginal = y_;
+            if (options_.useRuizScaling && scalingValid_) {
+                scaling_.toOriginal(x_, xOriginal);
+                scaling_.toOriginalDual(y_, yOriginal);
+            }
+            const KktCheck kktCheck = checkKkt(original_, xOriginal, yOriginal,
+                                               options_.primalTolerance, options_.dualTolerance);
+            const bool primalOK = kktCheck.finite && kktCheck.primalMet;
+            const bool dualOK = kktCheck.finite && kktCheck.dualMet;
 
             // The certificates are checked BEFORE optimality, not after.
             //
@@ -428,8 +526,7 @@ AdmmResult AdmmSolver::solve() {
                 result_.status = QpStatus::TimeLimit;
                 result_.statusMessage = "time limit";
                 result_.iterations = k + 1;
-                x_ = bestX;
-                y_ = bestY;
+                if (hasBest) { x_ = bestX; y_ = bestY; }
                 break;
             }
         }

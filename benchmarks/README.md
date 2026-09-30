@@ -8,13 +8,13 @@ it was right.
 
 Validated on 2026-09-30 in the SIH checkout, based on PR #15 revision
 `08c1520ae033e56ad0a86c6794f2ee3484965b46`, with the local test/harness changes.
-The coverage work exposed four defects in the ADMM QP engine, which this PR
-fixes (see *QP engine fixes* below). No other numerical engine was changed.
+The coverage work and two reviews exposed defects in the ADMM QP engine, which
+this PR fixes (see *QP engine fixes* below). No other numerical engine was changed.
 
 ### Automated tests
 
-The final Release integration build against upstream `b67250b` ran **72 CTests:
-72 passed**, with assertions enabled in test targets. This includes the restored NLP engine, elastic KKT,
+The final Release integration build against upstream `b67250b` ran **73 CTests:
+73 passed**, with assertions enabled in test targets. This includes the restored NLP engine, elastic KKT,
 public pipeline and CLI tests, NLP/SLSQP comparisons, PDLP and QP engine unit
 tests, parser/presolve/postsolve/MILP tests, benchmark harness tests, and the
 new reference/integrity tests.
@@ -97,21 +97,57 @@ which factors a dense system on each pass, now respects the remaining time
 limit and skips systems above dimension 2,000: on presolved qship08s it had run
 for more than 300 s past a 55 s limit.
 
-Five QP engine regression tests run in the normal suite (`qp_tests`, 26 checks)
-with production settings, which the previous ADMM tests never used. Each of the
-four behavioural tests was shown to fail against the engine it guards against.
+Five QP engine regression tests run in the normal suite with production
+settings, which the previous ADMM tests never used. Each of the four behavioural
+tests was shown to fail against the engine it guards against.
 
 Across all 138 Maros-Meszaros instances (public pipeline, forced ADMM, 60 s
 wall clock per instance, objective checked against the published value at
-1e-6 normalised), the fixed engine agrees on **44** against **29** before, with
+1e-6 normalised), the fixed engine agrees on **45** against **29** before, with
 **no regressions** and **no false optimal claims** (two before). Timeouts fell
-from 35 to 22, mostly instances that converged and then hung in polishing.
+from 35 to 27, mostly instances that converged and then hung in polishing.
 
 `cvxqp3s` remains `unverified` at the smoke budget. The engine converges to the
 published objective given 16,700 iterations, but not within the default 5,000.
 The cause is structural: a single scalar rho for every row, where OSQP scales
 rho by 1e3 on equality rows, and cvxqp3s has 75 of them. Per-row rho changes the
 KKT assembly in both the dense and sparse paths and is left as separate work.
+
+A second review found that several result paths could still report success
+without the returned point satisfying the model. Each was reproduced first:
+
+| Defect | Reproduction | Now |
+|---|---|---|
+| Termination judged on Ruiz-**scaled** residuals, while every consumer (postsolve, MIQP nodes, NLP subproblems) checks the original problem | 31 of 400 randomly generated QPs returned Optimal yet failed an original-units KKT check at the requested tolerance, rising to 121 of 375 with coefficients spanning 1e-4 to 1e4; presolved qship08s returned Optimal with a variable bound violated | the loop terminates on `qp::checkKkt` in original units (per-row relative primal, relative dual), as OSQP does by default; `QpSolver` re-applies it after polishing and returns `NumericalFailure` if it fails |
+| Non-finite iterates were not detected | finite data whose iterates overflow ran all 5,000 iterations and returned `IterationLimit` with a NaN vector; on a bounded problem whose optimum (~-1e600) a double cannot hold, the overflowing iterate difference was certified **Unbounded** | stops at the next check with `NumericalFailure`, before the certificates can misread it |
+| No variables: `Optimal` returned without checking the rows | a row requiring 0 in [1, 2] came back Optimal with a reported primal residual of 1.0 | each row must admit 0, otherwise `Infeasible` |
+| No convexity guard in the engine | `min -x^2/2` over [-1, 1] returned Optimal at x = 0, the maximum | a negative diagonal of P is rejected as `InvalidProblem` (an O(nnz) necessary condition; the pipeline's full `checkConvexity` still runs before dispatch) |
+| Time limit could adopt an empty best iterate | defensive | only a recorded iterate is adopted |
+
+`qp_tests` now has nine regression cases for these and the earlier defects, and
+the new `qp_contract` CTest pins the pipeline contract: a converged QP arrives
+with validated primal and duals, a time-limited one as `limit_reached` without
+multipliers, and a numerical breakdown as `numerical_failure` with no point.
+Every behavioural engine test was shown to fail against the engine it guards
+against. `qp_contract` also passes on the previous engine, because postsolve's
+validation already caught those cases end to end; it documents the pipeline
+contract, and the engine tests bind the fixes.
+
+One NLP test depended on the old inaccuracy: its badly conditioned QP used to
+come back Optimal with an absolute residual of 1.6e-5, and the NLP gate rejected
+it. The engine now solves that QP accurately, so the test uses a right-hand side
+of 1e9 instead: ADMM converges relatively while the absolute residual (~2e-6)
+still exceeds the NLP gate. Removing the gate's residual check still makes that
+case report `FirstOrderStationary`.
+
+Pre-existing issue on `main`, not changed here: presolve deletes quadratic
+objective terms with an absolute coefficient of at most 1e-9
+(`src/presolve/presolver.cpp`), whatever the problem's scale. On
+`min 1e-12 x^2 - x` subject to `-1 <= 1e-12 x <= 1`, presolve drops both the
+quadratic term and the row as negligible, leaving `min -x` over a free x, which
+is reported **Unbounded**. The problem is strictly convex, with optimum
+x = 5e11. This belongs in its own presolve change.
+
 
 Netlib `blend` and `share2b` return feasible points with `limit_reached`.
 The MIPLIB and Mittelmann five-second runs are insufficient to establish full

@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <cstdio>
 #include <random>
@@ -655,6 +656,112 @@ void testPolishingRespectsBudget() {
     require(qp::KktPolisher::polish(s, x, y, qp::KktPolisher::Options{}), "unbounded polish failed");
 }
 
+// ---------------------------------------------------------------------------
+// Result contract: Optimal must mean the returned point passes the
+// original-units optimality check, and failures must stay failures.
+// ---------------------------------------------------------------------------
+
+// Tiny deterministic generator. std::uniform_real_distribution differs between
+// standard libraries, and this test must build the same instances everywhere.
+struct Xorshift {
+    std::uint64_t s = 88172645463325252ull;
+    double unit() { s ^= s << 13; s ^= s >> 7; s ^= s << 17; return static_cast<double>(s >> 11) * 0x1.0p-53; }
+    double symmetric() { return 2.0 * unit() - 1.0; }
+    int below(int k) { return static_cast<int>(unit() * k); }
+};
+
+// Every Optimal result must pass checkKkt on the returned vectors, in the
+// caller's units. When the loop terminated on Ruiz-scaled residuals instead,
+// 82 of 397 Optimal results on problems like these (coefficients spanning
+// 1e-2..1e2) failed that check at the requested tolerance -- some with dual
+// residuals near 1e-3 against 1e-8.
+void testOptimalImpliesOriginalKkt() {
+    Xorshift g;
+    int optimal = 0;
+    for (int trial = 0; trial < 300; ++trial) {
+        const int n = 2 + g.below(5), m = 1 + g.below(4);
+        std::vector<double> d(static_cast<std::size_t>(n));
+        for (auto& s : d) s = std::pow(10.0, 2.0 * g.symmetric());
+        std::vector<std::vector<double>> L(static_cast<std::size_t>(n), std::vector<double>(static_cast<std::size_t>(n), 0.0));
+        for (int i = 0; i < n; ++i) for (int j = 0; j <= i; ++j) L[static_cast<std::size_t>(i)][static_cast<std::size_t>(j)] = g.symmetric();
+        std::vector<double> r, c, v;
+        for (int i = 0; i < n; ++i)
+            for (int j = 0; j < n; ++j) {
+                double s = i == j ? 0.01 : 0.0;
+                for (int k = 0; k < n; ++k) s += L[static_cast<std::size_t>(i)][static_cast<std::size_t>(k)] * L[static_cast<std::size_t>(j)][static_cast<std::size_t>(k)];
+                r.push_back(i); c.push_back(j); v.push_back(s * d[static_cast<std::size_t>(i)] * d[static_cast<std::size_t>(j)]);
+            }
+        qp::QpModel s;
+        s.P = mkMat(n, n, r, c, v);
+        for (int j = 0; j < n; ++j) s.q.push_back(g.symmetric() * std::pow(10.0, 2.0 * g.symmetric()));
+        std::vector<double> ar, ac, av;
+        for (int i = 0; i < m; ++i)
+            for (int j = 0; j < n; ++j)
+                if (g.below(2)) { ar.push_back(i); ac.push_back(j); av.push_back(g.symmetric() * std::pow(10.0, 2.0 * g.symmetric())); }
+        for (int j = 0; j < n; ++j) { ar.push_back(m + j); ac.push_back(j); av.push_back(1.0); }
+        s.A = mkMat(m + n, n, ar, ac, av);
+        for (int i = 0; i < m + n; ++i) { const double b = std::pow(10.0, 2.0 * g.symmetric()); s.l.push_back(-b); s.u.push_back(b); }
+
+        const qp::AdmmResult res = qp::QpSolver{}.solve(s, productionOpts());
+        if (res.status != qp::QpStatus::Optimal) continue;
+        ++optimal;
+        const qp::KktCheck k = qp::checkKkt(s, res.primal, res.constraintDual, 1e-8, 1e-8);
+        char detail[128];
+        std::snprintf(detail, sizeof detail, "primal violation %.3e, dual residual %.3e", k.primalViolation, k.dualResidual);
+        require(k.met(), "trial " + std::to_string(trial) + " returned Optimal but fails the original-units check: " + detail);
+    }
+    // Guard against a vacuous pass: most of these problems must still solve.
+    require(optimal >= 240, "only " + std::to_string(optimal) + " of 300 solved");
+}
+
+// With no variables every row's activity is 0. A row that cannot hold 0 is an
+// infeasibility certificate; this path used to return Optimal regardless.
+void testZeroVariablesChecksRows() {
+    qp::QpModel s;
+    s.P = mkMat(0, 0, {});
+    s.A = mkMat(1, 0, {});
+    s.l = {1.0}; s.u = {2.0};
+    require(qp::QpSolver{}.solve(s).status == qp::QpStatus::Infeasible, "row requiring 0 in [1,2] accepted");
+    s.l = {-1.0};
+    require(qp::QpSolver{}.solve(s).status == qp::QpStatus::Optimal, "row admitting 0 rejected");
+}
+
+// A convex-QP engine must refuse a Hessian it can cheaply prove indefinite.
+// min -x^2/2 over [-1, 1] used to come back Optimal at x = 0, the MAXIMUM.
+void testRejectsNegativeDiagonal() {
+    qp::QpModel s;
+    s.P = mkMat(1, 1, {{0, 0, -1.0}});
+    s.q = {0.0};
+    s.A = mkMat(1, 1, {{0, 0, 1.0}});
+    s.l = {-1.0}; s.u = {1.0};
+    const auto r = qp::QpSolver{}.solve(s);
+    require(r.status == qp::QpStatus::InvalidProblem, "indefinite P accepted: " + std::string(qp::toString(r.status)));
+}
+
+// Finite input whose iterates overflow. A breakdown must be reported as one,
+// immediately -- not after burning the whole budget as an iteration limit with
+// a NaN vector, and never as a certificate. The third problem is BOUNDED
+// (|x| <= 1e300) but its optimum is about -1e600, which a double cannot hold;
+// the overflowing iterate difference used to be certified as an unbounded ray.
+void testNonFiniteIterateIsFailure() {
+    const double inf = std::numeric_limits<double>::infinity();
+    struct Case { double p, q, a, lo, hi; };
+    const Case cases[] = {{1e-300, 1.7e308, 1.0, -inf, inf},
+                          {1e-308, -1.7e308, 1.0, -inf, inf},
+                          {1e-300, 1e300, 1e-300, -1.0, 1.0}};
+    for (const auto& c : cases) {
+        qp::QpModel s;
+        s.P = mkMat(1, 1, {{0, 0, c.p}});
+        s.q = {c.q};
+        s.A = mkMat(1, 1, {{0, 0, c.a}});
+        s.l = {c.lo}; s.u = {c.hi};
+        const auto r = qp::QpSolver{}.solve(s);
+        require(r.status == qp::QpStatus::NumericalFailure,
+                "overflowing iterate reported as " + std::string(qp::toString(r.status)));
+        require(r.iterations <= 100, "breakdown detected only after " + std::to_string(r.iterations) + " iterations");
+    }
+}
+
 void run(const char* name, void (*f)()) {
     try {
         f();
@@ -701,12 +808,16 @@ int main() {
     run("polishing",             testPolishing);
     run("polishingWithOneSidedActiveBound", testPolishingWithOneSidedActiveBound);
     run("polishingRespectsBudget", testPolishingRespectsBudget);
+    run("optimalImpliesOriginalKkt", testOptimalImpliesOriginalKkt);
+    run("zeroVariablesChecksRows", testZeroVariablesChecksRows);
+    run("rejectsNegativeDiagonal", testRejectsNegativeDiagonal);
+    run("nonFiniteIterateIsFailure", testNonFiniteIterateIsFailure);
 
     // Integration
     run("qpSolverFacade",        testQpSolverFacade);
 
     if (failures == 0) {
-        std::printf("\nAll %d QP engine tests passed\n", 26);
+        std::printf("\nAll %d QP engine tests passed\n", 30);
         return 0;
     }
     std::printf("\n%d test(s) failed\n", failures);

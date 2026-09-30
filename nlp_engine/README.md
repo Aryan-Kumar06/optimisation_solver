@@ -335,10 +335,9 @@ does not satisfy them fails. Specifically:
   combined with an equality row, active lower and upper bounds, both active
   ranged sides, and inactive rows/bounds giving zero multipliers;
 - independent residual validation of the constructed QP rejecting an inner
-  solve that returned `Optimal`. ADMM's own test is relative and measured on its
-  equilibrated system, so a badly conditioned linearization satisfies it while
-  its absolute unscaled residual is ~1.6e-5; the gate overrules the inner
-  status. The gate validates the returned solution against the QP as built; it
+  solve that returned `Optimal`. ADMM's own test is relative to the data's
+  scale, so a linearization with a right-hand side of 1e9 satisfies it while its
+  absolute residual is ~2e-6; the gate overrules the inner status. The gate validates the returned solution against the QP as built; it
   does not reconstruct that QP from the nonlinear problem. Removing
   the residual half of the gate makes that case report `FirstOrderStationary`,
   which is what the test prevents.

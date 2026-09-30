@@ -147,9 +147,9 @@ ctest --test-dir build --output-on-failure
 
 ### Published validation results
 
-The 2026-09-30 Release validation against upstream `b67250b` ran **72 CTests:
-all 72 passed**, including the 300-case randomized OSQP comparison. Its earlier
-failure (case 219) and the QP objective disagreements below were traced to four
+The 2026-09-30 Release validation against upstream `b67250b` ran **73 CTests:
+all 73 passed**, including the 300-case randomized OSQP comparison. Its earlier
+failure (case 219) and the QP objective disagreements below were traced to
 ADMM engine defects, now fixed and covered by regression tests; see
 [benchmarks/COVERAGE.md](benchmarks/COVERAGE.md).
 
@@ -163,7 +163,7 @@ ADMM engine defects, now fixed and covered by regression tests; see
 
 The Netlib and QP rows were rerun with the fixed QP engine; MIPLIB and
 Mittelmann rows record the PR #15 baseline, whose engines this change does not
-touch. Across all 138 Maros-Meszaros instances the fixed engine agrees on 44
+touch. Across all 138 Maros-Meszaros instances the fixed engine agrees on 45
 against 29 before, with no regressions and no false optimal claims. These are fixed-subset smoke runs at **five seconds per solver process**, not
 full-library certification or comparable performance rankings. Objective
 agreement requires independently validated feasible points and optimal statuses

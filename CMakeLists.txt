@@ -394,6 +394,10 @@ if(Python3_Interpreter_FOUND)
     endif()
 endif()
 
+add_executable(test_qp_contract tests/pipeline/test_qp_contract.cpp)
+target_link_libraries(test_qp_contract PRIVATE solver_orchestrator)
+add_test(NAME qp_contract COMMAND test_qp_contract)
+
 add_executable(test_nlp_integration tests/pipeline/test_nlp_integration.cpp)
 target_link_libraries(test_nlp_integration PRIVATE solver_orchestrator)
 add_test(NAME nlp_pipeline COMMAND test_nlp_integration)
