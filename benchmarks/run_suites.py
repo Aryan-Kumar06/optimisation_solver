@@ -75,7 +75,7 @@ def main():
     if args.timeout <= 0:
         p.error('--timeout must be positive')
     report = dict(schema='optimsolver.coverage.v1', utc=datetime.now(timezone.utc).isoformat(),
-                  platform=platform.platform(), python=sys.version, timeout_seconds=args.timeout,
+                  platform=platform.platform(), python=sys.version, timeout_seconds=args.timeout, highs_backend='scipy',
                   binary_sha256=hashlib.sha256(args.binary.read_bytes()).hexdigest(),
                   note='Subset coverage, not equivalent to published Mittelmann runs. Objective agreement is not an optimality certificate.', suites=[])
     report['reference_versions'] = {}
@@ -106,7 +106,7 @@ def main():
                         solvers = 'qp,osqp' if suite == 'qp' else 'auto,highs'
                         cmd = [sys.executable, str(HERE/'bench.py'), str(path), '--binary', str(args.binary.resolve()),
                                '--runner', str(args.runner.resolve()), '--timeout', str(args.timeout),
-                               '--solvers', solvers, '--out', str(output)]
+                               '--solvers', solvers, '--highs-backend', 'scipy', '--out', str(output)]
                         known = HERE / 'instances' / suite / ('best_known_FROZEN_DEV25.json' if suite == 'miplib' else 'best_known.json')
                         if entry.get('published_objective') is not None:
                             known = Path(tmp) / 'best_known.json'

@@ -171,7 +171,7 @@ def run_optimsolver(runner, binary, instance, engine, timeout, workdir, threads=
                    command, solve_json, record_json, timeout)
 
 
-def run_highs(runner, instance, method, timeout, workdir, threads=1):
+def run_highs(runner, instance, method, timeout, workdir, threads=1, backend="auto"):
     """Measure the `highs` binary ALONE, then convert its output afterwards.
 
     The solver runs under bench_runner with no interpreter in the process, so
@@ -186,7 +186,7 @@ def run_highs(runner, instance, method, timeout, workdir, threads=1):
     """
     solve_json = os.path.join(workdir, "solve.json")
     record_json = os.path.join(workdir, "record.json")
-    native = shutil.which("highs")
+    native = shutil.which("highs") if backend == "auto" else None
 
     if native is None:
         command = [sys.executable, HIGHS_SCIPY_ADAPTER, instance,
@@ -518,6 +518,8 @@ def main():
     parser.add_argument("--solvers", default="dual_simplex,pdlp,highs",
                         help="comma separated: auto, dual_simplex, pdlp, "
                              "branch_and_cut, qp, highs, osqp")
+    parser.add_argument("--highs-backend", choices=["auto", "scipy"], default="auto",
+                        help="auto prefers native HiGHS; scipy reproduces the frozen suite reference")
     parser.add_argument("--threads", type=int, default=1,
                         help="worker threads for our engines; 1 = serial")
     parser.add_argument("--best-known", default=None,
@@ -601,7 +603,7 @@ def main():
                 if solver == "highs":
                     method = "milp" if model.is_integer_model() else "highs-ds"
                     record = run_highs(args.runner, instance, method,
-                                       args.timeout, workdir, threads=args.threads)
+                                       args.timeout, workdir, threads=args.threads, backend=args.highs_backend)
                 elif solver == "osqp":
                     record = run_osqp(args.runner, instance, args.timeout, workdir)
                 else:

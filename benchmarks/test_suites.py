@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
+import bench
 import zipfile
 from fetch_suites import checked, decode, source
 from run_suites import assess, selection
@@ -66,6 +68,15 @@ class Suites(unittest.TestCase):
         entry['intermediate_sha256'] = '0'*64
         with self.assertRaisesRegex(ValueError, 'SHA256'):
             decode(entry, bz2.compress(data))
+
+    def test_suite_can_pin_scipy_with_native_highs_installed(self):
+        with patch.object(bench.shutil, 'which', return_value='/native/highs'), \
+             patch.object(bench, '_invoke', return_value={}) as invoke:
+            bench.run_highs('runner', 'model.mps', 'highs-ds', 5, '/tmp', backend='scipy')
+            args = invoke.call_args.args
+            self.assertEqual(args[1], 'highs-scipy:highs-ds')
+            self.assertIn(bench.HIGHS_SCIPY_ADAPTER, args[3])
+            self.assertNotIn('/native/highs', args[3])
 
     def test_comparison_accounting(self):
         entry = dict(parse_check=dict(status='agree'), runs=[point(),point()])

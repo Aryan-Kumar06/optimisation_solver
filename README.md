@@ -147,8 +147,8 @@ ctest --test-dir build --output-on-failure
 
 ### Published validation results
 
-The 2026-09-30 Release validation on the PR #15 baseline ran **70 CTests:
-69 passed and one failed**. The failure is a QP iteration-limit case found by
+The 2026-09-30 Release validation against upstream `b67250b` ran **72 CTests:
+71 passed and one failed**. The failure is a QP iteration-limit case found by
 the independent OSQP comparison; it remains visible in the test suite.
 
 | Benchmark selection | Instances run | Objective agreement | Remaining outcomes |
@@ -159,7 +159,8 @@ the independent OSQP comparison; it remains visible in the test suite.
 | Public Mittelmann LP subset | 3 | 0 | 3 time-limited, unverified |
 | **Total** | **50** | **18** | **32 require further work** |
 
-These are fixed-subset smoke runs at **five seconds per solver process**, not
+The benchmark table records the PR #15 baseline before integrating newer upstream
+MIQP changes. These are fixed-subset smoke runs at **five seconds per solver process**, not
 full-library certification or comparable performance rankings. Objective
 agreement requires independently validated feasible points and optimal statuses
 from both solvers; it is not itself an optimality certificate. All 50 inputs

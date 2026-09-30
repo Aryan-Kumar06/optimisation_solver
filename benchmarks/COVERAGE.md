@@ -6,8 +6,9 @@ Production numerical engines were not changed for this coverage work.
 
 ## Automated tests
 
-The Release build, with assertions enabled in test targets, ran **70 CTests:
-69 passed, 1 failed**. This includes the restored NLP engine, elastic KKT,
+The final Release integration build against upstream `b67250b` ran **72 CTests:
+71 passed, 1 failed**, with assertions enabled in test targets. The earlier
+PR #15 baseline ran 70 CTests (69 passed, the same one failed). This includes the restored NLP engine, elastic KKT,
 public pipeline and CLI tests, NLP/SLSQP comparisons, PDLP and QP engine unit
 tests, parser/presolve/postsolve/MILP tests, benchmark harness tests, and the
 new reference/integrity tests.
@@ -18,7 +19,7 @@ had their nonoptimal status corroborated by OSQP. Zero-based case **219**, seed
 convergence limitation, not evidence of an incorrect optimality claim. The test
 is deliberately still failing; it is not skipped or marked `WILL_FAIL`.
 
-The new Python suites contain seven offline tests of selection, checksums,
+The new Python suites contain eight offline tests of selection, checksums,
 decoding and coverage accounting, plus six reference-adapter tests of sparse
 row translation, dual signs, offsets, min/max QPs, infeasibility, unboundedness,
 nonconvex refusal and reference-error propagation. Both suites pass. After these additions, the affected harness tests were rerun successfully.
@@ -40,6 +41,10 @@ cross-checked independently, and solutions are checked on the original model.
 | MIPLIB 2017 Collection subset | 25 | 3 | 15 reference not optimal, 5 unverified, 2 feasible but solver not optimal |
 | Maros–Mészáros QP | 14 | 9 | 3 objective disagreements, 2 unverified |
 | Public Mittelmann LP subset | 3 | 0 | 3 unverified due to time limits |
+
+The Netlib and QP selections were rerun after merging upstream `b67250b`;
+their outcome counts were unchanged. MIPLIB and Mittelmann counts below remain
+the recorded PR #15 baseline measurements.
 
 All 50 selected instances reached the harness. After fixing nested compression
 for `Linf_520c`, every input passed the independent parse cross-check. An
