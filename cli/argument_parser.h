@@ -10,6 +10,7 @@ enum class Command {
     None,
     Help,
     Solve,
+    SolveNlp,
     Interactive
 };
 
@@ -27,6 +28,8 @@ struct SolveOptions {
     std::optional<std::string> dumpModelPath;
     std::optional<int> threadCount;
 
+    std::optional<double> tolerance;
+    std::optional<int> iterationLimit;
     bool help = false;
 };
 
@@ -45,6 +48,8 @@ public:
     static ParseResult parse(int argc, const char* const argv[]);
     static std::string getRootHelp();
     static std::string getSolveHelp();
+    static std::string getNlpHelp();
+    static bool isNlpPath(const std::string& path);
     static bool isValidSolverName(const std::string& name);
 
 private:

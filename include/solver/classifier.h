@@ -20,6 +20,7 @@ enum class ProblemClass {
     MILP,
     QP,
     MIQP,
+    NLP, // Smooth nonlinear Problem interface; never inferred from affine Model.
 
     // Quadratically constrained problems cannot currently be expressed:
     // model::Constraint carries only linearTerms. Kept so the enum does not
@@ -59,6 +60,7 @@ struct StructureHints {
 
     std::size_t numRows = 0;
     std::size_t numColumns = 0;
+    // -1 when the nonlinear Jacobian pattern is unavailable before evaluation.
     std::int64_t numNonzeros = 0;
 };
 

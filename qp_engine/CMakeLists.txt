@@ -47,6 +47,7 @@ add_library(qp_engine
     src/admm_backend.cpp
     src/polishing.cpp
     src/qp_adapter.cpp
+    src/convexity.cpp
     src/qp_solver.cpp
     src/parallel.cpp
 )

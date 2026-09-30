@@ -50,6 +50,7 @@ ColumnView buildColumnView(const model::Model& model) {
 
 const char* toString(ProblemClass value) noexcept {
     switch (value) {
+        case ProblemClass::NLP:  return "NLP";
         case ProblemClass::LP:   return "LP";
         case ProblemClass::MILP: return "MILP";
         case ProblemClass::QP:   return "QP";

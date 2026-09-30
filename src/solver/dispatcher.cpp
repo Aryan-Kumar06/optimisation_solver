@@ -1,4 +1,5 @@
 #include "solver/dispatcher.h"
+#include "qp/convexity.h"
 
 #include <cmath>
 #include <cstddef>
@@ -36,7 +37,9 @@ const char* toString(Engine value) noexcept {
         case Engine::Pdlp:         return "pdlp";
         case Engine::DualSimplex:  return "dual_simplex";
         case Engine::BranchAndCut: return "branch_and_cut";
+        case Engine::Nlp:          return "nlp_sqp";
         case Engine::Qp:           return "qp";
+        case Engine::Miqp:         return "miqp";
         case Engine::Infeasible:   return "infeasible";
         case Engine::Trivial:      return "trivial";
         case Engine::Unsupported:  return "unsupported";
@@ -54,8 +57,12 @@ std::optional<Engine> parseEngine(std::string_view name) noexcept {
     if (name == "branch_and_cut") {
         return Engine::BranchAndCut;
     }
+    if (name == "nlp" || name == "nlp_sqp") return Engine::Nlp;
     if (name == "qp") {
         return Engine::Qp;
+    }
+    if (name == "miqp") {
+        return Engine::Miqp;
     }
     return std::nullopt;
 }
@@ -89,6 +96,11 @@ DispatchDecision dispatch(
     const SolverOptions& options
 ) {
     DispatchDecision decision;
+    if (classification.problemClass == ProblemClass::NLP || options.forceEngine == Engine::Nlp) {
+        decision.engine = Engine::Unsupported;
+        decision.reason = "NLP requires nlp::Problem and an explicit initial point; affine presolve is not applicable";
+        return decision;
+    }
 
     // Presolve's verdict outranks everything: there is nothing left to solve.
     if (presolveResult.infeasible) {
@@ -112,14 +124,10 @@ DispatchDecision dispatch(
         return decision;
     }
 
-    // A quadratic objective goes to the ADMM engine, but only without
-    // integrality: nothing here does branch-and-cut over a quadratic
-    // relaxation. Saying so plainly beats dropping the quadratic terms and
-    // returning a confident answer to a different problem.
-    const bool quadratic =
-        classification.problemClass == ProblemClass::QP ||
-        classification.problemClass == ProblemClass::MIQP ||
-        classification.problemClass == ProblemClass::QCQP;
+    // Dispatch the REDUCED model by the curvature it actually retains. Presolve
+    // may eliminate every quadratic term, so the original classification is
+    // not enough to decide which engine should run.
+    const bool quadratic = !reduced.objective.quadraticTerms.empty();
 
     if (quadratic) {
         if (classification.problemClass == ProblemClass::QCQP) {
@@ -128,14 +136,26 @@ DispatchDecision dispatch(
                 "quadratic constraints are not representable in model::Model";
             return decision;
         }
-        if (hasIntegrality(reduced)) {
+
+        // The ADMM engine is a convex-QP engine. For minimization the Hessian
+        // must be PSD; for maximization the Hessian must be NSD (equivalently
+        // the sign-negated minimization Hessian must be PSD). Never let a
+        // non-convex model silently enter a convex relaxation engine.
+        const qp::ConvexityCheck convexity = qp::checkConvexity(reduced);
+        if (!convexity.convexForObjectiveSense) {
             decision.engine = Engine::Unsupported;
-            decision.reason =
-                "MIQP: no engine does branch-and-cut over a quadratic relaxation";
+            decision.reason = "non-convex quadratic objective is unsupported: " +
+                              convexity.reason;
+            return decision;
+        }
+
+        if (hasIntegrality(reduced)) {
+            decision.engine = Engine::Miqp;
+            decision.reason = "convex MIQP; using branch-and-bound over validated convex QP relaxations";
             return decision;
         }
         decision.engine = Engine::Qp;
-        decision.reason = "convex quadratic objective with continuous variables";
+        decision.reason = convexity.reason;
         return decision;
     }
 

@@ -3,6 +3,7 @@
 #include "adapter/pdlp_adapter.h"
 #include "milp/branch_and_bound.h"
 #include "milp/dual_simplex_solver.h"
+#include "miqp/branch_and_bound.h"
 #include "pdlp/pdlp_solver.h"
 #include "qp/qp_adapter.h"
 #include "qp/qp_solver.h"
@@ -34,6 +35,18 @@ SolveStatus normalise(pdlp::PdlpStatus status) noexcept {
         case pdlp::PdlpStatus::TimeLimit:        return SolveStatus::LimitReached;
         case pdlp::PdlpStatus::NumericalFailure: return SolveStatus::NumericalFailure;
         case pdlp::PdlpStatus::InvalidProblem:   return SolveStatus::InvalidModel;
+    }
+    return SolveStatus::NumericalFailure;
+}
+
+
+SolveStatus normalise(miqp::MiqpStatus status) noexcept {
+    switch (status) {
+        case miqp::MiqpStatus::Optimal:            return SolveStatus::Optimal;
+        case miqp::MiqpStatus::Infeasible:         return SolveStatus::Infeasible;
+        case miqp::MiqpStatus::NodeLimit:          return SolveStatus::LimitReached;
+        case miqp::MiqpStatus::TimeLimit:          return SolveStatus::LimitReached;
+        case miqp::MiqpStatus::RelaxationFailure:  return SolveStatus::NumericalFailure;
     }
     return SolveStatus::NumericalFailure;
 }
@@ -121,6 +134,7 @@ SolveResult reconstructResult(const model::Model& original,
     model::Model relaxation;
     const model::Model* validationModel = &original;
     if (integerModel && result.executedEngine != Engine::BranchAndCut &&
+        result.executedEngine != Engine::Miqp &&
         result.executedEngine != Engine::Trivial) {
         relaxation = original;
         for (auto& v : relaxation.variables) v.type = model::VariableType::Continuous;
@@ -187,6 +201,7 @@ SolveResult normalizeReducedResult(const model::Model& model, SolveResult result
     model::Model relaxation;
     const model::Model* validationModel = &model;
     if (integerModel && result.executedEngine != Engine::BranchAndCut &&
+        result.executedEngine != Engine::Miqp &&
         result.executedEngine != Engine::Trivial) {
         relaxation = model;
         for (auto& v : relaxation.variables) v.type = model::VariableType::Continuous;
@@ -535,11 +550,36 @@ SolveResult runQp(const model::Model& reduced, const SolverOptions& options,
     return result;
 }
 
+SolveResult runMiqp(const model::Model& reduced, const SolverOptions& options,
+                    SolveResult result) {
+    miqp::MiqpOptions engineOptions;
+    engineOptions.timeLimitSeconds = options.timeLimitSeconds;
+    engineOptions.nodeLimit = options.nodeLimit;
+    engineOptions.integralityTolerance = std::max(1e-7, options.tolerance);
+    engineOptions.feasibilityTolerance = std::max(1e-7, options.tolerance);
+    engineOptions.objectiveTolerance = std::max(1e-9, options.tolerance);
+    engineOptions.threadCount = options.threadCount;
+
+    result.executedEngine = Engine::Miqp;
+    const miqp::MiqpResult raw =
+        miqp::BranchAndBoundSolver{}.solve(reduced, engineOptions);
+
+    result.status = normalise(raw.status);
+    result.message = raw.message;
+    result.variableValues = raw.primal;
+    result.objectiveValue = raw.objectiveValue;
+    result.nodeCount = raw.nodeCount;
+    result.iterations = raw.qpIterations;
+    result.hasDuals = false;
+    return result;
+}
+
 SolveResult runBranchAndCut(const model::Model& reduced, const SolverOptions& options,
                             SolveResult result) {
     milp::MilpOptions engineOptions;
     engineOptions.timeLimitSeconds = options.timeLimitSeconds;
     engineOptions.threadCount = options.threadCount;
+    engineOptions.nodeLimit = options.nodeLimit;
     result.executedEngine = Engine::BranchAndCut;
     const milp::MilpResult raw =
         milp::BranchAndBoundSolver{}.solve(reduced, engineOptions);
@@ -603,6 +643,7 @@ SolveResult solveReduced(const model::Model& presolvedModel,
             result = solveTrivially(presolvedModel, std::move(result));
             break;
 
+        case Engine::Nlp: // Defensive: affine dispatcher rejects this engine.
         case Engine::Unsupported:
             result.status = SolveStatus::Unsupported;
             result.message = decision.reason;
@@ -614,6 +655,10 @@ SolveResult solveReduced(const model::Model& presolvedModel,
 
         case Engine::Qp:
             result = runQp(presolvedModel, options, std::move(result));
+            break;
+
+        case Engine::Miqp:
+            result = runMiqp(presolvedModel, options, std::move(result));
             break;
 
         case Engine::DualSimplex:
@@ -629,7 +674,8 @@ SolveResult solveReduced(const model::Model& presolvedModel,
     // so rather than leave a CUDA request looking honoured.
     if (options.backend == ComputeBackend::Cuda && result.backendReason.empty() &&
         (result.executedEngine == Engine::DualSimplex ||
-         result.executedEngine == Engine::BranchAndCut)) {
+         result.executedEngine == Engine::BranchAndCut ||
+         result.executedEngine == Engine::Miqp)) {
         result.backendReason = std::string(toString(result.executedEngine)) +
             " has no CUDA backend; ran on the CPU";
     }
@@ -648,6 +694,14 @@ SolveResult solve(const model::Model& model, const SolverOptions& options) {
     if (!model.validate()) {
         result.status = SolveStatus::InvalidModel;
         result.message = "model failed structural validation";
+        result.solveSeconds = secondsSince(start);
+        return result;
+    }
+
+    if (options.forceEngine == Engine::Nlp) {
+        result.status = SolveStatus::Unsupported;
+        result.message = "NLP requires nlp::Problem and an explicit initial point (CLI: solve model.nlp)";
+        result.engineReason = result.message;
         result.solveSeconds = secondsSince(start);
         return result;
     }

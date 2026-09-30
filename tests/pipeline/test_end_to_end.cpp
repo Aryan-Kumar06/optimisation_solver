@@ -663,20 +663,44 @@ void testQpOffDiagonalQuadraticCoefficient() {
     near(r.objectiveValue, -3.0, 1e-4, "off-diagonal QP objective");
 }
 
-// A quadratic objective with integer variables has no engine here, and must be
-// reported rather than silently relaxed.
-void testMiqpIsReportedUnsupported() {
+// Full pipeline: presolve must retain the surviving integer/quadratic structure
+// and dispatch the reduced model to MIQP. A fixed continuous variable is
+// deliberately present so this genuinely exercises presolve -> MIQP rather
+// than solveReduced() alone.
+void testPresolveToMiqp() {
     Builder b;
-    b.var("b0", model::VariableType::Binary, 0.0, 1.0);
-    b.var("x", model::VariableType::Continuous, 0.0, 10.0);
-    b.row("c0", -INF, 5.0, {{0, 1.0}, {1, 1.0}});
-    b.obj(model::ObjectiveSense::Minimize, {{1, -2.0}});
-    b.m.objective.quadraticTerms = {{1, 1, 1.0}};
+    b.var("x", model::VariableType::Integer, 0.0, 3.0);
+    b.var("y", model::VariableType::Continuous, 0.0, 2.0);
+    b.var("fixed", model::VariableType::Continuous, 4.0, 4.0);
+    b.row("eq", 1.0, 1.0, {{0, 1.0}, {1, -1.0}});
+    b.row("ge", 2.0, INF, {{0, 1.0}, {1, 1.0}});
+    b.row("le", -INF, 1.0, {{1, 1.0}});
+    b.obj(model::ObjectiveSense::Minimize,
+          {{0, -3.0}, {1, -1.0}, {2, 0.25}});
+    b.m.objective.offset = 1.5; // with fixed contribution 1.0 -> effective 2.5
+    b.m.objective.quadraticTerms = {{0, 0, 1.0}, {1, 1, 1.0}};
 
     const auto r = solver::solve(b.m);
-    report("MIQP (no engine)", r);
-    ck(r.engine == solver::Engine::Unsupported, "MIQP is unsupported");
-    ck(!r.engineReason.empty(), "and says why");
+    report("presolve -> convex MIQP", r);
+    ck(r.engine == solver::Engine::Miqp,
+       std::string("surviving MIQP routes to MIQP, got ") + solver::toString(r.engine));
+    ck(r.executedEngine == solver::Engine::Miqp, "MIQP engine actually ran");
+    ck(r.status == solver::SolveStatus::Optimal, "presolved MIQP solves");
+    ck(r.hasPrimal, "MIQP publishes a primal solution");
+    ck(r.integralityRespected, "MIQP solution respects integrality");
+    near(r.objectiveValue, 0.5, 3e-4, "presolve MIQP objective");
+}
+
+void testNonConvexMiqpRejectedEndToEnd() {
+    Builder b;
+    b.var("x", model::VariableType::Integer, -2.0, 2.0);
+    b.row("keep", -INF, 2.0, {{0, 1.0}});
+    b.obj(model::ObjectiveSense::Minimize, {});
+    b.m.objective.quadraticTerms = {{0, 0, -1.0}};
+    const auto r = solver::solve(b.m);
+    report("non-convex MIQP rejected", r);
+    ck(r.status == solver::SolveStatus::Unsupported,
+       "non-convex MIQP is refused before the QP engine");
 }
 
 // The QP adapter appends identity rows for variable bounds, so its dual vector
@@ -728,7 +752,8 @@ int main() {
     testMaximizeQuadraticRoutesToQpEngine();
     testQpWithObjectiveOffset();
     testMaximizeQpWithObjectiveOffset();
-    testMiqpIsReportedUnsupported();
+    testPresolveToMiqp();
+    testNonConvexMiqpRejectedEndToEnd();
     testQpDualsMatchConstraintCount();
     testUniformResultContract();
 
