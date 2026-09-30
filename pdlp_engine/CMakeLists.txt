@@ -89,6 +89,13 @@ endif()
 if(MSVC)
     target_compile_options(pdlp_engine PRIVATE /W4 /permissive- /fp:precise)
     target_compile_options(pdlp_engine PRIVATE $<$<CONFIG:Release>:/O2>)
+    # /fp:precise never contracts a*b+c into an FMA, so the device must not
+    # either: nvcc's default -fmad=true rounds once where the CPU rounds twice,
+    # and on a diverging (infeasible) PDHG path that difference is amplified
+    # until the two backends take different restart/certificate decisions.
+    if(PDLP_ENABLE_CUDA)
+        target_compile_options(pdlp_cuda PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-fmad=false>)
+    endif()
 else()
     target_compile_options(pdlp_engine PRIVATE -Wall -Wextra -Wpedantic)
     target_compile_options(pdlp_engine PRIVATE $<$<CONFIG:Release>:-O3>)
