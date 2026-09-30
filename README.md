@@ -145,7 +145,29 @@ Run the automated test suite with CTest:
 ctest --test-dir build --output-on-failure
 ```
 
-The current verified test suite passes all 58 test targets (100% pass rate), covering presolve reduction cascades, dual postsolve restoration, engine algorithms, and CLI execution.
+### Published validation results
+
+The 2026-09-30 Release validation on the PR #15 baseline ran **70 CTests:
+69 passed and one failed**. The failure is a QP iteration-limit case found by
+the independent OSQP comparison; it remains visible in the test suite.
+
+| Benchmark selection | Instances run | Objective agreement | Remaining outcomes |
+|---|---:|---:|---|
+| Netlib LP | 8 | 6 | 2 feasible, not optimal |
+| MIPLIB 2017 Collection subset | 25 | 3 | 22 limited or unverified |
+| Maros–Mészáros QP | 14 | 9 | 3 objective disagreements, 2 unverified |
+| Public Mittelmann LP subset | 3 | 0 | 3 time-limited, unverified |
+| **Total** | **50** | **18** | **32 require further work** |
+
+These are fixed-subset smoke runs at **five seconds per solver process**, not
+full-library certification or comparable performance rankings. Objective
+agreement requires independently validated feasible points and optimal statuses
+from both solvers; it is not itself an optimality certificate. All 50 inputs
+passed the independent parse cross-check. All 138 QP inputs are available via
+the pinned downloader, but only 14 were solved in this run.
+
+See the **[published results, known failures and reproduction commands](benchmarks/README.md#published-validation-results--2026-09-30)**
+for the full tables, environment, tolerances, and reference-solver comparisons.
 
 ---
 

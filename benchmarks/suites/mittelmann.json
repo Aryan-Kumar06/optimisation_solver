@@ -1,0 +1,34 @@
+{
+  "schema": "optimsolver.suite.v1",
+  "selection_policy": "Fixed before execution; no instance is replaced after a failure. Full-suite claims are forbidden for subset runs.",
+  "name": "mittelmann",
+  "source": "https://plato.asu.edu/ftp/lpopt.html",
+  "description": "Public LPopt/LPfeas instances, subset only; no equivalence to published hardware or one-hour budgets",
+  "instances": [
+    {
+      "name": "qap15",
+      "url": "https://plato.asu.edu/ftp/lptestset/qap15.mps.bz2",
+      "compressed_sha256": "edc084e9e3d8ccc5dd25f30c6593e6dbb00cba86c5e664c471d1de37ae28b68a",
+      "sha256": "a24d84de54c73d7ea01ebaf07739e6884d57794d4b1184c0e01a6a4495695712"
+    },
+    {
+      "name": "Linf_520c",
+      "url": "https://plato.asu.edu/ftp/lptestset/Linf_520c.bz2",
+      "compressed_sha256": "76b2547af1e7b982a133c885ba92aa7b6405ae4b2e3fc8e682cbd048888cf819",
+      "sha256": "4619a16debadb4eabdcb4d087ef6f3a05a137121bfec6739e324295c84dda871",
+      "encoding": "bz2+emps",
+      "intermediate_sha256": "f4e11d1538cf14d1121859a229ff6ef3dfb4b2fc74f8a47557b3ac0558277bd2"
+    },
+    {
+      "name": "irish-e",
+      "url": "https://plato.asu.edu/ftp/lptestset/irish-electricity.mps.bz2",
+      "compressed_sha256": "1c1c117d1fda3922e5aaff5cadb14581522f1b8b5dc6741cddc318cf1d9ae875",
+      "sha256": "60d7ec4482bae32a3747f09c2d8294b8e50dda31d1a82c37a6f6bf17c8c84458"
+    }
+  ],
+  "decoder": {
+    "url": "https://www.netlib.org/lp/data/emps.c",
+    "file": "emps.c",
+    "sha256": "fee41f544f6873a5e12bc598947828dc9964ef0676162e4df55e915760e2be22"
+  }
+}

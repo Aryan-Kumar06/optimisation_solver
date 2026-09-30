@@ -35,8 +35,7 @@ Scope, stated once and not qualified away elsewhere in this document:
 The existing `model::Model` represents linear constraints and polynomial
 objectives of degree at most two. Its presolver, classifier and postsolver rely
 on that structure; the MPS parser cannot encode general nonlinear expressions.
-The similarly named `nlp_frontend` is a **natural-language** LP/MILP frontend,
-not a nonlinear evaluator. None of these paths is repurposed for nonlinear data.
+None of these affine-model paths is repurposed for nonlinear data.
 
 The existing `qp_engine` already has CSR/CSC matrices, ADMM, Ruiz equilibration,
 sparse/dense Cholesky selection, and regularization. Its matrix convention is
