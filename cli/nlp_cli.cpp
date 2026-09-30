@@ -50,6 +50,8 @@ int runNlp(const SolveOptions& options, std::ostream& out, std::ostream& err,
         // A cached interactive model can differ from the current disk file.
         if (parsed) metadata.instanceSha256 = sha256File(options.modelPath);
         metadata.requestedEngine = options.solver.value_or("");
+        metadata.requestedBackend = options.backend.value_or("auto");
+        metadata.cudaDevice = options.cudaDevice.value_or(0);
         metadata.tolerance = numerical.tolerance;
         metadata.timeLimitSeconds = numerical.timeLimitSeconds;
         metadata.originalVariables = loaded->model.variableBounds().size();

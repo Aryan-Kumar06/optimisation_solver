@@ -40,6 +40,7 @@ endfunction()
 
 enable_testing()
 
+option(OPTIMSOLVER_REQUIRE_CUDA_TEST_DEVICE "Fail CUDA validation if no usable GPU is present" OFF)
 add_executable(test_batch2
     tests/presolve/test_batch2.cpp
     src/model/model.cpp
@@ -163,6 +164,9 @@ add_subdirectory(pdlp_engine)
 # own tests, so `ctest` from the root covers all three engines.
 add_subdirectory(milp_engine)
 add_subdirectory(qp_engine)
+if(OPTIMSOLVER_REQUIRE_CUDA_TEST_DEVICE AND NOT (PDLP_ENABLE_CUDA OR QP_ENABLE_CUDA))
+    message(FATAL_ERROR "Strict CUDA validation requires a CUDA backend to be enabled")
+endif()
 add_subdirectory(miqp_engine)
 add_subdirectory(nlp_engine)
 
@@ -414,3 +418,9 @@ endif()
 add_executable(test_nlp_integration tests/pipeline/test_nlp_integration.cpp)
 target_link_libraries(test_nlp_integration PRIVATE solver_orchestrator)
 add_test(NAME nlp_pipeline COMMAND test_nlp_integration)
+
+if(Python3_Interpreter_FOUND)
+    add_test(NAME backend_json_provenance COMMAND ${Python3_EXECUTABLE}
+        ${PROJECT_SOURCE_DIR}/tests/cli/test_backend_json.py $<TARGET_FILE:optimsolver>)
+    set_tests_properties(backend_json_provenance PROPERTIES TIMEOUT 180)
+endif()

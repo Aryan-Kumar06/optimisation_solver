@@ -274,6 +274,21 @@ bool writeModelDump(std::ostream& out, const model::Model& model) {
     return static_cast<bool>(out);
 }
 
+void writeBackendReport(std::ostream& out, const JsonReportInput& input,
+                        const char* executed, const std::string& reason) {
+    out << "{\"requested\": ";
+    writeString(out, input.requestedBackend);
+    out << ", \"executed\": ";
+    if (executed) writeString(out, executed); else out << "null";
+    out << ", \"requested_device\": " << input.cudaDevice;
+    out << ", \"executed_device\": ";
+    if (executed && std::string(executed) == "cuda") out << input.cudaDevice;
+    else out << "null";
+    out << ", \"reason\": ";
+    if (reason.empty()) out << "null"; else writeString(out, reason);
+    out << '}';
+}
+
 bool writeJsonReport(std::ostream& out,
                      const JsonReportInput& input,
                      const solver::SolveResult& result) {
@@ -305,6 +320,15 @@ bool writeJsonReport(std::ostream& out,
     out << "null";
 #endif
     out << "},\n";
+
+    out << "  \"compute_backend\": ";
+    // Invalid-model/setup refusal never means that the default CPU field ran.
+    const bool ran = result.executedEngine != solver::Engine::Unsupported &&
+                     result.status != solver::SolveStatus::InvalidModel;
+    const std::string backendReason = !result.backendReason.empty() ? result.backendReason :
+        (!ran ? result.message : std::string("engine executed on ") + solver::toString(result.executedBackend));
+    writeBackendReport(out, input, ran ? solver::toString(result.executedBackend) : nullptr, backendReason);
+    out << ",\n";
 
     // Requested is what the caller asked for; executed is what actually ran.
     // These are separate fields in SolveResult for a reason (they disagreed

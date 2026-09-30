@@ -33,6 +33,8 @@ struct JsonReportInput {
     std::string instanceSha256;
 
     // What the caller asked for, as opposed to what the dispatcher chose.
+    std::string requestedBackend = "auto";
+    int cudaDevice = 0;
     std::string requestedEngine;   // empty when the caller forced nothing
     double timeLimitSeconds = 0.0; // 0 means no limit
     double tolerance = 0.0;
@@ -61,6 +63,11 @@ struct JsonReportInput {
 bool writeJsonReport(std::ostream& out,
                      const JsonReportInput& input,
                      const solver::SolveResult& result);
+
+// Shared additive backend object for affine and nonlinear JSON schemas.
+// A null executed value means no numerical backend ran.
+void writeBackendReport(std::ostream& out, const JsonReportInput& input,
+                        const char* executed, const std::string& reason);
 
 // Nonlinear reports preserve first-order status and KKT multiplier semantics.
 // They share provenance/options fields, but have an explicit NLP schema.

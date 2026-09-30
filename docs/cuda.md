@@ -74,6 +74,7 @@ cmake -S qp_engine   -B build-qp-cuda   -DQP_ENABLE_CUDA=ON
 | `OPTIMSOLVER_ENABLE_CUDA` | `OFF` | Enables CUDA at the top level and defaults both engine options below to `ON`. |
 | `PDLP_ENABLE_CUDA` | `OPTIMSOLVER_ENABLE_CUDA`, else `OFF` | Builds `pdlp_cuda` and `pdlp_cuda_tests`. |
 | `QP_ENABLE_CUDA` | `OPTIMSOLVER_ENABLE_CUDA`, else `OFF` | Builds `qp_cuda` and `qp_cuda_tests`. |
+| `OPTIMSOLVER_REQUIRE_CUDA_TEST_DEVICE` | `OFF` | CUDA tests fail instead of skipping if no usable GPU exists; requires a CUDA backend. |
 | `CMAKE_CUDA_ARCHITECTURES` | `native` (CMake ≥ 3.24) | Never hard-coded; any explicit value wins. |
 
 Build-system guarantees:
@@ -88,6 +89,9 @@ Build-system guarantees:
   `prec-sqrt=false`) in `CMAKE_CUDA_FLAGS` is a configure error. FMA contraction
   stays on, matching the CPU build's `-ffp-contract=fast`.
 * All solver arithmetic stays in `double`.
+* Enabling an engine CUDA backend registers its CUDA tests even when
+  `PDLP_BUILD_TESTS` or `QP_BUILD_TESTS` is `OFF`. Ordinary engine unit tests
+  still follow those switches.
 
 ## 4. Selecting a backend
 
@@ -119,6 +123,23 @@ What actually ran is always recorded, never inferred from the request:
 Engines without a CUDA backend (dual simplex, branch-and-cut) run on the CPU
 whatever was requested; with `--backend cuda` the result says so
 (`"dual_simplex has no CUDA backend; ran on the CPU"`).
+
+JSON reports (including NLP reports) contain a top-level `compute_backend`:
+
+```json
+"compute_backend": {
+  "requested": "cuda",
+  "executed": "cuda",
+  "requested_device": 0,
+  "executed_device": 0,
+  "reason": "explicit CUDA request"
+}
+```
+
+`executed` and `executed_device` are `null` when no backend ran (for example,
+setup refusal). CPU execution has a null `executed_device`, even when CUDA was
+requested. The reason records selection, fallback, or refusal; it is not an
+inference from the requested option.
 
 ### Auto thresholds -- provisional
 
@@ -206,6 +227,11 @@ product in cuSPARSE accumulates with atomics. Descriptors and SpMV workspaces
 are created once. Offsets and indices are stored 32-bit when `nnz < 2³¹`
 (provably safe), otherwise 64-bit; offsets are never truncated.
 
+Temporary CSR index conversion buffers use `uploadNewAndWait`: their stream
+finishes the upload before the host vector is destroyed. This adds setup-only
+synchronisations, counted in the backend profile, and does not depend on
+pageable-memory staging behaviour of `cudaMemcpyAsync`.
+
 Rho adaptation, refactorisation, the termination test, both certificates and
 polishing run on the host exactly as before. `AdmmResult::kktSolveSeconds` /
 `kktFactorSeconds` (measured on every backend) and `backendProfile` quantify the
@@ -232,15 +258,20 @@ sparse factorisation) is deliberately not attempted until profiling justifies it
 
 | Test | Builds | What it checks |
 | :--- | :--- | :--- |
-| `pdlp_tests` (new cases) | always | shared math NaN/∞ semantics; backend contract CPU-vs-CPU on 10 matrix shapes; explicit CUDA never falls back; Auto resolution; forced CPU is bitwise the default; invalid device rejected |
-| `qp_tests` (new cases) | always | the same for the ADMM backend |
+| `pdlp_tests` (new cases) | `PDLP_BUILD_TESTS=ON` | shared math NaN/∞ semantics; backend contract CPU-vs-CPU on 10 matrix shapes; explicit CUDA never falls back; Auto resolution; forced CPU is bitwise the default; invalid device rejected |
+| `qp_tests` (new cases) | `QP_BUILD_TESTS=ON` | ADMM backend checks; independent original-model KKT checks across fixture/option variants (solve tolerance 1e-8, componentwise check 1e-5); deliberate corrupted-result rejection |
 | `test_compute_backend` | always | pipeline plumbing, `Unsupported` for an unavailable CUDA request, reasons recorded |
 | `test_cli` (new cases) | always | `--backend` / `--cuda-device` parsing, refusal, reporting |
+| `backend_json_provenance` | Python available | parsed CLI JSON for CPU/Auto selection, explicit CUDA refusal, and CPU-only LP/NLP engines |
 | `pdlp_cuda_tests` | CUDA only | CPU-vs-CUDA kernel contract for every group size, with and without forced heavy lines, on 10 shapes (empty, one-nonzero, `m = 0`, tall, wide, skewed, 1e±9 scaled, all bound kinds); rejected-trial correctness; averaging; restart; NaN detection; full solves over 8 option variants × feasible/infeasible/unbounded; Auto selection; bad device index |
-| `qp_cuda_tests` | CUDA only | CPU-vs-hybrid backend contract (lock-stepped on the same KKT solutions, including a rho change); full solves over 5 variants × 7 models |
+| `qp_cuda_tests` | CUDA only | CPU-vs-hybrid backend contract (lock-stepped on the same KKT solutions, including a rho change); full solves over 5 variants × 7 models; independent original-model primal feasibility, stationarity, multiplier sign, complementarity and objective checks for optimal results; temporary 32/64-bit upload lifetime |
 
 The CUDA tests exit with code 77, which CTest reports as **skipped**, when no
 usable device exists, so a CUDA build on a GPU-less machine is not a failure.
+For a GPU validation job, configure `OPTIMSOLVER_REQUIRE_CUDA_TEST_DEVICE=ON`;
+missing hardware then fails the tests. Run `ctest -L cuda` to select both GPU
+suites. Direct executable invocation can use the environment variable
+`OPTIMSOLVER_REQUIRE_CUDA_TEST_DEVICE=1` for the same strict behaviour.
 
 ## 9. Benchmark methodology
 
@@ -282,6 +313,7 @@ either way. No CUDA numbers exist yet.
 ```bash
 # Linux (or Windows from a "x64 Native Tools" prompt with MSVC)
 cmake -S . -B build-cuda -DCMAKE_BUILD_TYPE=Release -DOPTIMSOLVER_ENABLE_CUDA=ON \
+      -DOPTIMSOLVER_REQUIRE_CUDA_TEST_DEVICE=ON \
       -DPDLP_BUILD_TESTS=ON -DQP_BUILD_TESTS=ON -DPDLP_BUILD_TOOLS=ON -DQP_BUILD_BENCH=ON
 cmake --build build-cuda -j
 ctest --test-dir build-cuda --output-on-failure            # expect 0 failed, 0 skipped
@@ -324,4 +356,17 @@ Verified on the development machine (no CUDA toolkit, so CPU-only):
 * The full test suite, the new CPU-side backend tests, and the CUDA test
   harnesses compiled against a CPU build (where they correctly skip).
 
-Not verified: anything that requires `nvcc` or a GPU.
+### CUDA review fixes: local validation
+
+The follow-up review fixes were validated on macOS without a CUDA toolkit:
+
+* Root Release build with `PDLP_BUILD_TESTS=ON`, `QP_BUILD_TESTS=ON`: **70/70
+  CTests passed**, including the JSON provenance integration test.
+* QP CPU tests exercise the independent KKT checker on the backend fixtures and
+  reject deliberately corrupted primal, dual, complementarity and objective data.
+* CPU-only configuration rejects strict GPU validation rather than silently
+  producing a validation job without CUDA tests.
+
+Not verified: CUDA compilation, execution, sanitizer results, performance, or
+GPU test registration in an actual CUDA build. Run section 10 on NVIDIA hardware
+before treating the GPU path as validated.
