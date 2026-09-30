@@ -125,8 +125,7 @@ private:
 };
 
 // Page-locked host memory. Only small, frequently read results (the linesearch
-// scalars) live here; asynchronous copies into pageable memory are staged
-// synchronously by the driver anyway.
+// scalars) live here, allowing asynchronous transfers without pageable staging.
 template <typename T>
 class PinnedBuffer {
 public:
@@ -235,6 +234,15 @@ template <typename T>
 [[nodiscard]] DeviceBuffer<T> uploadNew(const std::vector<T>& source, cudaStream_t stream) {
     DeviceBuffer<T> buffer(source.size());
     uploadAsync(buffer, source, stream);
+    return buffer;
+}
+
+// Setup uploads from temporary staging vectors must complete before the vector
+// is destroyed or reused. Pageable cudaMemcpyAsync is not a lifetime guarantee.
+template <typename T>
+[[nodiscard]] DeviceBuffer<T> uploadNewAndWait(const std::vector<T>& source, cudaStream_t stream) {
+    auto buffer = uploadNew(source, stream);
+    CUDA_SUPPORT_CHECK(cudaStreamSynchronize(stream));
     return buffer;
 }
 

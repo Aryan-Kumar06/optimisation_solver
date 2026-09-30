@@ -22,6 +22,10 @@ bool writeJsonReport(std::ostream& out, const JsonReportInput& input, const solv
     out << ",\"executed_engine\":"; string(out, solver::toString(r.executedEngine));
     out << ",\"engine_reason\":"; string(out, r.engineReason);
     out << ",\"requested_engine\":"; string(out, input.requestedEngine);
+    out << ",\"compute_backend\":";
+    const bool ran = r.executedEngine == solver::Engine::Nlp && r.status != nlp::Status::InvalidProblem;
+    writeBackendReport(out, input, ran ? "cpu" : nullptr,
+        ran ? "nlp_sqp has no CUDA backend; ran on the CPU" : r.message);
     out << ",\"instance_path\":"; string(out, input.instancePath);
     out << ",\"instance_sha256\":"; string(out, input.instanceSha256);
     out << ",\"original_variables\":" << input.originalVariables;

@@ -1,6 +1,7 @@
 // Comprehensive tests for the QP engine.
 // Run: ./qp_tests
 #include "admm_backend_contract.h"
+#include "optimality_check.h"
 
 #include "qp/admm_backend.h"
 #include "qp/admm_solver.h"
@@ -533,6 +534,56 @@ void run(const char* name, void (*f)()) {
     }
 }
 
+void testOriginalModelOptimality() {
+    int checked = 0;
+    for (const auto& fixture : qpcontract::fixtures()) {
+        for (int variant = 0; variant < 5; ++variant) {
+            qp::AdmmOptions options;
+            options.backend = qp::ComputeBackend::Cpu;
+            // Solver stopping uses scaled aggregate norms; request tighter
+            // accuracy for independent componentwise checks after unscaling.
+            options.primalTolerance = options.dualTolerance = 1e-8;
+            options.threadCount = 1;
+            if (variant == 1) options.useRuizScaling = false;
+            if (variant == 2) options.useAdaptiveRho = false;
+            if (variant == 3) options.usePolishing = false;
+            if (variant == 4) options.iterationLimit = 40;
+            const auto result = qp::QpSolver{}.solve(fixture.model, options);
+            if (result.status == qp::QpStatus::Optimal) {
+                try { qpcheck::optimal(fixture.model, result); ++checked; }
+                catch (const std::runtime_error& error) {
+                    throw std::runtime_error(fixture.name + "/" + std::to_string(variant) + ": " + error.what());
+                }
+            }
+        }
+    }
+    require(checked > 0, "no optimal solutions exercised the independent checker");
+}
+
+void testIndependentOptimalityChecker() {
+    // min x^2, x >= 1: x=1, lower-bound multiplier=-2, objective=1.
+    qp::QpModel model;
+    model.P = mkMat(1, 1, {{0,0,2}});
+    model.A = mkMat(1, 1, {{0,0,1}});
+    model.q = {0}; model.l = {1}; model.u = {INFINITY};
+    qp::AdmmResult good;
+    good.status = qp::QpStatus::Optimal;
+    good.primal = {1}; good.constraintDual = {-2}; good.primalObjective = 1;
+    qpcheck::optimal(model, good);
+    const auto rejected = [&](qp::AdmmResult bad) {
+        bool failed = false;
+        try { qpcheck::optimal(model, bad); } catch (const std::runtime_error&) { failed = true; }
+        require(failed, "independent checker accepted a corrupted result");
+    };
+    auto bad = good; bad.primal = {0}; bad.primalObjective = 0; rejected(bad);
+    bad = good; bad.constraintDual = {0}; rejected(bad);
+    bad = good; bad.constraintDual = {2}; rejected(bad);
+    bad = good; bad.primal = {2}; bad.primalObjective = 4; bad.constraintDual = {-4}; rejected(bad);
+    bad = good; bad.primalObjective = 999; rejected(bad);
+    bad = good; bad.primal = {NAN}; rejected(bad);
+    bad = good; bad.primal.clear(); rejected(bad);
+}
+
 }  // namespace
 
 int main() {
@@ -568,6 +619,9 @@ int main() {
     // Integration
     run("qpSolverFacade",        testQpSolverFacade);
 
+    run("originalModelOptimality", testOriginalModelOptimality);
+    run("independentOptimalityChecker", testIndependentOptimalityChecker);
+
     // Compute backends
     run("cpuBackendContract",    testCpuBackendContract);
     run("explicitCudaRequestNeverFallsBack", testExplicitCudaRequestNeverFallsBack);
@@ -576,7 +630,7 @@ int main() {
     run("invalidCudaDeviceIsRejected", testInvalidCudaDeviceIsRejected);
 
     if (failures == 0) {
-        std::printf("\nAll %d QP engine tests passed\n", 26);
+        std::printf("\nAll %d QP engine tests passed\n", 27);
         return 0;
     }
     std::printf("\n%d test(s) failed\n", failures);

@@ -9,6 +9,7 @@
 #include "pdlp/pdlp_solver.h"
 
 #include <cstdlib>
+#include <cstdio>
 #include <iostream>
 #include <string>
 
@@ -225,6 +226,11 @@ void autoSelection() {
 int main() {
     const pdlp::CudaAvailability availability = pdlp::cudaAvailability(0);
     if (!availability.usable) {
+        const char* required = std::getenv("OPTIMSOLVER_REQUIRE_CUDA_TEST_DEVICE");
+        if (required && std::string(required) == "1") {
+            std::fprintf(stderr, "FAIL: CUDA validation requires a usable device: %s\n", availability.reason.c_str());
+            return EXIT_FAILURE;
+        }
         std::cout << "SKIPPED: no usable CUDA device (" << availability.reason << ")\n";
         return 77;
     }

@@ -1,4 +1,5 @@
 #include "cli.h"
+#include "json_report.h"
 #include "argument_parser.h"
 #include "mps/mps_reader.h"
 #include "presolve/presolver.h"
@@ -645,6 +646,32 @@ void test_backend_selection_reported() {
     std::cout << "[PASSED] test_backend_selection_reported\n";
 }
 
+void test_backend_report_serialization() {
+    cli::JsonReportInput input;
+    input.requestedBackend = "cuda";
+    input.cudaDevice = 3;
+    solver::SolveResult result;
+    result.executedEngine = solver::Engine::Qp;
+    result.executedBackend = solver::ComputeBackend::Cuda;
+    result.status = solver::SolveStatus::Optimal;
+    result.backendReason = "cuda device 3";
+    std::ostringstream report;
+    expect(cli::writeJsonReport(report, input, result), "GPU report writes");
+    expect(report.str().find("\"executed\": \"cuda\"") != std::string::npos, "reports actual GPU backend");
+    expect(report.str().find("\"executed_device\": 3") != std::string::npos, "reports selected GPU device");
+
+    // A setup failure can have an engine selected/invoked but no backend run.
+    result.status = solver::SolveStatus::InvalidModel;
+    result.executedBackend = solver::ComputeBackend::Cpu;
+    result.backendReason.clear();
+    result.message = "CUDA setup refused";
+    std::ostringstream refused;
+    expect(cli::writeJsonReport(refused, input, result), "refusal report writes");
+    expect(refused.str().find("\"executed\": null") != std::string::npos, "setup refusal is not CPU execution");
+    expect(refused.str().find("\"executed_device\": null") != std::string::npos, "setup refusal has no GPU device");
+    expect(refused.str().find("CUDA setup refused") != std::string::npos, "setup reason is retained");
+}
+
 }  // namespace
 
 int main() {
@@ -677,6 +704,7 @@ int main() {
     test_interactive_open_model_failed();
     test_interactive_open_and_current_model_context();
     test_interactive_invalid_option();
+    test_backend_report_serialization();
     test_backend_option_parsing();
     test_backend_selection_reported();
 

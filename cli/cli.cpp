@@ -294,6 +294,8 @@ int solveFile(const std::string& modelPath,
     JsonReportInput report;
     report.instancePath = modelPath;
     report.requestedEngine = solverName.value_or(std::string{});
+    report.requestedBackend = backendName.value_or("auto");
+    report.cudaDevice = cudaDevice.value_or(0);
     report.timeLimitSeconds = timeLimitSeconds.value_or(0.0);
     report.threadCount = threadCount.value_or(0);
     report.tolerance = solverOptions.tolerance;

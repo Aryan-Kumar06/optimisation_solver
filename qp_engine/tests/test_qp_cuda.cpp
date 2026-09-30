@@ -2,6 +2,8 @@
 // QP_ENABLE_CUDA is on; exits 77 (CTest: skipped) without a usable GPU.
 
 #include "admm_backend_contract.h"
+#include "optimality_check.h"
+#include "cuda_support/device_buffer.h"
 
 #include "qp/admm_backend.h"
 #include "qp/compute_backend.h"
@@ -29,6 +31,24 @@ void run(const std::string& name, const std::function<void()>& test) {
 // cuSPARSE and the fused reductions sum in a different order from the CPU;
 // nothing else may differ.
 constexpr double kTolerance = 1e-10;
+
+template <typename Index>
+void temporaryUploadLifetime() {
+    cuda_support::DeviceGuard guard(0);
+    cuda_support::Stream stream;
+    std::vector<Index> expected(4097);
+    for (std::size_t i = 0; i < expected.size(); ++i) expected[i] = static_cast<Index>(i * 17);
+    cuda_support::DeviceBuffer<Index> device;
+    {
+        auto staging = expected;
+        device = cuda_support::uploadNewAndWait(staging, stream.get());
+        // Immediate reuse is legal only because the setup upload has completed.
+        std::fill(staging.begin(), staging.end(), static_cast<Index>(-1));
+    }
+    std::vector<Index> actual;
+    cuda_support::download(actual, device.data(), device.size(), stream.get());
+    qpcontract::check(actual == expected, "temporary CSR staging data must survive source reuse");
+}
 
 void backendEquivalence() {
     const qpcontract::BackendFactory cpu = [](const qp::QpModel& model) {
@@ -97,6 +117,9 @@ void solveEquivalence() {
             run("solve " + c.name + "/" + v.name, [&] {
                 qp::AdmmOptions cpuOptions;
                 cpuOptions.threadCount = 1;
+                // Resolve the scaled aggregate stopping test more tightly than
+                // our original-model componentwise KKT acceptance threshold.
+                cpuOptions.primalTolerance = cpuOptions.dualTolerance = 1e-8;
                 cpuOptions.backend = qp::ComputeBackend::Cpu;
                 v.configure(cpuOptions);
                 qp::AdmmOptions gpuOptions = cpuOptions;
@@ -109,6 +132,8 @@ void solveEquivalence() {
                                   std::string("status differs: cpu ") + qp::toString(cpu.status) +
                                       ", cuda " + qp::toString(gpu.status));
                 if (cpu.status == qp::QpStatus::Optimal) {
+                    qpcheck::optimal(c.model, cpu);
+                    qpcheck::optimal(c.model, gpu);
                     qpcontract::requireClose(cpu.primalObjective, gpu.primalObjective, 1e-6, "objective");
                 }
                 std::printf("        iterations cpu %lld cuda %lld; cuda kkt %.3g s, setup %.3g s, H2D %lld B, D2H %lld B\n",
@@ -126,11 +151,18 @@ void solveEquivalence() {
 int main() {
     const qp::CudaAvailability availability = qp::cudaAvailability(0);
     if (!availability.usable) {
+        const char* required = std::getenv("OPTIMSOLVER_REQUIRE_CUDA_TEST_DEVICE");
+        if (required && std::string(required) == "1") {
+            std::fprintf(stderr, "FAIL: CUDA validation requires a usable device: %s\n", availability.reason.c_str());
+            return EXIT_FAILURE;
+        }
         std::printf("SKIPPED: no usable CUDA device (%s)\n", availability.reason.c_str());
         return 77;
     }
     std::printf("CUDA device 0: %s\n", availability.deviceName.c_str());
 
+    run("temporary 32-bit upload", temporaryUploadLifetime<std::int32_t>);
+    run("temporary 64-bit upload", temporaryUploadLifetime<std::int64_t>);
     backendEquivalence();
     solveEquivalence();
 

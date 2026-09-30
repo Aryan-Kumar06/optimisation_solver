@@ -202,16 +202,17 @@ public:
         if (wide_) {
             startWide_ = cuda_support::uploadNew(start, stream);
             std::vector<std::int64_t> widened(index.begin(), index.end());
-            indexWide_ = cuda_support::uploadNew(widened, stream);
-            // uploadNew is asynchronous from pageable memory, which the driver
-            // stages before returning, so `widened` may be released afterwards.
+            indexWide_ = cuda_support::uploadNewAndWait(widened, stream);
+            ++profile.synchronisations;
+            // The setup transfer is complete before the temporary is released.
             profile.hostToDeviceBytes += static_cast<std::int64_t>(startWide_.bytes() + indexWide_.bytes());
         } else {
             std::vector<std::int32_t> narrowed(start.size());
             for (std::size_t k = 0; k < start.size(); ++k) {
                 narrowed[k] = static_cast<std::int32_t>(start[k]);  // <= nnz, checked above
             }
-            startNarrow_ = cuda_support::uploadNew(narrowed, stream);
+            startNarrow_ = cuda_support::uploadNewAndWait(narrowed, stream);
+            ++profile.synchronisations;
             indexNarrow_ = cuda_support::uploadNew(index, stream);
             profile.hostToDeviceBytes += static_cast<std::int64_t>(startNarrow_.bytes() + indexNarrow_.bytes());
         }
