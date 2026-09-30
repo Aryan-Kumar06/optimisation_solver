@@ -1,6 +1,7 @@
 // Comprehensive tests for the QP engine.
 // Run: ./qp_tests
 #include "qp/admm_solver.h"
+#include "qp/qp_adapter.h"
 #include "qp/kkt_solver.h"
 #include "qp/polishing.h"
 #include "qp/qp_model.h"
@@ -8,7 +9,9 @@
 #include "qp/qp_types.h"
 #include "qp/scaling.h"
 
+#include <algorithm>
 #include <cmath>
+#include <limits>
 #include <cstdio>
 #include <random>
 #include <stdexcept>
@@ -444,6 +447,214 @@ void testQpSolverFacade() {
 // Run helpers
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Production defaults: Ruiz scaling AND adaptive rho, tolerance 1e-8.
+//
+// Every ADMM test above runs with both switched off (strictOpts), which is why
+// none of them could see the defects these two reproduce: they only occur with
+// both on, the configuration the orchestrator actually uses.
+// ---------------------------------------------------------------------------
+
+qp::AdmmOptions productionOpts() {
+    qp::AdmmOptions o;            // library defaults: Ruiz on, adaptive rho on
+    o.primalTolerance = 1e-8;     // what the orchestrator passes (SolverOptions)
+    o.dualTolerance = 1e-8;
+    o.threadCount = 1;
+    return o;
+}
+
+// Maros-Meszaros hs51: min (x1-x2)^2 + (x2+x3-2)^2 + (x4-1)^2 + (x5-1)^2
+// s.t. x1 + 3x2 = 4, x3 + x4 - 2x5 = 0, x2 - x5 = 0, all variables free.
+// Optimum x = (1,1,1,1,1), objective 0.
+//
+// The old engine doubled rho on almost every iteration, reached 2.8e14 after
+// 50, froze z, and so zeroed the proxy dual residual rho * A'(z - zOld) that
+// its termination test used: it reported Optimal with a TRUE stationarity
+// residual of 6e-2 against a 1e-8 tolerance.
+void testDefaultsNoFalseOptimal() {
+    model::Model m;
+    for (int j = 0; j < 5; ++j) {
+        model::Variable v; v.name = "x" + std::to_string(j + 1);
+        v.lowerBound = -std::numeric_limits<double>::infinity();
+        v.upperBound = std::numeric_limits<double>::infinity();
+        m.variables.push_back(v);
+    }
+    m.objective.offset = 6.0;
+    m.objective.linearTerms = {{1, -4.0}, {2, -4.0}, {3, -2.0}, {4, -2.0}};
+    // Direct coefficients of x_i x_j, no implicit 1/2.
+    m.objective.quadraticTerms = {{0, 0, 1.0}, {1, 1, 2.0}, {2, 2, 1.0}, {3, 3, 1.0},
+                                  {4, 4, 1.0}, {0, 1, -2.0}, {1, 2, 2.0}};
+    auto row = [&](double b, std::vector<model::LinearTerm> terms) {
+        model::Constraint c; c.lowerBound = b; c.upperBound = b; c.linearTerms = std::move(terms);
+        m.constraints.push_back(c);
+    };
+    row(4.0, {{0, 1.0}, {1, 3.0}});
+    row(0.0, {{2, 1.0}, {3, 1.0}, {4, -2.0}});
+    row(0.0, {{1, 1.0}, {4, -1.0}});
+
+    qp::QpTranslation tr;
+    const qp::QpModel problem = qp::fromModel(m, tr);
+    const qp::AdmmResult r = qp::QpSolver{}.solve(problem, productionOpts());
+    require(r.status == qp::QpStatus::Optimal, "hs51 not optimal: " + std::string(qp::toString(r.status)));
+    // The true stationarity residual, computed by the engine on the original
+    // problem -- the number the old termination test never looked at.
+    require(r.dualResidual <= 1e-6, "hs51 claimed Optimal with stationarity residual " +
+                                    std::to_string(r.dualResidual));
+    for (int j = 0; j < 5; ++j) requireNear(r.primal[static_cast<std::size_t>(j)], 1.0, 1e-5, "hs51 x");
+    require(r.finalRho >= 1e-6 && r.finalRho <= 1e6, "rho left its bounds: " + std::to_string(r.finalRho));
+}
+
+// Randomized reference case 219 (seed 20260908), exactly as the engine receives
+// it after presolve: presolve derives the valid, inactive bound
+// x2 >= -7.8124353217753315 from row 1. With that bound the old per-iteration
+// rho rule settled into a limit cycle -- the iterate bit-identical after 5,000
+// and 200,000 iterations, primal residual 2.34, x0 below its own lower bound.
+// The expected optimum is the one OSQP returns and the engine reaches without
+// the (redundant) bound.
+void testDefaultsNoLimitCycle() {
+    const double inf = std::numeric_limits<double>::infinity();
+    const double P[7][7] = {
+        {-0.050000000000000003, 0, 0, 0, 0, 0, 0},
+        {0, -1.2235653774078807, 0.11592843473670784, -0.074542339656287079, 1.2219131625987414, 1.7413301853870775, -2.7969329735916553},
+        {0, 0.11592843473670784, -3.0105603839109971, -4.7308039643839646, 1.5229768255189169, -2.139727764785412, 0.012006663589338096},
+        {0, -0.074542339656287079, -4.7308039643839646, -10.874355855587034, 2.0072649152787818, 0.75577778908579629, 1.3744644406946396},
+        {0, 1.2219131625987414, 1.5229768255189169, 2.0072649152787818, -2.6881420647418564, -0.12782552818603812, 3.5830518668524407},
+        {0, 1.7413301853870775, -2.139727764785412, 0.75577778908579629, -0.12782552818603812, -9.75653263257961, 1.7020885237069117},
+        {0, -2.7969329735916553, 0.012006663589338096, 1.3744644406946396, 3.5830518668524407, 1.7020885237069117, -9.1873525412981376}};
+    const double q[7] = {-1.0934842802908478, 1.3560397711737082, -0.27557571672372616, -1.0878130275257649,
+                         -2.169308730748416, 0.54310728369404471, -0.71304681115942015};
+    const double lo[7] = {-2.4641103229631929, -inf, -7.8124353217753315, -inf, -4.867479682689579, -2.7205158280632631, -inf};
+    const double hi[7] = {inf, inf, inf, 4.0210548225447376, 1.8179023737718132, 4.7476952415039779, inf};
+
+    model::Model m;
+    m.objective.sense = model::ObjectiveSense::Maximize;
+    m.objective.offset = -33.096687170239171;
+    for (int j = 0; j < 7; ++j) {
+        model::Variable v; v.name = "x" + std::to_string(j); v.lowerBound = lo[j]; v.upperBound = hi[j];
+        m.variables.push_back(v);
+        m.objective.linearTerms.push_back({j, q[j]});
+    }
+    for (int i = 0; i < 7; ++i)
+        for (int j = i; j < 7; ++j) {
+            if (i == j) { if (P[i][i] != 0.0) m.objective.quadraticTerms.push_back({i, i, P[i][i] / 2.0}); }
+            else if (P[i][j] != 0.0) m.objective.quadraticTerms.push_back({i, j, P[i][j]});
+        }
+    model::Constraint r0; r0.lowerBound = -inf; r0.upperBound = 4.0548536127102697;
+    r0.linearTerms = {{0, -0.84117965716685228}, {1, 0.27127501384177766}, {2, 0.48838322252995492}, {6, 0.18298124766769885}};
+    model::Constraint r1; r1.lowerBound = -1.8566185531883268; r1.upperBound = 1.8566185531883268;
+    r1.linearTerms = {{0, 1.7147010465843435}, {2, -0.78658744203289477}, {3, -0.015750198822212291}};
+    m.constraints = {r0, r1};
+
+    qp::QpTranslation tr;
+    const qp::QpModel problem = qp::fromModel(m, tr);
+    const qp::AdmmResult r = qp::QpSolver{}.solve(problem, productionOpts());
+    require(r.status == qp::QpStatus::Optimal, "case 219 not optimal: " + std::string(qp::toString(r.status)) +
+                                               " after " + std::to_string(r.iterations) + " iterations");
+    const double expected[7] = {-2.464110, 5.866167, -3.012554, 0.066266, -4.214639, 1.253397, -3.268982};
+    for (int j = 0; j < 7; ++j) requireNear(r.primal[static_cast<std::size_t>(j)], expected[j], 1e-4, "case 219 x");
+    require(r.dualResidual <= 1e-6 && r.primalResidual <= 1e-6, "case 219 residuals");
+}
+
+// The NLP engine's first elastic QP for min x^2 s.t. x^2 >= 1, x in [-2, 0.5],
+// at x = 0.5, with the NLP engine's own ADMM settings. Nearly an LP: the two
+// elastic variables carry a linear penalty of 10 and curvature 1e-8. Optimum
+// d = 0, e+ = 0.75, e- = 0.
+//
+// An UNDAMPED residual-ratio rule oscillated here: an early, almost exactly zero
+// dual residual proposed rho 1 -> 1.8e5, then 3e-4, then 1e6, repeating until
+// the 20,000-iteration limit, and the NLP engine then reported SubproblemFailure
+// where it should reach its own NoProgress verdict.
+void testDefaultsNoRhoOscillation() {
+    const double inf = std::numeric_limits<double>::infinity();
+    qp::QpModel s;
+    s.P = mkMat(3, 3, {0, 1, 2}, {0, 1, 2}, {1 + 1e-8, 1e-8, 1e-8});
+    s.q = {1, 10, 10};
+    s.A = mkMat(4, 3, {0, 0, 0, 1, 2, 3}, {0, 1, 2, 0, 1, 2}, {1, 1, -1, 1, 1, 1});
+    s.l = {0.75, -2.5, 0, 0};
+    s.u = {inf, 0, inf, inf};
+    qp::AdmmOptions o;
+    o.iterationLimit = 20000;
+    o.primalTolerance = o.dualTolerance = 5e-11;
+    o.terminationCheckFrequency = 10;
+    o.usePolishing = false;
+    o.threadCount = 1;
+    const qp::AdmmResult r = qp::QpSolver{}.solve(s, o);
+    require(r.status == qp::QpStatus::Optimal, "elastic QP not optimal: " + std::string(qp::toString(r.status)) +
+                                               " after " + std::to_string(r.iterations) + " iterations");
+    requireNear(r.primal[0], 0.0, 1e-6, "elastic d");
+    requireNear(r.primal[1], 0.75, 1e-6, "elastic e+");
+    requireNear(r.primal[2], 0.0, 1e-6, "elastic e-");
+}
+
+// Maros-Meszaros hs268: five free variables, five >= rows, dense Hessian with
+// condition number ~1.2e6. The optimum x* = (1, 2, -1, 3, -4) is the
+// unconstrained minimiser (gradient exactly zero there) and happens to be
+// feasible, so the primal residual reaches EXACTLY zero while stationarity is
+// still being worked on. The objective constant is 14463, so the optimal value
+// 0 appears here as -14463.
+//
+// An exact zero residual must still drive rho down. When the adaptive rule
+// skipped zero residuals, rho stopped at 0.1 after one damped step, and the
+// solve crawled to the 5,000-iteration limit; it needs rho near 1e-4.
+void testDefaultsZeroResidualStillAdapts() {
+    const double inf = std::numeric_limits<double>::infinity();
+    const double Q[5][5] = {{20394, -24908, -2026, 3896, 658},
+                            {-24908, 41818, -3466, -9828, -372},
+                            {-2026, -3466, 3510, 2178, -348},
+                            {3896, -9828, 2178, 3030, -44},
+                            {658, -372, -348, -44, 54}};
+    std::vector<double> r, c, v;
+    for (int i = 0; i < 5; ++i)
+        for (int j = 0; j < 5; ++j) { r.push_back(i); c.push_back(j); v.push_back(Q[i][j]); }
+    const double A[5][5] = {{-1, -1, -1, -1, -1}, {10, 10, -3, 5, 4}, {-8, 1, -2, -5, 3},
+                            {8, -1, 2, 5, -3}, {-4, -2, 3, -5, 1}};
+    std::vector<double> ar, ac, av;
+    for (int i = 0; i < 5; ++i)
+        for (int j = 0; j < 5; ++j) { ar.push_back(i); ac.push_back(j); av.push_back(A[i][j]); }
+    qp::QpModel s;
+    s.P = mkMat(5, 5, r, c, v);
+    s.q = {18340, -34198, 4542, 8672, 86};
+    s.A = mkMat(5, 5, ar, ac, av);
+    s.l = {-5, 20, -40, 11, -30};
+    s.u = {inf, inf, inf, inf, inf};
+    const qp::AdmmResult res = qp::QpSolver{}.solve(s, productionOpts());
+    require(res.status == qp::QpStatus::Optimal, "hs268 not optimal: " + std::string(qp::toString(res.status)) +
+                                                 " after " + std::to_string(res.iterations) + " iterations");
+    const double expected[5] = {1, 2, -1, 3, -4};
+    for (int j = 0; j < 5; ++j) requireNear(res.primal[static_cast<std::size_t>(j)], expected[j], 1e-3, "hs268 x");
+    requireNear(res.primalObjective, -14463.0, 1e-3, "hs268 objective");
+}
+
+// Polishing is optional refinement and must respect its budget. Each pass
+// factors a dense (n + active rows) system; on presolved qship08s that ran for
+// more than 300 s past a 55 s time limit it never checked. When either bound
+// stops it, polish() must return false and leave the point exactly as it was,
+// so the caller keeps the converged, already verified ADMM iterate.
+void testPolishingRespectsBudget() {
+    qp::QpModel s;
+    s.P = mkMat(2, 2, {{0, 0, 2.0}, {1, 1, 2.0}});
+    s.q = {-2.0, -5.0};
+    s.A = mkMat(3, 2, {{0, 0, 1.0}, {0, 1, 1.0}, {1, 0, 1.0}, {2, 1, 1.0}});
+    s.l = {-1e20, 0.0, 0.0};
+    s.u = {1.0, 1e20, 1e20};
+    const std::vector<double> x0 = {0.1, 0.9}, y0 = {-1.0, 0.0, 0.0};
+
+    std::vector<double> x = x0, y = y0;
+    qp::KktPolisher::Options tooBig;
+    tooBig.maximumDenseDimension = 1;  // any active system exceeds this
+    require(!qp::KktPolisher::polish(s, x, y, tooBig), "dimension cap did not stop polishing");
+    require(x == x0 && y == y0, "a skipped polish modified the point");
+
+    x = x0; y = y0;
+    qp::KktPolisher::Options noTime;
+    noTime.timeLimitSeconds = 1e-12;   // exhausted before the first solve
+    require(!qp::KktPolisher::polish(s, x, y, noTime), "time limit did not stop polishing");
+    require(x == x0 && y == y0, "a timed-out polish modified the point");
+
+    x = x0; y = y0;
+    require(qp::KktPolisher::polish(s, x, y, qp::KktPolisher::Options{}), "unbounded polish failed");
+}
+
 void run(const char* name, void (*f)()) {
     try {
         f();
@@ -481,16 +692,21 @@ int main() {
     run("iterationLimit",         testIterationLimit);
     run("invalidCrossedBounds",   testInvalidCrossedBounds);
     run("illConditioned",        testIllConditioned);
+    run("defaultsNoFalseOptimal", testDefaultsNoFalseOptimal);
+    run("defaultsNoLimitCycle",   testDefaultsNoLimitCycle);
+    run("defaultsNoRhoOscillation", testDefaultsNoRhoOscillation);
+    run("defaultsZeroResidualStillAdapts", testDefaultsZeroResidualStillAdapts);
 
     // Polishing
     run("polishing",             testPolishing);
     run("polishingWithOneSidedActiveBound", testPolishingWithOneSidedActiveBound);
+    run("polishingRespectsBudget", testPolishingRespectsBudget);
 
     // Integration
     run("qpSolverFacade",        testQpSolverFacade);
 
     if (failures == 0) {
-        std::printf("\nAll %d QP engine tests passed\n", 21);
+        std::printf("\nAll %d QP engine tests passed\n", 26);
         return 0;
     }
     std::printf("\n%d test(s) failed\n", failures);

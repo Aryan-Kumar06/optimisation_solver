@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Fail-closed randomized convex QP comparison. Every generated case is accounted for."""
 import argparse
+import contextlib
 import io
 import json
+import os
 import subprocess
 import sys
 
@@ -37,6 +39,29 @@ def read_cases(stream):
         raise ValueError('Unexpected trailing records')
 
 
+@contextlib.contextmanager
+def silenced_stdout():
+    """Silence file descriptor 1 for the duration of a reference solve.
+
+    OSQP 1.x prints "Polishing not needed - no active set detected at optimal
+    point" from its C layer even with verbose=False. That went into this
+    script's stdout ahead of the JSON report, so the report could not be
+    parsed -- the exit code was still right, but a replayed seed could not be
+    inspected. Redirecting sys.stdout does not reach C-level writes, so the
+    descriptor itself is redirected.
+    """
+    sys.stdout.flush()
+    saved = os.dup(1)
+    try:
+        with open(os.devnull, 'w') as null:
+            os.dup2(null.fileno(), 1)
+            yield
+    finally:
+        sys.stdout.flush()
+        os.dup2(saved, 1)
+        os.close(saved)
+
+
 def compare(case, factory=osqp.OSQP):
     P, q, x = case['P'], case['q'], case['x']
     n = len(q)
@@ -48,7 +73,8 @@ def compare(case, factory=osqp.OSQP):
     ref.setup(P=sp.triu(sp.csc_matrix(flip*P), format='csc'), q=flip*q,
               A=A, l=lo, u=hi, verbose=False, eps_abs=1e-9, eps_rel=1e-9,
               max_iter=200000, polishing=True, time_limit=5)
-    result = ref.solve(raise_error=False)
+    with silenced_stdout():
+        result = ref.solve(raise_error=False)
     reference_status = result.info.status
     status = case['status']
     if status != 'optimal':

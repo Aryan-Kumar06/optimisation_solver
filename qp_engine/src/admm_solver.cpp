@@ -43,10 +43,13 @@ AdmmSolver::AdmmSolver(const QpModel& problem, const AdmmOptions& options)
         options_.ruizIterations = 0;
     if (options_.polishingIterations < 0)
         options_.polishingIterations = 0;
-    if (options_.adaptiveRhoMu <= 1.0)
-        options_.adaptiveRhoMu = 10.0;
-    if (options_.adaptiveRhoTau <= 1.0)
-        options_.adaptiveRhoTau = 2.0;
+    if (!(options_.adaptiveRhoTolerance > 1.0))
+        options_.adaptiveRhoTolerance = 5.0;
+    if (options_.maximumRhoUpdates < 0)
+        options_.maximumRhoUpdates = 0;
+    if (!(options_.rhoMinimum > 0.0)) options_.rhoMinimum = 1e-6;
+    if (!(options_.rhoMaximum >= options_.rhoMinimum)) options_.rhoMaximum = 1e6;
+    if (!(options_.maximumRhoStep > 1.0)) options_.maximumRhoStep = 10.0;
 
     // Validate the problem first, before any equilibration.
     try {
@@ -95,8 +98,9 @@ AdmmSolver::AdmmSolver(const QpModel& problem, const AdmmOptions& options)
     z_.assign(static_cast<std::size_t>(m), 0.0);
     y_.assign(static_cast<std::size_t>(m), 0.0);
     Ax_.assign(static_cast<std::size_t>(m), 0.0);
-    rho_ = options_.rho;
-    desiredRho_ = options_.rho;
+    rho_ = std::clamp(options_.rho, options_.rhoMinimum, options_.rhoMaximum);
+    rhoFloor_ = options_.rhoMinimum;
+    rhoCeiling_ = options_.rhoMaximum;
 
     result_.primal.assign(static_cast<std::size_t>(n), 0.0);
     result_.constraintDual.assign(static_cast<std::size_t>(m), 0.0);
@@ -127,8 +131,6 @@ AdmmResult AdmmSolver::solve() {
         result_.statusMessage = "KKT factorization failed";
         return result_;
     }
-
-    std::vector<double> zOld(static_cast<std::size_t>(m), 0.0);
 
     // Infeasibility / unboundedness certificates (OSQP, Banjac et al. 2019).
     //
@@ -216,7 +218,6 @@ AdmmResult AdmmSolver::solve() {
 
     std::vector<double> xOld(static_cast<std::size_t>(n), 0.0);
     std::vector<double> yOld(static_cast<std::size_t>(m), 0.0);
-    bool rhoChanged = false;
     double bestObj = std::numeric_limits<double>::infinity();
     // bestX/bestY are filled in after the first iteration; we can't pre-fill
     // with x_/y_ because they start as all-zero which is generally infeasible
@@ -227,17 +228,18 @@ AdmmResult AdmmSolver::solve() {
     bool optimal = false;
 
     for (std::int64_t k = 0; k < options_.iterationLimit; ++k) {
-        zOld = z_;
         xOld = x_;
         yOld = y_;
-        step(kkt, rhoChanged);
+        if (!step(kkt)) {
+            result_.status = QpStatus::NumericalFailure;
+            result_.statusMessage = "KKT solve failed; the factorisation is unusable";
+            result_.iterations = k + 1;
+            break;
+        }
 
-        // Compute residuals.
-        //   r = A*x - z   (primal)
-        //   s = -rho * A^T * (z - zOld)  (dual)
-        //   s_alt = P*x + q + A^T*y  (stationarity, m == 0 path)
+        // Primal residual r = A*x - z. The dual residual is the true
+        // stationarity residual, computed at termination checks below.
         double rNorm = 0.0;
-        double sNorm = 0.0;
         if (m > 0) {
             scaled_.A.multiply(x_, Ax_,
                                parallel_ ? executor_.get() : nullptr,
@@ -248,31 +250,6 @@ AdmmResult AdmmSolver::solve() {
                 rNorm += r * r;
             }
             rNorm = std::sqrt(rNorm);
-
-            std::vector<double> zDiff(static_cast<std::size_t>(m));
-            for (int i = 0; i < m; ++i) {
-                zDiff[static_cast<std::size_t>(i)] =
-                    z_[static_cast<std::size_t>(i)] - zOld[static_cast<std::size_t>(i)];
-            }
-            std::vector<double> sVec;
-            scaled_.A.transposeMultiply(zDiff, sVec);
-            const double scale = rho_;
-            for (int j = 0; j < n; ++j) {
-                sNorm += (scale * sVec[static_cast<std::size_t>(j)]) *
-                         (scale * sVec[static_cast<std::size_t>(j)]);
-            }
-            sNorm = std::sqrt(sNorm);
-        } else {
-            // m == 0: dual residual is the gradient.
-            std::vector<double> grad;
-            scaled_.P.multiply(x_, grad,
-                               parallel_ ? executor_.get() : nullptr,
-                               parallel_ ? &planP_ : nullptr);
-            for (int j = 0; j < n; ++j)
-                grad[static_cast<std::size_t>(j)] += scaled_.q[static_cast<std::size_t>(j)];
-            for (int j = 0; j < n; ++j)
-                sNorm += grad[static_cast<std::size_t>(j)] * grad[static_cast<std::size_t>(j)];
-            sNorm = std::sqrt(sNorm);
         }
 
         const double obj = primalObjective(scaled_, x_);
@@ -312,11 +289,33 @@ AdmmResult AdmmSolver::solve() {
                                Atz[static_cast<std::size_t>(j)];
                 AtzNorm = std::sqrt(AtzNorm);
             }
+            // Dual residual: the TRUE stationarity residual P x + q + A'y, as
+            // in OSQP -- not the ADMM proxy rho * A'(z - zOld). The proxy only
+            // measures how much z moved. When rho is very large z stops moving,
+            // the proxy goes to zero, and the old test declared convergence:
+            // measured on Maros-Meszaros hs51, hs52 and genhs28, "Optimal" with
+            // a true stationarity residual of 0.04-0.13 against a 1e-8
+            // tolerance, and objectives off by up to 4e-4 relative.
+            std::vector<double> Px, stationarity(static_cast<std::size_t>(n));
+            scaled_.P.multiply(x_, Px);
+            double PxNorm = 0.0, qNorm = 0.0, dNorm = 0.0;
+            std::vector<double> Aty(static_cast<std::size_t>(n), 0.0);
+            if (m > 0) scaled_.A.transposeMultiply(y_, Aty);
+            for (int j = 0; j < n; ++j) {
+                const auto uj = static_cast<std::size_t>(j);
+                const double d = Px[uj] + scaled_.q[uj] + Aty[uj];
+                dNorm += d * d;
+                PxNorm += Px[uj] * Px[uj];
+                qNorm += scaled_.q[uj] * scaled_.q[uj];
+            }
+            dNorm = std::sqrt(dNorm);
+            PxNorm = std::sqrt(PxNorm);
+            qNorm = std::sqrt(qNorm);
             const double epsDual = std::sqrt(static_cast<double>(n)) * absTol +
-                                   relTol * (AtzNorm + 1.0);
+                                   relTol * std::max({PxNorm, AtzNorm, qNorm, 1.0});
 
             const bool primalOK = (m > 0) ? (rNorm <= epsPri) : true;
-            const bool dualOK   = (sNorm <= epsDual);
+            const bool dualOK   = (dNorm <= epsDual);
 
             // The certificates are checked BEFORE optimality, not after.
             //
@@ -366,40 +365,60 @@ AdmmResult AdmmSolver::solve() {
                 // feasible by the termination check.
                 break;
             }
-        }
 
-        // Adaptive rho.
-        //
-        // The desired rho is tracked continuously, but adopted only when it has
-        // drifted far enough from the factorised value to be worth a numeric
-        // refactorisation, and never more often than adaptiveRhoInterval
-        // iterations apart. rho and the factor must agree -- the x-update's
-        // right-hand side uses rho -- so there is no way to move one without the
-        // other; the saving has to come from moving less often.
-        if (options_.useAdaptiveRho && m > 0) {
-            const double mu = options_.adaptiveRhoMu;
-            const double tau = options_.adaptiveRhoTau;
-            if (rNorm > mu * sNorm) {
-                desiredRho_ *= tau;
-            } else if (sNorm > mu * rNorm) {
-                desiredRho_ /= tau;
-            }
-
-            const double threshold = std::max(options_.adaptiveRhoThreshold, 1.0);
-            const bool farEnough = desiredRho_ > threshold * rho_ ||
-                                   desiredRho_ * threshold < rho_;
-            const bool longEnough =
-                (k - lastRhoUpdate_) >= options_.adaptiveRhoInterval;
-
-            if (farEnough && longEnough && desiredRho_ > 0.0) {
-                rho_ = desiredRho_;
-                if (kkt.refactor(rho_)) {
-                    ++result_.factorizations;
-                    lastRhoUpdate_ = k;
+            // Adaptive rho, at checks only (see AdmmOptions::useAdaptiveRho).
+            if (options_.useAdaptiveRho && m > 0 && rhoUpdates_ < options_.maximumRhoUpdates) {
+                const double primalScale = std::max({AxNorm, zNorm, 1e-300});
+                const double dualScale = std::max({PxNorm, AtzNorm, qNorm, 1e-300});
+                // Floored rather than skipped when zero. An exactly zero primal
+                // residual is the clearest possible signal that rho should
+                // FALL: the iterate is feasible and only stationarity is left.
+                // Skipping that case left rho stuck at 0.1 on Maros-Meszaros
+                // hs268, which needs rho near 1e-6, and the solve crawled to
+                // the iteration limit. With the floor, a zero residual yields
+                // the maximum damped step in the right direction.
+                const double primalRelative = std::max(rNorm / primalScale, 1e-300);
+                const double dualRelative = std::max(dNorm / dualScale, 1e-300);
+                const bool bothConverged = rNorm == 0.0 && dNorm == 0.0;
+                if (!bothConverged && std::isfinite(primalRelative) && std::isfinite(dualRelative)) {
+                    // Damped: at most maximumRhoStep per update. A residual can
+                    // be almost exactly zero early on, which makes the undamped
+                    // ratio enormous: on the NLP engine's first elastic QP one
+                    // update proposed 1 -> 1.8e5, the next 3e-4, then 1e6, and
+                    // the three states repeated until the iteration limit.
+                    const double step = options_.maximumRhoStep;
+                    double proposal = rho_ * std::clamp(std::sqrt(primalRelative / dualRelative),
+                                                        1.0 / step, step);
+                    proposal = std::clamp(proposal, rhoFloor_, rhoCeiling_);
+                    const double tolerance = options_.adaptiveRhoTolerance;
+                    if (proposal > tolerance * rho_ || proposal * tolerance < rho_) {
+                        const double previous = rho_;
+                        if (kkt.refactor(proposal)) {
+                            rho_ = proposal;
+                            ++rhoUpdates_;
+                            ++result_.factorizations;
+                        } else {
+                            // The factorisation failed at this rho (typically a
+                            // large rho making P + sigma I + rho A'A too
+                            // ill-conditioned for Cholesky). Restore the last
+                            // factor that worked and never propose this far
+                            // again. Before, rho kept the failed value with no
+                            // valid factor behind it and x never moved again.
+                            if (proposal > previous) rhoCeiling_ = std::sqrt(previous * proposal);
+                            else rhoFloor_ = std::sqrt(previous * proposal);
+                            if (!kkt.refactor(previous)) {
+                                result_.status = QpStatus::NumericalFailure;
+                                result_.statusMessage = "KKT refactorisation failed and could not be restored";
+                                result_.iterations = k + 1;
+                                break;
+                            }
+                            ++result_.factorizations;
+                        }
+                    }
                 }
             }
-            rhoChanged = false;
         }
+
 
         if (options_.timeLimitSeconds > 0.0) {
             const double elapsed =
@@ -476,7 +495,7 @@ AdmmResult AdmmSolver::solve() {
     return result_;
 }
 
-void AdmmSolver::step(KktSolver& kkt, bool& rhoChanged) {
+bool AdmmSolver::step(KktSolver& kkt) {
     const int n = scaled_.numVariables();
     const int m = scaled_.numConstraints();
 
@@ -518,11 +537,11 @@ void AdmmSolver::step(KktSolver& kkt, bool& rhoChanged) {
     }
 
     if (!kkt.solve(rhs)) {
-        // The factor went bad; nudge rho and rebuild rather than continue on it.
-        rho_ *= 1.5;
-        desiredRho_ = rho_;
-        rhoChanged = true;
-        return;
+        // Only an invalid factor makes the solve fail, and a refactorisation
+        // failure is already recovered from where it happens. Report it. The
+        // old code multiplied rho by 1.5 and returned without refactorising or
+        // updating x, so rho and the factor disagreed and x stayed frozen.
+        return false;
     }
     x_ = std::move(rhs);
 
@@ -548,6 +567,7 @@ void AdmmSolver::step(KktSolver& kkt, bool& rhoChanged) {
                         z_[static_cast<std::size_t>(i)]);
         }
     }
+    return true;
 }
 
 void AdmmSolver::toOriginal() {

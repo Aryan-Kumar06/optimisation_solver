@@ -112,7 +112,14 @@ AdmmResult QpSolver::solve(const QpModel& problem, const AdmmOptions& options) c
 
         KktPolisher::Options pol;
         pol.maxIterations = options.polishingIterations;
-        if (KktPolisher::polish(problem, result.primal, result.constraintDual, pol)) {
+        double remaining = 0.0;
+        if (options.timeLimitSeconds > 0.0) {
+            remaining = options.timeLimitSeconds - result.solveTimeSeconds;
+            pol.timeLimitSeconds = std::max(remaining, 1e-9);
+        }
+        if (options.timeLimitSeconds > 0.0 && remaining <= 0.0) {
+            result.statusMessage += " (polishing skipped: no time left)";
+        } else if (KktPolisher::polish(problem, result.primal, result.constraintDual, pol)) {
             const double primalResidualAfter = primalViolation(problem, result.primal);
             const double dualResidualAfter =
                 dualViolation(problem, result.primal, result.constraintDual);
@@ -132,6 +139,9 @@ AdmmResult QpSolver::solve(const QpModel& problem, const AdmmOptions& options) c
                 result.dualResidual = dualResidualBefore;
                 result.statusMessage += " (polishing rejected: no improvement)";
             }
+        } else {
+            // polish() leaves primal and dual untouched when it returns false.
+            result.statusMessage += " (polishing not applied)";
         }
     }
 

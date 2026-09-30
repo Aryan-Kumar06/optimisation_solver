@@ -8,22 +8,26 @@ it was right.
 
 Validated on 2026-09-30 in the SIH checkout, based on PR #15 revision
 `08c1520ae033e56ad0a86c6794f2ee3484965b46`, with the local test/harness changes.
-Production numerical engines were not changed for this coverage work.
+The coverage work exposed four defects in the ADMM QP engine, which this PR
+fixes (see *QP engine fixes* below). No other numerical engine was changed.
 
 ### Automated tests
 
 The final Release integration build against upstream `b67250b` ran **72 CTests:
-71 passed, 1 failed**, with assertions enabled in test targets. The earlier
-PR #15 baseline ran 70 CTests (69 passed, the same one failed). This includes the restored NLP engine, elastic KKT,
+72 passed**, with assertions enabled in test targets. This includes the restored NLP engine, elastic KKT,
 public pipeline and CLI tests, NLP/SLSQP comparisons, PDLP and QP engine unit
 tests, parser/presolve/postsolve/MILP tests, benchmark harness tests, and the
 new reference/integrity tests.
 
-The failing test is `qp_reference`: **299/300** randomized QPs were compared or
-had their nonoptimal status corroborated by OSQP. Zero-based case **219**, seed
-**20260908**, returned `limit_reached` while OSQP returned `solved`. This is a
-convergence limitation, not evidence of an incorrect optimality claim. The test
-is deliberately still failing; it is not skipped or marked `WILL_FAIL`.
+`qp_reference` passes with its contract unchanged: all **300/300** randomized
+QPs (seed **20260908**) are accounted for. 279 optimal results agree with OSQP on
+objective (relative 1e-4) and solution (absolute 1e-3), and 21
+infeasible/unbounded statuses are corroborated. Case **219**, which previously
+returned `limit_reached`, is among the 279. It failed because of an engine
+defect, not a test-contract problem; nothing was skipped or marked `WILL_FAIL`.
+OSQP's C layer printed "Polishing not needed" on stdout even with
+`verbose=False`, which made the comparator's JSON report unparseable when a seed
+was replayed; that output is now suppressed at the file-descriptor level.
 
 The new Python suites contain eight offline tests of selection, checksums,
 decoding and coverage accounting, plus six reference-adapter tests of sparse
@@ -45,12 +49,14 @@ cross-checked independently, and solutions are checked on the original model.
 |---|---:|---:|---|
 | Netlib LP | 8 | 6 | 2 feasible but solver did not report optimal |
 | MIPLIB 2017 Collection subset | 25 | 3 | 15 reference not optimal, 5 unverified, 2 feasible but solver not optimal |
-| Maros–Mészáros QP | 14 | 9 | 3 objective disagreements, 2 unverified |
+| Maros–Mészáros QP | 14 | 13 | 1 unverified (cvxqp3s, iteration limit) |
 | Public Mittelmann LP subset | 3 | 0 | 3 unverified due to time limits |
 
-The Netlib and QP selections were rerun after merging upstream `b67250b`;
-their outcome counts were unchanged. MIPLIB and Mittelmann counts below remain
-the recorded PR #15 baseline measurements.
+The Netlib and QP selections were rerun with the fixed QP engine
+(`run_suites.py --suite qp|netlib --timeout 5`). Netlib is unchanged, since the
+fix does not touch the LP engines; QP rose from 9 to 13 agreements. MIPLIB and
+Mittelmann counts below remain the recorded PR #15 baseline measurements; their
+engines were not changed.
 
 All 50 selected instances reached the harness. After fixing nested compression
 for `Linf_520c`, every input passed the independent parse cross-check. An
@@ -61,22 +67,51 @@ JSON retains the separate KKT/gap verdict and residuals. Unverified runs are
 never counted as successful comparisons. Infeasible/unbounded claims require
 separate validation and are not inferred from timeout.
 
-QP discrepancies, reproducible through `corpus_qp` or `run_suites.py --suite qp`:
+QP engine fixes. The five smoke-set discrepancies previously listed here, and
+the failing `qp_reference` case 219, traced to four defects in the ADMM engine,
+all reproduced on individual instances before being changed:
 
-| Instance | OptimSolver objective | OSQP objective | Observation |
-|---|---:|---:|---|
-| genhs28 | 0.928286870219662 | 0.927173693766391 | Solver reports optimal, original-model dual check rejects multipliers |
-| hs51 | 0.000155936442925 | approximately 0 | Same |
-| hs52 | 5.326683495975829 | 5.326647564469914 | Same |
-| cvxqp3s | unavailable | 11943.432201967 | Solver reaches 5000 iterations without a validated feasible point |
-| hs118 | unavailable | 664.82045 | Same |
+| Defect | Symptom | Instances |
+|---|---|---|
+| Adaptive rho re-estimated every iteration, never frozen | rho and the iterate in a limit cycle; the iterate was bit-identical after 5,000 and 200,000 iterations | reference case 219, hs118 |
+| rho unbounded | rho = 2.8e14 after 50 iterations | hs51, hs52, genhs28 |
+| Termination tested the proxy dual residual `rho * A'(z - zOld)` | once rho froze z, the proxy was zero and the engine reported **Optimal** with a true stationarity residual of 0.04-0.13 against a 1e-8 tolerance | hs51, hs52, genhs28 |
+| A failed KKT refactorisation left rho changed but no valid factor | x never moved again | cvxqp3s (old run) |
 
-OSQP solutions for these cases pass the independent primal/KKT checks and
-agree with the published, rounded Maros–Mészáros values. The equalities-only
-mismatch cases expose the existing QP termination path: its ADMM stopping test
-uses auxiliary-variable movement rather than full stationarity. This is a
-suspected cause requiring a numerical-engine fix and broader regression review;
-this test addition does not change solver tolerances or mask these failures.
+Case 219 is well posed (a strictly concave maximisation, Hessian condition
+~276). Presolve derives a valid, inactive bound for one variable from a row,
+and with that bound the old rho rule cycled; without it the same engine
+converged. Neither the tolerance, the objective/sign convention nor the OSQP
+adapter was at fault.
+
+The engine now follows OSQP (Stellato et al. 2020): termination uses the true
+stationarity residual `P x + q + A'y`; rho is re-estimated only at termination
+checks from the normalised residual ratio, clamped to [1e-6, 1e6], limited to a
+factor of 10 per update, and changed at most 50 times, so it is eventually
+constant as Boyd et al. section 3.4.1 requires for convergence. A zero residual
+is floored rather than skipped, and a failed refactorisation restores the last
+working factor. The damping and the zero-residual handling were each added
+because the undamped rule oscillated on the NLP engine's elastic QPs and the
+skip left hs268 stuck; both cases are now regression tests. KKT polishing,
+which factors a dense system on each pass, now respects the remaining time
+limit and skips systems above dimension 2,000: on presolved qship08s it had run
+for more than 300 s past a 55 s limit.
+
+Five QP engine regression tests run in the normal suite (`qp_tests`, 26 checks)
+with production settings, which the previous ADMM tests never used. Each of the
+four behavioural tests was shown to fail against the engine it guards against.
+
+Across all 138 Maros-Meszaros instances (public pipeline, forced ADMM, 60 s
+wall clock per instance, objective checked against the published value at
+1e-6 normalised), the fixed engine agrees on **44** against **29** before, with
+**no regressions** and **no false optimal claims** (two before). Timeouts fell
+from 35 to 22, mostly instances that converged and then hung in polishing.
+
+`cvxqp3s` remains `unverified` at the smoke budget. The engine converges to the
+published objective given 16,700 iterations, but not within the default 5,000.
+The cause is structural: a single scalar rho for every row, where OSQP scales
+rho by 1e3 on equality rows, and cvxqp3s has 75 of them. Per-row rho changes the
+KKT assembly in both the dense and sparse paths and is left as separate work.
 
 Netlib `blend` and `share2b` return feasible points with `limit_reached`.
 The MIPLIB and Mittelmann five-second runs are insufficient to establish full
