@@ -1,23 +1,40 @@
 #include "mascot.h"
 
 #include <algorithm>
+#include <chrono>
+#include <cstdio>
 #include <cstdlib>
 #include <iomanip>
 #include <sstream>
-#include <unistd.h>
+#include <thread>
 #include <vector>
+
+#ifdef _MSC_VER
+#include <io.h>
+#else
+#include <unistd.h>
+#endif
 
 namespace cli {
 
 namespace {
 
 bool isTty(const std::ostream& stream) {
+#ifdef _MSC_VER
+    if (&stream == &std::cout) {
+        return _isatty(_fileno(stdout)) != 0;
+    }
+    if (&stream == &std::cerr) {
+        return _isatty(_fileno(stderr)) != 0;
+    }
+#else
     if (&stream == &std::cout) {
         return isatty(STDOUT_FILENO) != 0;
     }
     if (&stream == &std::cerr) {
         return isatty(STDERR_FILENO) != 0;
     }
+#endif
     return false;
 }
 
@@ -268,7 +285,7 @@ void animateSolveProgress(std::ostream& out, const TerminalStyle& s, const std::
     for (int i = 0; i < 4; ++i) {
         out << "\r  " << s.boldCyan() << frames[i] << " " << s.reset()
             << s.dim() << stage << s.reset() << std::flush;
-        usleep(30000);
+        std::this_thread::sleep_for(std::chrono::microseconds(30000));
     }
     out << "\r\033[K" << std::flush;
 }

@@ -462,23 +462,29 @@ void test_binary_execution() {
 #ifdef OPTIMSOLVER_BIN_PATH
     std::string binPath = OPTIMSOLVER_BIN_PATH;
     std::string mpsPath = getTestModelPath("tests/cli/simple_lp.mps");
+    // std::system runs cmd.exe on Windows, which has no /dev/null.
+#ifdef _WIN32
+    const std::string nullDev = "NUL";
+#else
+    const std::string nullDev = "/dev/null";
+#endif
     // 1. Test help on real binary
-    std::string cmdHelp = binPath + " --help > /dev/null 2>&1";
+    std::string cmdHelp = binPath + " --help > " + nullDev + " 2>&1";
     int ret = std::system(cmdHelp.c_str());
     assert(ret == 0);
 
     // 2. Test root binary without args
-    std::string cmdRoot = binPath + " < /dev/null > /dev/null 2>&1";
+    std::string cmdRoot = binPath + " < " + nullDev + " > " + nullDev + " 2>&1";
     ret = std::system(cmdRoot.c_str());
     assert(ret == 0);
 
     // 3. Test solve command on real binary
-    std::string cmdSolve = binPath + " solve " + mpsPath + " > /dev/null 2>&1";
+    std::string cmdSolve = binPath + " solve " + mpsPath + " > " + nullDev + " 2>&1";
     ret = std::system(cmdSolve.c_str());
     assert(ret == 0);
 
     // 4. Test invalid arg on real binary
-    std::string cmdInvalid = binPath + " solve " + mpsPath + " --solver bogus > /dev/null 2>&1";
+    std::string cmdInvalid = binPath + " solve " + mpsPath + " --solver bogus > " + nullDev + " 2>&1";
     ret = std::system(cmdInvalid.c_str());
     assert(ret != 0);
 
