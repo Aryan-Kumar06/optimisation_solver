@@ -34,6 +34,16 @@ public:
         int maxIterations = 200;
         double tolerance = 1e-8;
         double activeSetTolerance = 1e-6;
+        // Polishing is optional refinement of an already converged point, so
+        // it must never cost more than the solve it refines. Each pass factors
+        // a DENSE (n + active rows) square system, so its cost is cubic.
+        // Measured on Maros-Meszaros qship08s after presolve (1,632 variables
+        // plus a comparable number of active rows): ADMM converged in 8.2 s,
+        // then polishing ran for more than 300 s, past a 55 s time limit that
+        // it never checked. Above maximumDenseDimension polishing is skipped;
+        // timeLimitSeconds (0 = none) is the budget left by the solver.
+        int maximumDenseDimension = 2000;
+        double timeLimitSeconds = 0.0;
     };
 
     // Polishes the ADMM iterate in place.  Returns true on success (P SPD),

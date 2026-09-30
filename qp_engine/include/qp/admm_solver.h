@@ -9,6 +9,7 @@
 #include "qp/scaling.h"
 #include "qp/qp_types.h"
 
+#include <limits>
 #include <vector>
 
 namespace qp {
@@ -35,27 +36,41 @@ struct AdmmOptions {
     // Penalty parameter ρ. 0 means the solver picks a default (1.0).
     double rho = 0.0;
 
-    // Adaptive rho: the scheme from Boyd et al. §3.4.1.
-    // If μ > 1, the solver adjusts rho to balance primal and dual residual.
+    // Adaptive rho, as in OSQP (Stellato et al. 2020, section 5.2).
+    //
+    // At each termination check -- never between checks -- the penalty is
+    // re-estimated from the NORMALISED residual ratio
+    //
+    //   rho_new = rho * sqrt( (||Ax - z|| / max(||Ax||, ||z||))
+    //                       / (||Px + q + A'y|| / max(||Px||, ||A'y||, ||q||)) )
+    //
+    // limited to a factor of maximumRhoStep per update, clamped to
+    // [rhoMinimum, rhoMaximum], and adopted only when it differs from the
+    // current rho by more than adaptiveRhoTolerance. At most
+    // maximumRhoUpdates changes are made, so rho is eventually constant: that is
+    // the condition under which Boyd et al. (section 3.4.1) prove convergence
+    // with a varying penalty.
+    //
+    // This replaces a per-iteration doubling/halving rule on the raw residual
+    // ratio, which had neither property and failed in three distinct ways:
+    //   * a limit cycle -- rho and the iterate oscillating forever, the iterate
+    //     bit-identical after 5,000 and 200,000 iterations (randomized QP case
+    //     219, Maros-Meszaros hs118);
+    //   * unbounded growth -- rho = 2.8e14 after 50 iterations on hs51, hs52 and
+    //     genhs28, which froze z and so zeroed the proxy dual residual the old
+    //     termination test used, producing a false Optimal;
+    //   * a failed refactorisation at a large rho that was never recovered from,
+    //     leaving x frozen at zero (cvxqp3s).
+    //
+    // The damping is not in OSQP's rule and is needed here: without it the
+    // ratio alone oscillated between extremes on a nearly-LP elastic QP from
+    // the NLP engine (see maximumRhoStep's use in the solver).
     bool useAdaptiveRho = true;
-    double adaptiveRhoMu = 10.0;       // residual ratio threshold
-    double adaptiveRhoTau = 2.0;        // rho multiplier when out of balance
-
-    // Hysteresis on adopting a new rho, to trade convergence for fewer
-    // factorisations. DEFAULTS DISABLE IT, and that is deliberate.
-    //
-    // Every rho change costs a numeric refactorisation, so gating the changes
-    // looks like an obvious saving. Measured, it is the opposite: rho adaptation
-    // is load-bearing for ADMM convergence. With a threshold of 5 and a
-    // 25-iteration interval, two instances that converge in 100-150 iterations
-    // instead ran 200000 iterations and finished with a primal residual of 1.2.
-    // Meanwhile the saving never materialised -- the imbalance test fires rarely
-    // enough that these benchmarks refactorised once either way.
-    //
-    // Raise them only with a benchmark that shows both fewer factorisations and
-    // no loss of convergence.
-    double adaptiveRhoThreshold = 1.0;   // 1 = adopt every change
-    std::int64_t adaptiveRhoInterval = 0;
+    double adaptiveRhoTolerance = 5.0;
+    double maximumRhoStep = 10.0;
+    int maximumRhoUpdates = 50;
+    double rhoMinimum = 1e-6;
+    double rhoMaximum = 1e6;
 
     // Ruiz equilibration of P and A before iterating. The solver operates on
     // the scaled problem and maps the result back, so tolerances stay in the
@@ -75,6 +90,39 @@ struct AdmmOptions {
     bool usePolishing = true;
     int polishingIterations = 200;
 };
+
+// ============================================================================
+// Optimality check in the ORIGINAL problem's units
+// ============================================================================
+//
+// The single definition of "converged" for this engine. The ADMM loop
+// terminates on it, and QpSolver re-applies it after polishing before it will
+// return Optimal. It is evaluated on the caller's (unscaled) problem because
+// that is what every consumer -- postsolve, MIQP node bounds, NLP subproblems --
+// actually checks. The loop previously terminated on Ruiz-SCALED residuals with
+// sqrt(n + m) factors instead: measured on randomly generated QPs, 31 of 400
+// Optimal results then failed this check at the requested tolerance, rising to
+// 121 of 375 when coefficients spanned 1e-4 to 1e4, and presolved Maros-Meszaros
+// qship08s came back Optimal with a variable bound violated in original units.
+//
+//   primal: every row i satisfies  dist(A_i x, [l_i, u_i])
+//                                    <= primalTolerance * max(1, |A_i x|, |l_i|, |u_i|)
+//           (infinite bounds excluded from the scale) -- per row, like postsolve;
+//   dual:   ||P x + q + A'y||_inf  <= dualTolerance * max(1, ||Px||, ||A'y||, ||q||)
+//   and every number involved finite.
+struct KktCheck {
+    double primalViolation = std::numeric_limits<double>::infinity();  // worst absolute row violation
+    double dualResidual = std::numeric_limits<double>::infinity();     // ||P x + q + A'y||_inf
+    bool primalMet = false;
+    bool dualMet = false;
+    bool finite = false;
+    [[nodiscard]] bool met() const noexcept { return finite && primalMet && dualMet; }
+};
+[[nodiscard]] KktCheck checkKkt(const QpModel& model,
+                                const std::vector<double>& x,
+                                const std::vector<double>& y,
+                                double primalTolerance,
+                                double dualTolerance);
 
 // ============================================================================
 // ADMM result
@@ -136,9 +184,11 @@ public:
     [[nodiscard]] const QpModel& problem() const { return scaled_; }
 
 private:
-    // One ADMM iteration.  rhoChanged is set to true if the penalty changed
-    // and the caller must refactor the KKT.
-    void step(KktSolver& kkt, bool& rhoChanged);
+    // One ADMM iteration. Returns false if the KKT solve failed, in which case
+    // the iterate is unchanged and the caller must stop: continuing would
+    // repeat the same failed solve with x frozen, which is how a lost factor
+    // used to masquerade as an iteration limit.
+    [[nodiscard]] bool step(KktSolver& kkt);
 
     // Map the best iterate (x_, y_) back to the original coordinates.
     void toOriginal();
@@ -155,13 +205,16 @@ private:
 
     double rho_ = 1.0;
 
-    // For adaptive rho diagnostics.
+    // Adaptive rho bookkeeping: how many changes have been made, and the
+    // interval rho must stay inside after a refactorisation failed at a value.
+    int rhoUpdates_ = 0;
+    double rhoFloor_ = 0.0;
+    double rhoCeiling_ = 0.0;
+
     // The equilibration is kept from construction rather than recomputed when
     // unscaling. It was previously run a second time in toOriginal(), which
     // repeated the whole Ruiz sweep and rebuilt a scaled copy of P and A only to
     // read two diagonal vectors out of it.
-    double desiredRho_ = 0.0;
-    std::int64_t lastRhoUpdate_ = 0;
 
     QpScaling scaling_;
     bool scalingValid_ = false;

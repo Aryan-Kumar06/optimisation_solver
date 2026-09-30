@@ -1,5 +1,7 @@
 #include "qp/polishing.h"
 
+#include <chrono>
+
 #include "qp/kkt_solver.h"
 
 #include <algorithm>
@@ -227,6 +229,7 @@ bool KktPolisher::polish(
     std::vector<double> curX = x;
     std::vector<double> curDual = constraintDual;
     std::vector<int> prevActiveRows;
+    const auto started = std::chrono::steady_clock::now();
 
     for (int iter = 0; iter < options.maxIterations; ++iter) {
         // Identify active constraints, and which side of each is active --
@@ -269,6 +272,14 @@ bool KktPolisher::polish(
             break;  // Active set unchanged, converged.
         }
         prevActiveRows = activeRows;
+
+        // Give up, leaving x untouched, rather than exceed the budget. The
+        // caller keeps the converged ADMM point, which was already verified.
+        if (n + static_cast<int>(activeIdx.size()) > options.maximumDenseDimension) return false;
+        if (options.timeLimitSeconds > 0.0 &&
+            std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count() >=
+                options.timeLimitSeconds)
+            return false;
 
         // Solve the reduced KKT.
         std::vector<double> newX;

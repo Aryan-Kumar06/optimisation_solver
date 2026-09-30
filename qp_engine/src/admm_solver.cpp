@@ -30,6 +30,44 @@ double primalObjective(const QpModel& model, const std::vector<double>& x) {
 
 }  // namespace
 
+KktCheck checkKkt(const QpModel& model, const std::vector<double>& x,
+                  const std::vector<double>& y, double primalTolerance, double dualTolerance) {
+    KktCheck out;
+    const int n = model.numVariables();
+    const int m = model.numConstraints();
+    if (x.size() != static_cast<std::size_t>(n) || y.size() != static_cast<std::size_t>(m)) return out;
+    for (double v : x) if (!std::isfinite(v)) return out;
+    for (double v : y) if (!std::isfinite(v)) return out;
+
+    std::vector<double> ax, px, aty(static_cast<std::size_t>(n), 0.0);
+    model.A.multiply(x, ax);
+    model.P.multiply(x, px);
+    if (m > 0) model.A.transposeMultiply(y, aty);
+
+    out.primalViolation = 0.0;
+    out.primalMet = true;
+    for (int i = 0; i < m; ++i) {
+        const auto ui = static_cast<std::size_t>(i);
+        const double v = ax[ui], lo = model.l[ui], hi = model.u[ui];
+        const double violation = std::max({0.0, lo - v, v - hi});
+        double scale = std::max(1.0, std::abs(v));
+        if (std::isfinite(lo)) scale = std::max(scale, std::abs(lo));
+        if (std::isfinite(hi)) scale = std::max(scale, std::abs(hi));
+        out.primalViolation = std::max(out.primalViolation, violation);
+        if (!(violation <= primalTolerance * scale)) out.primalMet = false;
+    }
+    double dual = 0.0, dualScale = 1.0;
+    for (int j = 0; j < n; ++j) {
+        const auto uj = static_cast<std::size_t>(j);
+        dual = std::max(dual, std::abs(px[uj] + model.q[uj] + aty[uj]));
+        dualScale = std::max({dualScale, std::abs(px[uj]), std::abs(aty[uj]), std::abs(model.q[uj])});
+    }
+    out.dualResidual = dual;
+    out.dualMet = dual <= dualTolerance * dualScale;
+    out.finite = std::isfinite(out.primalViolation) && std::isfinite(dual) && std::isfinite(dualScale);
+    return out;
+}
+
 AdmmSolver::AdmmSolver(const QpModel& problem, const AdmmOptions& options)
     : original_(problem), options_(options) {
     if (options_.rho <= 0.0) options_.rho = 1.0;
@@ -43,10 +81,13 @@ AdmmSolver::AdmmSolver(const QpModel& problem, const AdmmOptions& options)
         options_.ruizIterations = 0;
     if (options_.polishingIterations < 0)
         options_.polishingIterations = 0;
-    if (options_.adaptiveRhoMu <= 1.0)
-        options_.adaptiveRhoMu = 10.0;
-    if (options_.adaptiveRhoTau <= 1.0)
-        options_.adaptiveRhoTau = 2.0;
+    if (!(options_.adaptiveRhoTolerance > 1.0))
+        options_.adaptiveRhoTolerance = 5.0;
+    if (options_.maximumRhoUpdates < 0)
+        options_.maximumRhoUpdates = 0;
+    if (!(options_.rhoMinimum > 0.0)) options_.rhoMinimum = 1e-6;
+    if (!(options_.rhoMaximum >= options_.rhoMinimum)) options_.rhoMaximum = 1e6;
+    if (!(options_.maximumRhoStep > 1.0)) options_.maximumRhoStep = 10.0;
 
     // Validate the problem first, before any equilibration.
     try {
@@ -55,6 +96,27 @@ AdmmSolver::AdmmSolver(const QpModel& problem, const AdmmOptions& options)
         result_.status = QpStatus::InvalidProblem;
         result_.statusMessage = e.what();
         return;
+    }
+
+    // This is a CONVEX-QP engine. A negative diagonal entry proves P is not
+    // positive semidefinite, and ADMM then converges happily to a stationary
+    // point that need not be a minimum: on min -x^2/2 over [-1, 1] it returned
+    // Optimal at x = 0, the MAXIMUM. Full PSD verification is a dense
+    // factorisation and belongs to the caller (the public pipeline runs
+    // qp::checkConvexity before dispatch); this O(nnz) test is the necessary
+    // condition the engine can afford on every call.
+    {
+        const auto& start = problem.P.csrRowStart();
+        const auto& column = problem.P.csrColumnIndex();
+        const auto& value = problem.P.csrValues();
+        for (int i = 0; i < problem.numVariables(); ++i)
+            for (auto k = start[static_cast<std::size_t>(i)]; k < start[static_cast<std::size_t>(i) + 1]; ++k)
+                if (column[static_cast<std::size_t>(k)] == i && value[static_cast<std::size_t>(k)] < 0.0) {
+                    result_.status = QpStatus::InvalidProblem;
+                    result_.statusMessage = "P has a negative diagonal entry, so it is not positive "
+                                            "semidefinite; this engine solves convex QPs only";
+                    return;
+                }
     }
 
     if (options_.useRuizScaling) {
@@ -95,8 +157,9 @@ AdmmSolver::AdmmSolver(const QpModel& problem, const AdmmOptions& options)
     z_.assign(static_cast<std::size_t>(m), 0.0);
     y_.assign(static_cast<std::size_t>(m), 0.0);
     Ax_.assign(static_cast<std::size_t>(m), 0.0);
-    rho_ = options_.rho;
-    desiredRho_ = options_.rho;
+    rho_ = std::clamp(options_.rho, options_.rhoMinimum, options_.rhoMaximum);
+    rhoFloor_ = options_.rhoMinimum;
+    rhoCeiling_ = options_.rhoMaximum;
 
     result_.primal.assign(static_cast<std::size_t>(n), 0.0);
     result_.constraintDual.assign(static_cast<std::size_t>(m), 0.0);
@@ -112,11 +175,31 @@ AdmmResult AdmmSolver::solve() {
     const int m = scaled_.numConstraints();
 
     if (n == 0) {
-        result_.status = QpStatus::Optimal;
-        result_.statusMessage = "zero variables";
-        result_.primalObjective = 0.0;
-        result_.iterations = 0;
+        // With no variables every row's activity is 0, so each row must admit
+        // 0. A row that does not is a complete infeasibility certificate on its
+        // own. This used to return Optimal unconditionally -- including for a
+        // row requiring 0 in [1, 2], with a reported primal residual of 1.0.
         result_.primal.clear();
+        result_.constraintDual.assign(static_cast<std::size_t>(m), 0.0);
+        result_.iterations = 0;
+        result_.primalObjective = 0.0;
+        result_.primalResidual = 0.0;
+        result_.dualResidual = 0.0;
+        for (int i = 0; i < m; ++i) {
+            const double lo = original_.l[static_cast<std::size_t>(i)];
+            const double hi = original_.u[static_cast<std::size_t>(i)];
+            const double violation = std::max({0.0, lo, -hi});
+            result_.primalResidual = std::max(result_.primalResidual, violation);
+            if (violation > 0.0) {
+                result_.status = QpStatus::Infeasible;
+                result_.statusMessage = "infeasible: with no variables, row " + std::to_string(i) +
+                                        " requires 0 to lie in [" + std::to_string(lo) + ", " +
+                                        std::to_string(hi) + "]";
+                return result_;
+            }
+        }
+        result_.status = QpStatus::Optimal;
+        result_.statusMessage = "zero variables; every row admits the empty point";
         return result_;
     }
 
@@ -127,8 +210,6 @@ AdmmResult AdmmSolver::solve() {
         result_.statusMessage = "KKT factorization failed";
         return result_;
     }
-
-    std::vector<double> zOld(static_cast<std::size_t>(m), 0.0);
 
     // Infeasibility / unboundedness certificates (OSQP, Banjac et al. 2019).
     //
@@ -216,7 +297,6 @@ AdmmResult AdmmSolver::solve() {
 
     std::vector<double> xOld(static_cast<std::size_t>(n), 0.0);
     std::vector<double> yOld(static_cast<std::size_t>(m), 0.0);
-    bool rhoChanged = false;
     double bestObj = std::numeric_limits<double>::infinity();
     // bestX/bestY are filled in after the first iteration; we can't pre-fill
     // with x_/y_ because they start as all-zero which is generally infeasible
@@ -227,17 +307,18 @@ AdmmResult AdmmSolver::solve() {
     bool optimal = false;
 
     for (std::int64_t k = 0; k < options_.iterationLimit; ++k) {
-        zOld = z_;
         xOld = x_;
         yOld = y_;
-        step(kkt, rhoChanged);
+        if (!step(kkt)) {
+            result_.status = QpStatus::NumericalFailure;
+            result_.statusMessage = "KKT solve failed; the factorisation is unusable";
+            result_.iterations = k + 1;
+            break;
+        }
 
-        // Compute residuals.
-        //   r = A*x - z   (primal)
-        //   s = -rho * A^T * (z - zOld)  (dual)
-        //   s_alt = P*x + q + A^T*y  (stationarity, m == 0 path)
+        // Primal residual r = A*x - z. The dual residual is the true
+        // stationarity residual, computed at termination checks below.
         double rNorm = 0.0;
-        double sNorm = 0.0;
         if (m > 0) {
             scaled_.A.multiply(x_, Ax_,
                                parallel_ ? executor_.get() : nullptr,
@@ -248,31 +329,6 @@ AdmmResult AdmmSolver::solve() {
                 rNorm += r * r;
             }
             rNorm = std::sqrt(rNorm);
-
-            std::vector<double> zDiff(static_cast<std::size_t>(m));
-            for (int i = 0; i < m; ++i) {
-                zDiff[static_cast<std::size_t>(i)] =
-                    z_[static_cast<std::size_t>(i)] - zOld[static_cast<std::size_t>(i)];
-            }
-            std::vector<double> sVec;
-            scaled_.A.transposeMultiply(zDiff, sVec);
-            const double scale = rho_;
-            for (int j = 0; j < n; ++j) {
-                sNorm += (scale * sVec[static_cast<std::size_t>(j)]) *
-                         (scale * sVec[static_cast<std::size_t>(j)]);
-            }
-            sNorm = std::sqrt(sNorm);
-        } else {
-            // m == 0: dual residual is the gradient.
-            std::vector<double> grad;
-            scaled_.P.multiply(x_, grad,
-                               parallel_ ? executor_.get() : nullptr,
-                               parallel_ ? &planP_ : nullptr);
-            for (int j = 0; j < n; ++j)
-                grad[static_cast<std::size_t>(j)] += scaled_.q[static_cast<std::size_t>(j)];
-            for (int j = 0; j < n; ++j)
-                sNorm += grad[static_cast<std::size_t>(j)] * grad[static_cast<std::size_t>(j)];
-            sNorm = std::sqrt(sNorm);
         }
 
         const double obj = primalObjective(scaled_, x_);
@@ -288,8 +344,6 @@ AdmmResult AdmmSolver::solve() {
             (k + 1) % options_.terminationCheckFrequency == 0 ||
             k + 1 == options_.iterationLimit;
         if (doCheck) {
-            const double absTol = options_.primalTolerance;
-            const double relTol = options_.dualTolerance;
 
             double AxNorm = 0.0;
             double zNorm = 0.0;
@@ -300,8 +354,6 @@ AdmmResult AdmmSolver::solve() {
             AxNorm = std::sqrt(AxNorm);
             zNorm  = std::sqrt(zNorm);
 
-            const double epsPri = std::sqrt(static_cast<double>(n + m)) * absTol +
-                                  relTol * std::max({AxNorm, zNorm, 1.0});
 
             double AtzNorm = 0.0;
             if (m > 0) {
@@ -312,11 +364,56 @@ AdmmResult AdmmSolver::solve() {
                                Atz[static_cast<std::size_t>(j)];
                 AtzNorm = std::sqrt(AtzNorm);
             }
-            const double epsDual = std::sqrt(static_cast<double>(n)) * absTol +
-                                   relTol * (AtzNorm + 1.0);
+            // Dual residual: the TRUE stationarity residual P x + q + A'y, as
+            // in OSQP -- not the ADMM proxy rho * A'(z - zOld). The proxy only
+            // measures how much z moved. When rho is very large z stops moving,
+            // the proxy goes to zero, and the old test declared convergence:
+            // measured on Maros-Meszaros hs51, hs52 and genhs28, "Optimal" with
+            // a true stationarity residual of 0.04-0.13 against a 1e-8
+            // tolerance, and objectives off by up to 4e-4 relative.
+            std::vector<double> Px, stationarity(static_cast<std::size_t>(n));
+            scaled_.P.multiply(x_, Px);
+            double PxNorm = 0.0, qNorm = 0.0, dNorm = 0.0;
+            std::vector<double> Aty(static_cast<std::size_t>(n), 0.0);
+            if (m > 0) scaled_.A.transposeMultiply(y_, Aty);
+            for (int j = 0; j < n; ++j) {
+                const auto uj = static_cast<std::size_t>(j);
+                const double d = Px[uj] + scaled_.q[uj] + Aty[uj];
+                dNorm += d * d;
+                PxNorm += Px[uj] * Px[uj];
+                qNorm += scaled_.q[uj] * scaled_.q[uj];
+            }
+            dNorm = std::sqrt(dNorm);
+            PxNorm = std::sqrt(PxNorm);
+            qNorm = std::sqrt(qNorm);
+            // A non-finite iterate is a numerical breakdown. Stop and report
+            // it: carrying on only burns the remaining budget and ends as an
+            // iteration limit, which says "needs more time" when the truth is
+            // "cannot continue".
+            bool finiteIterate = std::isfinite(rNorm) && std::isfinite(dNorm);
+            for (int j = 0; finiteIterate && j < n; ++j)
+                finiteIterate = std::isfinite(x_[static_cast<std::size_t>(j)]);
+            for (int i = 0; finiteIterate && i < m; ++i)
+                finiteIterate = std::isfinite(y_[static_cast<std::size_t>(i)]);
+            if (!finiteIterate) {
+                result_.status = QpStatus::NumericalFailure;
+                result_.statusMessage = "iterate became non-finite";
+                result_.iterations = k + 1;
+                if (hasBest) { x_ = bestX; y_ = bestY; }
+                break;
+            }
 
-            const bool primalOK = (m > 0) ? (rNorm <= epsPri) : true;
-            const bool dualOK   = (sNorm <= epsDual);
+            // Convergence is judged in the ORIGINAL problem's units; see
+            // checkKkt. The scaled norms above still drive rho adaptation.
+            std::vector<double> xOriginal = x_, yOriginal = y_;
+            if (options_.useRuizScaling && scalingValid_) {
+                scaling_.toOriginal(x_, xOriginal);
+                scaling_.toOriginalDual(y_, yOriginal);
+            }
+            const KktCheck kktCheck = checkKkt(original_, xOriginal, yOriginal,
+                                               options_.primalTolerance, options_.dualTolerance);
+            const bool primalOK = kktCheck.finite && kktCheck.primalMet;
+            const bool dualOK = kktCheck.finite && kktCheck.dualMet;
 
             // The certificates are checked BEFORE optimality, not after.
             //
@@ -366,40 +463,60 @@ AdmmResult AdmmSolver::solve() {
                 // feasible by the termination check.
                 break;
             }
-        }
 
-        // Adaptive rho.
-        //
-        // The desired rho is tracked continuously, but adopted only when it has
-        // drifted far enough from the factorised value to be worth a numeric
-        // refactorisation, and never more often than adaptiveRhoInterval
-        // iterations apart. rho and the factor must agree -- the x-update's
-        // right-hand side uses rho -- so there is no way to move one without the
-        // other; the saving has to come from moving less often.
-        if (options_.useAdaptiveRho && m > 0) {
-            const double mu = options_.adaptiveRhoMu;
-            const double tau = options_.adaptiveRhoTau;
-            if (rNorm > mu * sNorm) {
-                desiredRho_ *= tau;
-            } else if (sNorm > mu * rNorm) {
-                desiredRho_ /= tau;
-            }
-
-            const double threshold = std::max(options_.adaptiveRhoThreshold, 1.0);
-            const bool farEnough = desiredRho_ > threshold * rho_ ||
-                                   desiredRho_ * threshold < rho_;
-            const bool longEnough =
-                (k - lastRhoUpdate_) >= options_.adaptiveRhoInterval;
-
-            if (farEnough && longEnough && desiredRho_ > 0.0) {
-                rho_ = desiredRho_;
-                if (kkt.refactor(rho_)) {
-                    ++result_.factorizations;
-                    lastRhoUpdate_ = k;
+            // Adaptive rho, at checks only (see AdmmOptions::useAdaptiveRho).
+            if (options_.useAdaptiveRho && m > 0 && rhoUpdates_ < options_.maximumRhoUpdates) {
+                const double primalScale = std::max({AxNorm, zNorm, 1e-300});
+                const double dualScale = std::max({PxNorm, AtzNorm, qNorm, 1e-300});
+                // Floored rather than skipped when zero. An exactly zero primal
+                // residual is the clearest possible signal that rho should
+                // FALL: the iterate is feasible and only stationarity is left.
+                // Skipping that case left rho stuck at 0.1 on Maros-Meszaros
+                // hs268, which needs rho near 1e-6, and the solve crawled to
+                // the iteration limit. With the floor, a zero residual yields
+                // the maximum damped step in the right direction.
+                const double primalRelative = std::max(rNorm / primalScale, 1e-300);
+                const double dualRelative = std::max(dNorm / dualScale, 1e-300);
+                const bool bothConverged = rNorm == 0.0 && dNorm == 0.0;
+                if (!bothConverged && std::isfinite(primalRelative) && std::isfinite(dualRelative)) {
+                    // Damped: at most maximumRhoStep per update. A residual can
+                    // be almost exactly zero early on, which makes the undamped
+                    // ratio enormous: on the NLP engine's first elastic QP one
+                    // update proposed 1 -> 1.8e5, the next 3e-4, then 1e6, and
+                    // the three states repeated until the iteration limit.
+                    const double step = options_.maximumRhoStep;
+                    double proposal = rho_ * std::clamp(std::sqrt(primalRelative / dualRelative),
+                                                        1.0 / step, step);
+                    proposal = std::clamp(proposal, rhoFloor_, rhoCeiling_);
+                    const double tolerance = options_.adaptiveRhoTolerance;
+                    if (proposal > tolerance * rho_ || proposal * tolerance < rho_) {
+                        const double previous = rho_;
+                        if (kkt.refactor(proposal)) {
+                            rho_ = proposal;
+                            ++rhoUpdates_;
+                            ++result_.factorizations;
+                        } else {
+                            // The factorisation failed at this rho (typically a
+                            // large rho making P + sigma I + rho A'A too
+                            // ill-conditioned for Cholesky). Restore the last
+                            // factor that worked and never propose this far
+                            // again. Before, rho kept the failed value with no
+                            // valid factor behind it and x never moved again.
+                            if (proposal > previous) rhoCeiling_ = std::sqrt(previous * proposal);
+                            else rhoFloor_ = std::sqrt(previous * proposal);
+                            if (!kkt.refactor(previous)) {
+                                result_.status = QpStatus::NumericalFailure;
+                                result_.statusMessage = "KKT refactorisation failed and could not be restored";
+                                result_.iterations = k + 1;
+                                break;
+                            }
+                            ++result_.factorizations;
+                        }
+                    }
                 }
             }
-            rhoChanged = false;
         }
+
 
         if (options_.timeLimitSeconds > 0.0) {
             const double elapsed =
@@ -409,8 +526,7 @@ AdmmResult AdmmSolver::solve() {
                 result_.status = QpStatus::TimeLimit;
                 result_.statusMessage = "time limit";
                 result_.iterations = k + 1;
-                x_ = bestX;
-                y_ = bestY;
+                if (hasBest) { x_ = bestX; y_ = bestY; }
                 break;
             }
         }
@@ -476,7 +592,7 @@ AdmmResult AdmmSolver::solve() {
     return result_;
 }
 
-void AdmmSolver::step(KktSolver& kkt, bool& rhoChanged) {
+bool AdmmSolver::step(KktSolver& kkt) {
     const int n = scaled_.numVariables();
     const int m = scaled_.numConstraints();
 
@@ -518,11 +634,11 @@ void AdmmSolver::step(KktSolver& kkt, bool& rhoChanged) {
     }
 
     if (!kkt.solve(rhs)) {
-        // The factor went bad; nudge rho and rebuild rather than continue on it.
-        rho_ *= 1.5;
-        desiredRho_ = rho_;
-        rhoChanged = true;
-        return;
+        // Only an invalid factor makes the solve fail, and a refactorisation
+        // failure is already recovered from where it happens. Report it. The
+        // old code multiplied rho by 1.5 and returned without refactorising or
+        // updating x, so rho and the factor disagreed and x stayed frozen.
+        return false;
     }
     x_ = std::move(rhs);
 
@@ -548,6 +664,7 @@ void AdmmSolver::step(KktSolver& kkt, bool& rhoChanged) {
                         z_[static_cast<std::size_t>(i)]);
         }
     }
+    return true;
 }
 
 void AdmmSolver::toOriginal() {
