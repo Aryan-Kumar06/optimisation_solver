@@ -41,19 +41,19 @@
             "escalated_to_sigkill": false,
             "launch_failed": false,
             "launch_error": null,
-            "wall_seconds": 0.005,
-            "timeout_seconds": 10,
-            "peak_memory_bytes": 1851392,
+            "wall_seconds": 0.01,
+            "timeout_seconds": 30,
+            "peak_memory_bytes": 1982464,
             "stdout_truncated": false,
             "stderr_truncated": false
           },
           "stage_seconds": {
-            "parse": 0.000287583,
-            "presolve": 0.002835125,
-            "solve": 0.000730291,
-            "postsolve": 0.000107
+            "parse": 0.00055875,
+            "presolve": null,
+            "solve": 0.006657125,
+            "postsolve": null
           },
-          "orchestrator_wall_seconds": 0.008351166965439916,
+          "orchestrator_wall_seconds": 0.01427450000483077,
           "termination": {
             "status": "optimal",
             "message": "dual simplex",
@@ -63,7 +63,7 @@
           },
           "settings": {
             "requested_engine": "dual_simplex",
-            "time_limit_seconds": 9,
+            "time_limit_seconds": 29,
             "tolerance": 1e-08,
             "thread_count": 1
           },
@@ -73,11 +73,11 @@
           "work": {
             "iterations": 86,
             "nodes": null,
-            "solve_seconds": 0.0007275
+            "solve_seconds": 0.006632625
           },
           "self_reported": {
-            "max_bound_residual": 0,
-            "max_constraint_residual": 0,
+            "max_bound_residual": null,
+            "max_constraint_residual": null,
             "max_dual_residual": 2.23664431332283e-11,
             "max_integrality_violation": 0
           },
@@ -134,7 +134,7 @@
             ]
           },
           "logs": {
-            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving ADLITTLE                                    \u2502\n\u2502                                                      \u2502\n\u2502  Model      97 variables \u00b7 56 constraints            \u2502\n\u2502  Reduced    96 variables \u00b7 53 constraints            \u2502\n\u2502  Engine     dual_simplex                             \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       225494.963\n  Iterations      86\n  Solve time      0.0007 s\n",
+            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving ADLITTLE                                    \u2502\n\u2502                                                      \u2502\n\u2502  Model      97 variables \u00b7 56 constraints            \u2502\n\u2502  Reduced    96 variables \u00b7 53 constraints            \u2502\n\u2502  Engine     dual_simplex                             \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       225494.963\n  Iterations      86\n  Solve time      0.0066 s\n  Duals available: 56 shadow prices, 97 reduced costs\n",
             "stderr_tail": ""
           }
         },
@@ -142,62 +142,8 @@
           "solver": "optimsolver:pdlp",
           "engine_use": {
             "requested": "pdlp",
-            "dispatched": null,
-            "executed": null,
-            "fallback": true,
-            "counts_for_requested": false,
-            "reason": "no engine executed; the solve was answered before dispatch or refused"
-          },
-          "process": {
-            "run_status": "NON_ZERO_EXIT",
-            "exit_code": 1,
-            "terminating_signal": null,
-            "timed_out": false,
-            "killed_process_tree": false,
-            "escalated_to_sigkill": false,
-            "launch_failed": false,
-            "launch_error": null,
-            "wall_seconds": 0.008,
-            "timeout_seconds": 10,
-            "peak_memory_bytes": 1654784,
-            "stdout_truncated": false,
-            "stderr_truncated": false
-          },
-          "stage_seconds": null,
-          "orchestrator_wall_seconds": 0.01032345904968679,
-          "termination": null,
-          "settings": null,
-          "solver_objective": null,
-          "dual_bound": null,
-          "mip_gap": null,
-          "work": null,
-          "self_reported": null,
-          "duals_unavailable_reason": null,
-          "check": {
-            "verdict": "no_point",
-            "solver_status": null,
-            "notes": [
-              "process ended as NON_ZERO_EXIT and wrote no structured result; nothing to check"
-            ],
-            "tolerances": {
-              "feasibility_absolute": 1e-06,
-              "feasibility_relative": 1e-08,
-              "integrality_absolute": 1e-06,
-              "optimality_normalised": 1e-06,
-              "frozen": true
-            }
-          },
-          "logs": {
-            "stdout_tail": "",
-            "stderr_tail": "\u2717 Postsolve error\n\n  Constraint upper bound violation on ....54\n"
-          }
-        },
-        {
-          "solver": "highs:highs-ds",
-          "engine_use": {
-            "requested": null,
-            "dispatched": "highs-ds",
-            "executed": "highs-ds",
+            "dispatched": "pdlp",
+            "executed": "pdlp",
             "fallback": false,
             "counts_for_requested": true,
             "reason": null
@@ -211,33 +157,157 @@
             "escalated_to_sigkill": false,
             "launch_failed": false,
             "launch_error": null,
-            "wall_seconds": 0.707,
-            "timeout_seconds": 10,
-            "peak_memory_bytes": 68304896,
+            "wall_seconds": 0.015,
+            "timeout_seconds": 30,
+            "peak_memory_bytes": 1835008,
             "stdout_truncated": false,
             "stderr_truncated": false
           },
-          "stage_seconds": null,
-          "orchestrator_wall_seconds": 0.7095252911094576,
+          "stage_seconds": {
+            "parse": 0.000570083,
+            "presolve": null,
+            "solve": 0.012190917,
+            "postsolve": null
+          },
+          "orchestrator_wall_seconds": 0.01921166699321475,
           "termination": {
             "status": "optimal",
-            "message": "Optimization terminated successfully. (HiGHS Status 7: Optimal)",
-            "dispatched_engine": "highs-ds",
-            "executed_engine": "highs-ds",
-            "engine_reason": "reference solver, engine selected by --method"
+            "message": "Primal, dual, and gap tolerances satisfied",
+            "dispatched_engine": "pdlp",
+            "executed_engine": "pdlp",
+            "engine_reason": "engine forced by the caller"
           },
           "settings": {
-            "requested_engine": "highs-ds",
-            "time_limit_seconds": 9.0,
-            "tolerance": null
+            "requested_engine": "pdlp",
+            "time_limit_seconds": 29,
+            "tolerance": 1e-08,
+            "thread_count": 1
           },
-          "solver_objective": 225494.9631623803,
+          "solver_objective": 225494.9619510624,
+          "dual_bound": null,
+          "mip_gap": null,
+          "work": {
+            "iterations": 8000,
+            "nodes": null,
+            "solve_seconds": 0.012180083
+          },
+          "self_reported": {
+            "max_bound_residual": null,
+            "max_constraint_residual": null,
+            "max_dual_residual": 1.6694930175001529e-06,
+            "max_integrality_violation": 0
+          },
+          "duals_unavailable_reason": null,
+          "check": {
+            "verdict": "feasible",
+            "solver_status": "optimal",
+            "tolerances": {
+              "feasibility_absolute": 1e-06,
+              "feasibility_relative": 1e-08,
+              "integrality_absolute": 1e-06,
+              "optimality_normalised": 1e-06,
+              "frozen": true
+            },
+            "objective_recomputed": 225494.96195106252,
+            "nonfinite": {
+              "count": 0,
+              "variables": []
+            },
+            "primal": {
+              "max_row_violation_abs": 5.353868573365617e-06,
+              "max_row_violation_scaled": 2.456923643711362e-08,
+              "worst_row": "....54",
+              "max_bound_violation_abs": 0.0,
+              "max_bound_violation_scaled": 0.0,
+              "worst_variable": null,
+              "rows_violating": 0,
+              "variables_violating": 0
+            },
+            "integrality": {
+              "checked": false,
+              "max_violation_abs": null,
+              "worst_variable": null,
+              "variables_violating": 0
+            },
+            "dual": {
+              "available": true,
+              "reason": "a multiplier is active against an infinite bound, so the dual objective is unbounded and no gap can be formed",
+              "max_stationarity_abs": 2.384001809696417e-13,
+              "max_sign_violation_abs": 220.61803086011577,
+              "max_complementarity_abs": 1.669493017500153e+24,
+              "dual_objective": null,
+              "gap_abs": null,
+              "gap_normalised": null
+            },
+            "best_known": {
+              "value": 225494.96316,
+              "abs_difference": 0.001208937494084239,
+              "normalised_difference": 2.6806248790627485e-09,
+              "agrees": true
+            },
+            "notes": [
+              "23 multiplier(s) pointed at an infinite bound with magnitude below 1e-06 and were treated as zero",
+              "duals present but KKT/gap did not close within tolerance; optimality not proven",
+              "objective agrees with the best-known value, which is corroboration, not an optimality proof"
+            ]
+          },
+          "logs": {
+            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving ADLITTLE                                    \u2502\n\u2502                                                      \u2502\n\u2502  Model      97 variables \u00b7 56 constraints            \u2502\n\u2502  Reduced    96 variables \u00b7 53 constraints            \u2502\n\u2502  Engine     pdlp                                     \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       225494.962\n  Iterations      8000\n  Solve time      0.0122 s\n  Duals available: 56 shadow prices, 97 reduced costs\n",
+            "stderr_tail": ""
+          }
+        },
+        {
+          "solver": "highs:highs-ds",
+          "engine_use": {
+            "requested": null,
+            "dispatched": "simplex",
+            "executed": "simplex",
+            "fallback": false,
+            "counts_for_requested": true,
+            "reason": null
+          },
+          "process": {
+            "run_status": "SUCCESS",
+            "exit_code": 0,
+            "terminating_signal": null,
+            "timed_out": false,
+            "killed_process_tree": false,
+            "escalated_to_sigkill": false,
+            "launch_failed": false,
+            "launch_error": null,
+            "wall_seconds": 0.019,
+            "timeout_seconds": 30,
+            "peak_memory_bytes": 4521984,
+            "stdout_truncated": false,
+            "stderr_truncated": false
+          },
+          "stage_seconds": {
+            "parse": null,
+            "presolve": null,
+            "solve": 0.0,
+            "postsolve": null
+          },
+          "orchestrator_wall_seconds": 0.1008919170126319,
+          "termination": {
+            "status": "optimal",
+            "message": "Optimal",
+            "dispatched_engine": "simplex",
+            "executed_engine": "simplex",
+            "engine_reason": "reference solver, engine selected by --solver"
+          },
+          "settings": {
+            "requested_engine": "simplex",
+            "time_limit_seconds": null,
+            "tolerance": null,
+            "thread_count": 1
+          },
+          "solver_objective": 225494.96316238047,
           "dual_bound": null,
           "mip_gap": null,
           "work": {
             "iterations": 87,
             "nodes": null,
-            "solve_seconds": 0.5154902499634773
+            "solve_seconds": 0.006853208993561566
           },
           "self_reported": {
             "max_bound_residual": null,
@@ -256,15 +326,15 @@
               "optimality_normalised": 1e-06,
               "frozen": true
             },
-            "objective_recomputed": 225494.9631623803,
+            "objective_recomputed": 225494.96316238047,
             "nonfinite": {
               "count": 0,
               "variables": []
             },
             "primal": {
-              "max_row_violation_abs": 1.1368683772161603e-13,
-              "max_row_violation_scaled": 2.0429247771079984e-16,
-              "worst_row": "....28",
+              "max_row_violation_abs": 6.821210263296962e-13,
+              "max_row_violation_scaled": 1.2765582461731104e-14,
+              "worst_row": "....51",
               "max_bound_violation_abs": 0.0,
               "max_bound_violation_scaled": 0.0,
               "worst_variable": null,
@@ -280,25 +350,23 @@
             "dual": {
               "available": true,
               "reason": null,
-              "max_stationarity_abs": 9.094947017729282e-13,
-              "max_sign_violation_abs": 3.552713678800501e-14,
-              "max_complementarity_abs": 3.552713678800501e+16,
-              "dual_objective": 225494.96316238033,
-              "gap_abs": 2.9103830456733704e-11,
-              "gap_normalised": 6.453307319042579e-17
+              "max_stationarity_abs": 1.9326762412674725e-12,
+              "max_sign_violation_abs": 0.0,
+              "max_complementarity_abs": 1.0289546992225951e-10,
+              "dual_objective": 225494.96316238036,
+              "gap_abs": 1.1641532182693481e-10,
+              "gap_normalised": 2.5813229276170307e-16
             },
             "best_known": {
               "value": 225494.96316,
-              "abs_difference": 2.3802858777344227e-06,
-              "normalised_difference": 5.277901923980021e-12,
+              "abs_difference": 2.380460500717163e-06,
+              "normalised_difference": 5.278289122419163e-12,
               "agrees": true
             },
-            "notes": [
-              "1 multiplier(s) pointed at an infinite bound with magnitude below 1e-06 and were treated as zero"
-            ]
+            "notes": []
           },
           "logs": {
-            "stdout_tail": "",
+            "stdout_tail": "Running HiGHS 1.15.1 (git hash: n/a): Copyright (c) 2026 under MIT licence terms\nIncludes third-party software components, see THIRD_PARTY_NOTICES.md for full details\nCommand line parsed using CLI11 2.5.0: Copyright (c) 2017-2025 University of Cincinnati\nSet option solver to \"simplex\"\nSet option parallel to \"off\"\nSet option threads to 1\nSet option time_limit to 29\nSet option solution_file to \"/var/folders/cx/0__2ns5x7r7gm4cq2g1y8rpr0000gn/T/tmp_kr1yyrk/highs_solution.txt\"\nLP adlittle has 56 rows; 97 cols; 383 nonzeros\nCoefficient ranges:\n  Matrix  [1e-03, 6e+01]\n  Cost    [2e+00, 3e+03]\n  Bound   [0e+00, 0e+00]\n  RHS     [2e+00, 2e+03]\nPresolving model\n53 rows, 95 cols, 373 nonzeros 0s\nDependent equations search running on 14 equations with time limit of 1.00s\nDependent equations search removed 0 rows and 0 nonzeros in 0.00s (limit = 1.00s)\n53 rows, 95 cols, 373 nonzeros 0s\nPresolve reductions: rows 53(-3); columns 95(-2); nonzeros 373(-10) \nSolving the presolved LP\nUsing dual simplex solver\n  Iteration        Objective     Infeasibilities num(sum)\n          0    -1.1853884414e+05 Ph1: 24(125.675); Du: 22(118539) 0.0s\n         87     2.2549496316e+05 Pr: 0(0); Du: 0(1.32104e-10) 0.0s\n\nPerformed postsolve\nSolving the original LP from the solution after postsolve\n\nModel name          : adlittle\nModel status        : Optimal\nSimplex   iterations: 87\nObjective value     :  2.2549496316e+05\nP-D objective error :  1.2906614638e-16\nHiGHS run time      :          0.00\nWriting the solution to /var/folders/cx/0__2ns5x7r7gm4cq2g1y8rpr0000gn/T/tmp_kr1yyrk/highs_solution.txt\n",
             "stderr_tail": ""
           }
         }
@@ -338,19 +406,19 @@
             "escalated_to_sigkill": false,
             "launch_failed": false,
             "launch_error": null,
-            "wall_seconds": 0.002,
-            "timeout_seconds": 10,
-            "peak_memory_bytes": 1671168,
+            "wall_seconds": 0.003,
+            "timeout_seconds": 30,
+            "peak_memory_bytes": 1638400,
             "stdout_truncated": false,
             "stderr_truncated": false
           },
           "stage_seconds": {
-            "parse": 0.000116334,
-            "presolve": 0.000319959,
-            "solve": 5.1459e-05,
-            "postsolve": 2.0084e-05
+            "parse": 0.000160167,
+            "presolve": null,
+            "solve": 0.000737167,
+            "postsolve": null
           },
-          "orchestrator_wall_seconds": 0.004445875063538551,
+          "orchestrator_wall_seconds": 0.006116249991464429,
           "termination": {
             "status": "optimal",
             "message": "dual simplex",
@@ -360,7 +428,7 @@
           },
           "settings": {
             "requested_engine": "dual_simplex",
-            "time_limit_seconds": 9,
+            "time_limit_seconds": 29,
             "tolerance": 1e-08,
             "thread_count": 1
           },
@@ -370,11 +438,11 @@
           "work": {
             "iterations": 16,
             "nodes": null,
-            "solve_seconds": 5e-05
+            "solve_seconds": 0.000731084
           },
           "self_reported": {
-            "max_bound_residual": 0,
-            "max_constraint_residual": 0,
+            "max_bound_residual": null,
+            "max_constraint_residual": null,
             "max_dual_residual": 5.551115123125783e-17,
             "max_integrality_violation": 0
           },
@@ -431,7 +499,7 @@
             ]
           },
           "logs": {
-            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving AFIRO                                       \u2502\n\u2502                                                      \u2502\n\u2502  Model      32 variables \u00b7 27 constraints            \u2502\n\u2502  Reduced    32 variables \u00b7 23 constraints            \u2502\n\u2502  Engine     dual_simplex                             \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       -464.753143\n  Iterations      16\n  Solve time      0.0001 s\n",
+            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving AFIRO                                       \u2502\n\u2502                                                      \u2502\n\u2502  Model      32 variables \u00b7 27 constraints            \u2502\n\u2502  Reduced    32 variables \u00b7 23 constraints            \u2502\n\u2502  Engine     dual_simplex                             \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       -464.753143\n  Iterations      16\n  Solve time      0.0007 s\n  Duals available: 27 shadow prices, 32 reduced costs\n",
             "stderr_tail": ""
           }
         },
@@ -454,19 +522,19 @@
             "escalated_to_sigkill": false,
             "launch_failed": false,
             "launch_error": null,
-            "wall_seconds": 0.002,
-            "timeout_seconds": 10,
-            "peak_memory_bytes": 1572864,
+            "wall_seconds": 0.003,
+            "timeout_seconds": 30,
+            "peak_memory_bytes": 1654784,
             "stdout_truncated": false,
             "stderr_truncated": false
           },
           "stage_seconds": {
-            "parse": 9.925e-05,
-            "presolve": 0.0003185,
-            "solve": 0.0001645,
-            "postsolve": 1.8791e-05
+            "parse": 0.000152459,
+            "presolve": null,
+            "solve": 0.000914208,
+            "postsolve": null
           },
-          "orchestrator_wall_seconds": 0.004185250028967857,
+          "orchestrator_wall_seconds": 0.005895333000808023,
           "termination": {
             "status": "optimal",
             "message": "Primal, dual, and gap tolerances satisfied",
@@ -476,7 +544,7 @@
           },
           "settings": {
             "requested_engine": "pdlp",
-            "time_limit_seconds": 9,
+            "time_limit_seconds": 29,
             "tolerance": 1e-08,
             "thread_count": 1
           },
@@ -486,11 +554,11 @@
           "work": {
             "iterations": 700,
             "nodes": null,
-            "solve_seconds": 0.000162958
+            "solve_seconds": 0.000908208
           },
           "self_reported": {
-            "max_bound_residual": 0,
-            "max_constraint_residual": 0,
+            "max_bound_residual": null,
+            "max_constraint_residual": null,
             "max_dual_residual": 3.4523894846102563e-10,
             "max_integrality_violation": 0
           },
@@ -547,7 +615,7 @@
             ]
           },
           "logs": {
-            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving AFIRO                                       \u2502\n\u2502                                                      \u2502\n\u2502  Model      32 variables \u00b7 27 constraints            \u2502\n\u2502  Reduced    32 variables \u00b7 23 constraints            \u2502\n\u2502  Engine     pdlp                                     \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       -464.753143\n  Iterations      700\n  Solve time      0.0002 s\n",
+            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving AFIRO                                       \u2502\n\u2502                                                      \u2502\n\u2502  Model      32 variables \u00b7 27 constraints            \u2502\n\u2502  Reduced    32 variables \u00b7 23 constraints            \u2502\n\u2502  Engine     pdlp                                     \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       -464.753143\n  Iterations      700\n  Solve time      0.0009 s\n  Duals available: 27 shadow prices, 32 reduced costs\n",
             "stderr_tail": ""
           }
         },
@@ -555,8 +623,8 @@
           "solver": "highs:highs-ds",
           "engine_use": {
             "requested": null,
-            "dispatched": "highs-ds",
-            "executed": "highs-ds",
+            "dispatched": "simplex",
+            "executed": "simplex",
             "fallback": false,
             "counts_for_requested": true,
             "reason": null
@@ -570,25 +638,31 @@
             "escalated_to_sigkill": false,
             "launch_failed": false,
             "launch_error": null,
-            "wall_seconds": 0.343,
-            "timeout_seconds": 10,
-            "peak_memory_bytes": 68370432,
+            "wall_seconds": 0.004,
+            "timeout_seconds": 30,
+            "peak_memory_bytes": 3784704,
             "stdout_truncated": false,
             "stderr_truncated": false
           },
-          "stage_seconds": null,
-          "orchestrator_wall_seconds": 0.3461837919894606,
+          "stage_seconds": {
+            "parse": null,
+            "presolve": null,
+            "solve": 0.0,
+            "postsolve": null
+          },
+          "orchestrator_wall_seconds": 0.07083387501188554,
           "termination": {
             "status": "optimal",
-            "message": "Optimization terminated successfully. (HiGHS Status 7: Optimal)",
-            "dispatched_engine": "highs-ds",
-            "executed_engine": "highs-ds",
-            "engine_reason": "reference solver, engine selected by --method"
+            "message": "Optimal",
+            "dispatched_engine": "simplex",
+            "executed_engine": "simplex",
+            "engine_reason": "reference solver, engine selected by --solver"
           },
           "settings": {
-            "requested_engine": "highs-ds",
-            "time_limit_seconds": 9.0,
-            "tolerance": null
+            "requested_engine": "simplex",
+            "time_limit_seconds": null,
+            "tolerance": null,
+            "thread_count": 1
           },
           "solver_objective": -464.75314285714285,
           "dual_bound": null,
@@ -596,7 +670,7 @@
           "work": {
             "iterations": 6,
             "nodes": null,
-            "solve_seconds": 0.2343588329385966
+            "solve_seconds": 0.006589584008906968
           },
           "self_reported": {
             "max_bound_residual": null,
@@ -621,9 +695,9 @@
               "variables": []
             },
             "primal": {
-              "max_row_violation_abs": 1.4210854715202004e-14,
-              "max_row_violation_scaled": 1.4210854715202004e-17,
-              "worst_row": "R19",
+              "max_row_violation_abs": 5.684341886080802e-14,
+              "max_row_violation_scaled": 1.4720826194067918e-15,
+              "worst_row": "R13",
               "max_bound_violation_abs": 0.0,
               "max_bound_violation_scaled": 0.0,
               "worst_variable": null,
@@ -639,12 +713,12 @@
             "dual": {
               "available": true,
               "reason": null,
-              "max_stationarity_abs": 5.551115123125783e-17,
+              "max_stationarity_abs": 1.1546319456101628e-13,
               "max_sign_violation_abs": 0.0,
-              "max_complementarity_abs": 0.0,
-              "dual_objective": -464.7531428571428,
-              "gap_abs": 5.684341886080802e-14,
-              "gap_normalised": 6.108869948919607e-17
+              "max_complementarity_abs": 4.8722930452115066e-15,
+              "dual_objective": -464.753142857162,
+              "gap_abs": 1.91562321560923e-11,
+              "gap_normalised": 2.0586891727858653e-14
             },
             "best_known": {
               "value": -464.75314286,
@@ -655,7 +729,7 @@
             "notes": []
           },
           "logs": {
-            "stdout_tail": "",
+            "stdout_tail": "Running HiGHS 1.15.1 (git hash: n/a): Copyright (c) 2026 under MIT licence terms\nIncludes third-party software components, see THIRD_PARTY_NOTICES.md for full details\nCommand line parsed using CLI11 2.5.0: Copyright (c) 2017-2025 University of Cincinnati\nSet option solver to \"simplex\"\nSet option parallel to \"off\"\nSet option threads to 1\nSet option time_limit to 29\nSet option solution_file to \"/var/folders/cx/0__2ns5x7r7gm4cq2g1y8rpr0000gn/T/tmpct1b_8s6/highs_solution.txt\"\nLP afiro has 27 rows; 32 cols; 83 nonzeros\nCoefficient ranges:\n  Matrix  [1e-01, 2e+00]\n  Cost    [3e-01, 1e+01]\n  Bound   [0e+00, 0e+00]\n  RHS     [4e+01, 5e+02]\nPresolving model\n22 rows, 29 cols, 74 nonzeros 0s\n15 rows, 22 cols, 60 nonzeros 0s\n9 rows, 12 cols, 32 nonzeros 0s\n7 rows, 10 cols, 28 nonzeros 0s\n7 rows, 10 cols, 28 nonzeros 0s\nPresolve reductions: rows 7(-20); columns 10(-22); nonzeros 28(-55) \nSolving the presolved LP\nUsing dual simplex solver\n  Iteration        Objective     Infeasibilities num(sum)\n          0    -1.9599945292e+00 Ph1: 4(4.97637); Du: 2(1.95999) 0.0s\n          6    -4.6475314286e+02 Pr: 0(0) 0.0s\n\nPerformed postsolve\nSolving the original LP from the solution after postsolve\n\nModel name          : afiro\nModel status        : Optimal\nSimplex   iterations: 6\nObjective value     : -4.6475314286e+02\nP-D objective error :  0.0000000000e+00\nHiGHS run time      :          0.00\nWriting the solution to /var/folders/cx/0__2ns5x7r7gm4cq2g1y8rpr0000gn/T/tmpct1b_8s6/highs_solution.txt\n",
             "stderr_tail": ""
           }
         }
@@ -695,19 +769,19 @@
             "escalated_to_sigkill": false,
             "launch_failed": false,
             "launch_error": null,
-            "wall_seconds": 0.021,
-            "timeout_seconds": 10,
-            "peak_memory_bytes": 2080768,
+            "wall_seconds": 0.016,
+            "timeout_seconds": 30,
+            "peak_memory_bytes": 1835008,
             "stdout_truncated": false,
             "stderr_truncated": false
           },
           "stage_seconds": {
-            "parse": 0.000352667,
-            "presolve": 0.00747875,
-            "solve": 0.000448791,
-            "postsolve": 4.5292e-05
+            "parse": 0.000607084,
+            "presolve": null,
+            "solve": 0.011884583,
+            "postsolve": null
           },
-          "orchestrator_wall_seconds": 0.024514875141903758,
+          "orchestrator_wall_seconds": 0.021108583998284303,
           "termination": {
             "status": "limit_reached",
             "message": "dual simplex",
@@ -717,7 +791,7 @@
           },
           "settings": {
             "requested_engine": "dual_simplex",
-            "time_limit_seconds": 9,
+            "time_limit_seconds": 29,
             "tolerance": 1e-08,
             "thread_count": 1
           },
@@ -727,15 +801,15 @@
           "work": {
             "iterations": 35,
             "nodes": null,
-            "solve_seconds": 0.000445875
+            "solve_seconds": 0.011874
           },
           "self_reported": {
-            "max_bound_residual": 0,
-            "max_constraint_residual": 0,
+            "max_bound_residual": null,
+            "max_constraint_residual": null,
             "max_dual_residual": null,
             "max_integrality_violation": 0
           },
-          "duals_unavailable_reason": "reconstructed multipliers violate the original model's optimality conditions by 5.360000",
+          "duals_unavailable_reason": "Dual sensitivities require an optimal solution.",
           "check": {
             "verdict": "feasible",
             "solver_status": "limit_reached",
@@ -786,7 +860,7 @@
             "notes": []
           },
           "logs": {
-            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving BLEND                                       \u2502\n\u2502                                                      \u2502\n\u2502  Model      83 variables \u00b7 74 constraints            \u2502\n\u2502  Reduced    83 variables \u00b7 71 constraints            \u2502\n\u2502  Engine     dual_simplex                             \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n! Limit Reached\n\n  Objective       8.04951084e-15\n  Iterations      35\n  Solve time      0.0004 s\n",
+            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving BLEND                                       \u2502\n\u2502                                                      \u2502\n\u2502  Model      83 variables \u00b7 74 constraints            \u2502\n\u2502  Reduced    83 variables \u00b7 71 constraints            \u2502\n\u2502  Engine     dual_simplex                             \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n! Limit Reached\n\n  Objective       8.04951084e-15\n  Iterations      35\n  Solve time      0.0119 s\n  Duals unavailable: Dual sensitivities require an optimal solution.\n",
             "stderr_tail": ""
           }
         },
@@ -809,19 +883,19 @@
             "escalated_to_sigkill": false,
             "launch_failed": false,
             "launch_error": null,
-            "wall_seconds": 0.014,
-            "timeout_seconds": 10,
-            "peak_memory_bytes": 2031616,
+            "wall_seconds": 0.017,
+            "timeout_seconds": 30,
+            "peak_memory_bytes": 1785856,
             "stdout_truncated": false,
             "stderr_truncated": false
           },
           "stage_seconds": {
-            "parse": 0.000368917,
-            "presolve": 0.009130792,
-            "solve": 0.002511,
-            "postsolve": 0.000106959
+            "parse": 0.000581333,
+            "presolve": null,
+            "solve": 0.013716959,
+            "postsolve": null
           },
-          "orchestrator_wall_seconds": 0.017875958001241088,
+          "orchestrator_wall_seconds": 0.020767125010024756,
           "termination": {
             "status": "optimal",
             "message": "Primal, dual, and gap tolerances satisfied",
@@ -831,7 +905,7 @@
           },
           "settings": {
             "requested_engine": "pdlp",
-            "time_limit_seconds": 9,
+            "time_limit_seconds": 29,
             "tolerance": 1e-08,
             "thread_count": 1
           },
@@ -841,11 +915,11 @@
           "work": {
             "iterations": 2800,
             "nodes": null,
-            "solve_seconds": 0.002504333
+            "solve_seconds": 0.013706959
           },
           "self_reported": {
-            "max_bound_residual": 0,
-            "max_constraint_residual": 0,
+            "max_bound_residual": null,
+            "max_constraint_residual": null,
             "max_dual_residual": 1.6935445288268624e-08,
             "max_integrality_violation": 0
           },
@@ -902,7 +976,7 @@
             ]
           },
           "logs": {
-            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving BLEND                                       \u2502\n\u2502                                                      \u2502\n\u2502  Model      83 variables \u00b7 74 constraints            \u2502\n\u2502  Reduced    83 variables \u00b7 71 constraints            \u2502\n\u2502  Engine     pdlp                                     \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       -30.8121493\n  Iterations      2800\n  Solve time      0.0025 s\n",
+            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving BLEND                                       \u2502\n\u2502                                                      \u2502\n\u2502  Model      83 variables \u00b7 74 constraints            \u2502\n\u2502  Reduced    83 variables \u00b7 71 constraints            \u2502\n\u2502  Engine     pdlp                                     \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       -30.8121493\n  Iterations      2800\n  Solve time      0.0137 s\n  Duals available: 74 shadow prices, 83 reduced costs\n",
             "stderr_tail": ""
           }
         },
@@ -910,8 +984,8 @@
           "solver": "highs:highs-ds",
           "engine_use": {
             "requested": null,
-            "dispatched": "highs-ds",
-            "executed": "highs-ds",
+            "dispatched": "simplex",
+            "executed": "simplex",
             "fallback": false,
             "counts_for_requested": true,
             "reason": null
@@ -925,33 +999,39 @@
             "escalated_to_sigkill": false,
             "launch_failed": false,
             "launch_error": null,
-            "wall_seconds": 0.341,
-            "timeout_seconds": 10,
-            "peak_memory_bytes": 72400896,
+            "wall_seconds": 0.005,
+            "timeout_seconds": 30,
+            "peak_memory_bytes": 3981312,
             "stdout_truncated": false,
             "stderr_truncated": false
           },
-          "stage_seconds": null,
-          "orchestrator_wall_seconds": 0.3456458749715239,
+          "stage_seconds": {
+            "parse": null,
+            "presolve": null,
+            "solve": 0.0,
+            "postsolve": null
+          },
+          "orchestrator_wall_seconds": 0.07448529200337362,
           "termination": {
             "status": "optimal",
-            "message": "Optimization terminated successfully. (HiGHS Status 7: Optimal)",
-            "dispatched_engine": "highs-ds",
-            "executed_engine": "highs-ds",
-            "engine_reason": "reference solver, engine selected by --method"
+            "message": "Optimal",
+            "dispatched_engine": "simplex",
+            "executed_engine": "simplex",
+            "engine_reason": "reference solver, engine selected by --solver"
           },
           "settings": {
-            "requested_engine": "highs-ds",
-            "time_limit_seconds": 9.0,
-            "tolerance": null
+            "requested_engine": "simplex",
+            "time_limit_seconds": null,
+            "tolerance": null,
+            "thread_count": 1
           },
-          "solver_objective": -30.812149845828266,
+          "solver_objective": -30.812149845827705,
           "dual_bound": null,
           "mip_gap": null,
           "work": {
             "iterations": 80,
             "nodes": null,
-            "solve_seconds": 0.2212970000691712
+            "solve_seconds": 0.006400375001248904
           },
           "self_reported": {
             "max_bound_residual": null,
@@ -970,15 +1050,15 @@
               "optimality_normalised": 1e-06,
               "frozen": true
             },
-            "objective_recomputed": -30.812149845828266,
+            "objective_recomputed": -30.812149845827705,
             "nonfinite": {
               "count": 0,
               "variables": []
             },
             "primal": {
-              "max_row_violation_abs": 2.0920765120280294e-14,
-              "max_row_violation_scaled": 2.7214779169670037e-16,
-              "worst_row": "43",
+              "max_row_violation_abs": 9.18112808001581e-13,
+              "max_row_violation_scaled": 3.342683752098248e-14,
+              "worst_row": "56",
               "max_bound_violation_abs": 0.0,
               "max_bound_violation_scaled": 0.0,
               "worst_variable": null,
@@ -994,25 +1074,23 @@
             "dual": {
               "available": true,
               "reason": null,
-              "max_stationarity_abs": 1.27675647831893e-15,
-              "max_sign_violation_abs": 1.3600232051658168e-15,
-              "max_complementarity_abs": 1360023205165816.8,
-              "dual_objective": -30.812149845828227,
-              "gap_abs": 3.907985046680551e-14,
-              "gap_normalised": 6.240365267032625e-16
+              "max_stationarity_abs": 3.245667623552606e-12,
+              "max_sign_violation_abs": 0.0,
+              "max_complementarity_abs": 4.60153888073552e-13,
+              "dual_objective": -30.812149845828316,
+              "gap_abs": 6.110667527536862e-13,
+              "gap_normalised": 9.757662053905632e-15
             },
             "best_known": {
               "value": -30.812149846,
-              "abs_difference": 1.7173462651953741e-10,
-              "normalised_difference": 2.7423001512932967e-12,
+              "abs_difference": 1.722959552807879e-10,
+              "normalised_difference": 2.7512635850404893e-12,
               "agrees": true
             },
-            "notes": [
-              "1 multiplier(s) pointed at an infinite bound with magnitude below 1e-06 and were treated as zero"
-            ]
+            "notes": []
           },
           "logs": {
-            "stdout_tail": "",
+            "stdout_tail": "Running HiGHS 1.15.1 (git hash: n/a): Copyright (c) 2026 under MIT licence terms\nIncludes third-party software components, see THIRD_PARTY_NOTICES.md for full details\nCommand line parsed using CLI11 2.5.0: Copyright (c) 2017-2025 University of Cincinnati\nSet option solver to \"simplex\"\nSet option parallel to \"off\"\nSet option threads to 1\nSet option time_limit to 29\nSet option solution_file to \"/var/folders/cx/0__2ns5x7r7gm4cq2g1y8rpr0000gn/T/tmprzhjleu8/highs_solution.txt\"\nLP blend has 74 rows; 83 cols; 491 nonzeros\nCoefficient ranges:\n  Matrix  [3e-03, 7e+01]\n  Cost    [4e-03, 5e+00]\n  Bound   [0e+00, 0e+00]\n  RHS     [3e+00, 3e+01]\nPresolving model\n61 rows, 72 cols, 420 nonzeros 0s\n48 rows, 56 cols, 392 nonzeros 0s\nDependent equations search running on 18 equations with time limit of 1.00s\nDependent equations search removed 0 rows and 0 nonzeros in 0.00s (limit = 1.00s)\n47 rows, 55 cols, 393 nonzeros 0s\nPresolve reductions: rows 47(-27); columns 55(-28); nonzeros 393(-98) \nSolving the presolved LP\nUsing dual simplex solver\n  Iteration        Objective     Infeasibilities num(sum)\n          0    -7.3929829894e+01 Ph1: 41(287.11); Du: 32(73.9298) 0.0s\n         80    -3.0812149846e+01 Pr: 0(0); Du: 0(1.77636e-15) 0.0s\n\nPerformed postsolve\nSolving the original LP from the solution after postsolve\n\nModel name          : blend\nModel status        : Optimal\nSimplex   iterations: 80\nObjective value     : -3.0812149846e+01\nP-D objective error :  0.0000000000e+00\nHiGHS run time      :          0.00\nWriting the solution to /var/folders/cx/0__2ns5x7r7gm4cq2g1y8rpr0000gn/T/tmprzhjleu8/highs_solution.txt\n",
             "stderr_tail": ""
           }
         }
@@ -1052,19 +1130,19 @@
             "escalated_to_sigkill": false,
             "launch_failed": false,
             "launch_error": null,
-            "wall_seconds": 1.053,
-            "timeout_seconds": 10,
-            "peak_memory_bytes": 9601024,
+            "wall_seconds": 1.503,
+            "timeout_seconds": 30,
+            "peak_memory_bytes": 9519104,
             "stdout_truncated": false,
             "stderr_truncated": false
           },
           "stage_seconds": {
-            "parse": 0.003123875,
-            "presolve": 0.469956958,
-            "solve": 0.574476167,
-            "postsolve": 0.0005435
+            "parse": 0.00434325,
+            "presolve": null,
+            "solve": 1.492878417,
+            "postsolve": null
           },
-          "orchestrator_wall_seconds": 1.057681709062308,
+          "orchestrator_wall_seconds": 1.507528917005402,
           "termination": {
             "status": "optimal",
             "message": "dual simplex",
@@ -1074,7 +1152,7 @@
           },
           "settings": {
             "requested_engine": "dual_simplex",
-            "time_limit_seconds": 9,
+            "time_limit_seconds": 29,
             "tolerance": 1e-08,
             "thread_count": 1
           },
@@ -1084,11 +1162,11 @@
           "work": {
             "iterations": 834,
             "nodes": null,
-            "solve_seconds": 0.5744525
+            "solve_seconds": 1.492817792
           },
           "self_reported": {
-            "max_bound_residual": 0,
-            "max_constraint_residual": 0,
+            "max_bound_residual": null,
+            "max_constraint_residual": null,
             "max_dual_residual": 4.5363712786184093e-13,
             "max_integrality_violation": 0
           },
@@ -1145,7 +1223,7 @@
             ]
           },
           "logs": {
-            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving DEGEN2                                      \u2502\n\u2502                                                      \u2502\n\u2502  Model      534 variables \u00b7 444 constraints          \u2502\n\u2502  Reduced    534 variables \u00b7 441 constraints          \u2502\n\u2502  Engine     dual_simplex                             \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       -1435.178\n  Iterations      834\n  Solve time      0.5745 s\n",
+            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving DEGEN2                                      \u2502\n\u2502                                                      \u2502\n\u2502  Model      534 variables \u00b7 444 constraints          \u2502\n\u2502  Reduced    534 variables \u00b7 441 constraints          \u2502\n\u2502  Engine     dual_simplex                             \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       -1435.178\n  Iterations      834\n  Solve time      1.4928 s\n  Duals available: 444 shadow prices, 534 reduced costs\n",
             "stderr_tail": ""
           }
         },
@@ -1168,19 +1246,19 @@
             "escalated_to_sigkill": false,
             "launch_failed": false,
             "launch_error": null,
-            "wall_seconds": 0.308,
-            "timeout_seconds": 10,
-            "peak_memory_bytes": 3719168,
+            "wall_seconds": 0.496,
+            "timeout_seconds": 30,
+            "peak_memory_bytes": 3653632,
             "stdout_truncated": false,
             "stderr_truncated": false
           },
           "stage_seconds": {
-            "parse": 0.00282425,
-            "presolve": 0.2788165,
-            "solve": 0.021803083,
-            "postsolve": 0.000392625
+            "parse": 0.004323417,
+            "presolve": null,
+            "solve": 0.485549625,
+            "postsolve": null
           },
-          "orchestrator_wall_seconds": 0.3124840829987079,
+          "orchestrator_wall_seconds": 0.5020131659985054,
           "termination": {
             "status": "optimal",
             "message": "Primal, dual, and gap tolerances satisfied",
@@ -1190,7 +1268,7 @@
           },
           "settings": {
             "requested_engine": "pdlp",
-            "time_limit_seconds": 9,
+            "time_limit_seconds": 29,
             "tolerance": 1e-08,
             "thread_count": 1
           },
@@ -1200,11 +1278,11 @@
           "work": {
             "iterations": 5700,
             "nodes": null,
-            "solve_seconds": 0.02178975
+            "solve_seconds": 0.485504709
           },
           "self_reported": {
-            "max_bound_residual": 0,
-            "max_constraint_residual": 0,
+            "max_bound_residual": null,
+            "max_constraint_residual": null,
             "max_dual_residual": 2.651245945006764e-09,
             "max_integrality_violation": 0
           },
@@ -1261,7 +1339,7 @@
             ]
           },
           "logs": {
-            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving DEGEN2                                      \u2502\n\u2502                                                      \u2502\n\u2502  Model      534 variables \u00b7 444 constraints          \u2502\n\u2502  Reduced    534 variables \u00b7 441 constraints          \u2502\n\u2502  Engine     pdlp                                     \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       -1435.178\n  Iterations      5700\n  Solve time      0.0218 s\n",
+            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving DEGEN2                                      \u2502\n\u2502                                                      \u2502\n\u2502  Model      534 variables \u00b7 444 constraints          \u2502\n\u2502  Reduced    534 variables \u00b7 441 constraints          \u2502\n\u2502  Engine     pdlp                                     \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       -1435.178\n  Iterations      5700\n  Solve time      0.4855 s\n  Duals available: 444 shadow prices, 534 reduced costs\n",
             "stderr_tail": ""
           }
         },
@@ -1269,8 +1347,8 @@
           "solver": "highs:highs-ds",
           "engine_use": {
             "requested": null,
-            "dispatched": "highs-ds",
-            "executed": "highs-ds",
+            "dispatched": "simplex",
+            "executed": "simplex",
             "fallback": false,
             "counts_for_requested": true,
             "reason": null
@@ -1284,33 +1362,39 @@
             "escalated_to_sigkill": false,
             "launch_failed": false,
             "launch_error": null,
-            "wall_seconds": 0.254,
-            "timeout_seconds": 10,
-            "peak_memory_bytes": 80281600,
+            "wall_seconds": 0.022,
+            "timeout_seconds": 30,
+            "peak_memory_bytes": 5341184,
             "stdout_truncated": false,
             "stderr_truncated": false
           },
-          "stage_seconds": null,
-          "orchestrator_wall_seconds": 0.2576668330002576,
+          "stage_seconds": {
+            "parse": null,
+            "presolve": null,
+            "solve": 0.01,
+            "postsolve": null
+          },
+          "orchestrator_wall_seconds": 0.09540637499594595,
           "termination": {
             "status": "optimal",
-            "message": "Optimization terminated successfully. (HiGHS Status 7: Optimal)",
-            "dispatched_engine": "highs-ds",
-            "executed_engine": "highs-ds",
-            "engine_reason": "reference solver, engine selected by --method"
+            "message": "Optimal",
+            "dispatched_engine": "simplex",
+            "executed_engine": "simplex",
+            "engine_reason": "reference solver, engine selected by --solver"
           },
           "settings": {
-            "requested_engine": "highs-ds",
-            "time_limit_seconds": 9.0,
-            "tolerance": null
+            "requested_engine": "simplex",
+            "time_limit_seconds": null,
+            "tolerance": null,
+            "thread_count": 1
           },
           "solver_objective": -1435.178,
           "dual_bound": null,
           "mip_gap": null,
           "work": {
-            "iterations": 476,
+            "iterations": 458,
             "nodes": null,
-            "solve_seconds": 0.16596045903861523
+            "solve_seconds": 0.011805959002231248
           },
           "self_reported": {
             "max_bound_residual": null,
@@ -1336,8 +1420,8 @@
             },
             "primal": {
               "max_row_violation_abs": 1.1102230246251565e-16,
-              "max_row_violation_scaled": 1.1102230246251565e-16,
-              "worst_row": "SC01871",
+              "max_row_violation_scaled": 2.7755575615628914e-17,
+              "worst_row": "CR2016A",
               "max_bound_violation_abs": 0.0,
               "max_bound_violation_scaled": 0.0,
               "worst_variable": null,
@@ -1353,12 +1437,12 @@
             "dual": {
               "available": true,
               "reason": null,
-              "max_stationarity_abs": 5.773159728050814e-15,
+              "max_stationarity_abs": 3.9968028886505635e-15,
               "max_sign_violation_abs": 0.0,
-              "max_complementarity_abs": 1.0063061495202419e-15,
-              "dual_objective": -1435.178,
-              "gap_abs": 0.0,
-              "gap_normalised": 0.0
+              "max_complementarity_abs": 4.0023540037736893e-16,
+              "dual_objective": -1435.1779999999992,
+              "gap_abs": 9.094947017729282e-13,
+              "gap_normalised": 3.167474537371641e-16
             },
             "best_known": {
               "value": -1435.178,
@@ -1369,7 +1453,7 @@
             "notes": []
           },
           "logs": {
-            "stdout_tail": "",
+            "stdout_tail": "Running HiGHS 1.15.1 (git hash: n/a): Copyright (c) 2026 under MIT licence terms\nIncludes third-party software components, see THIRD_PARTY_NOTICES.md for full details\nCommand line parsed using CLI11 2.5.0: Copyright (c) 2017-2025 University of Cincinnati\nSet option solver to \"simplex\"\nSet option parallel to \"off\"\nSet option threads to 1\nSet option time_limit to 29\nSet option solution_file to \"/var/folders/cx/0__2ns5x7r7gm4cq2g1y8rpr0000gn/T/tmp7wwnpid4/highs_solution.txt\"\nLP degen2 has 444 rows; 534 cols; 3978 nonzeros\nCoefficient ranges:\n  Matrix  [1e+00, 1e+00]\n  Cost    [1e-02, 5e+01]\n  Bound   [0e+00, 0e+00]\n  RHS     [1e+00, 4e+01]\nPresolving model\n381 rows, 473 cols, 3850 nonzeros 0s\nDependent equations search running on 160 equations with time limit of 1.00s\nDependent equations search removed 2 rows and 54 nonzeros in 0.00s (limit = 1.00s)\n378 rows, 473 cols, 3793 nonzeros 0s\nPresolve reductions: rows 378(-66); columns 473(-61); nonzeros 3793(-185) \nSolving the presolved LP\nUsing dual simplex solver\n  Iteration        Objective     Infeasibilities num(sum)\n          0    -2.3126389875e+03 Ph1: 240(639); Du: 315(2312.64) 0.0s\n        458    -1.4351780000e+03 Pr: 0(0) 0.0s\n\nPerformed postsolve\nSolving the original LP from the solution after postsolve\n\nModel name          : degen2\nModel status        : Optimal\nSimplex   iterations: 458\nObjective value     : -1.4351780000e+03\nP-D objective error :  3.9593431717e-16\nHiGHS run time      :          0.01\nWriting the solution to /var/folders/cx/0__2ns5x7r7gm4cq2g1y8rpr0000gn/T/tmp7wwnpid4/highs_solution.txt\n",
             "stderr_tail": ""
           }
         }
@@ -1409,19 +1493,19 @@
             "escalated_to_sigkill": false,
             "launch_failed": false,
             "launch_error": null,
-            "wall_seconds": 0.016,
-            "timeout_seconds": 10,
-            "peak_memory_bytes": 2064384,
+            "wall_seconds": 0.028,
+            "timeout_seconds": 30,
+            "peak_memory_bytes": 2211840,
             "stdout_truncated": false,
             "stderr_truncated": false
           },
           "stage_seconds": {
-            "parse": 0.000517042,
-            "presolve": 0.013194542,
-            "solve": 0.00073075,
-            "postsolve": 3.2875e-05
+            "parse": 0.000866916,
+            "presolve": null,
+            "solve": 0.024570292,
+            "postsolve": null
           },
-          "orchestrator_wall_seconds": 0.018929125042632222,
+          "orchestrator_wall_seconds": 0.03223733400227502,
           "termination": {
             "status": "optimal",
             "message": "dual simplex",
@@ -1431,7 +1515,7 @@
           },
           "settings": {
             "requested_engine": "dual_simplex",
-            "time_limit_seconds": 9,
+            "time_limit_seconds": 29,
             "tolerance": 1e-08,
             "thread_count": 1
           },
@@ -1441,11 +1525,11 @@
           "work": {
             "iterations": 45,
             "nodes": null,
-            "solve_seconds": 0.000728167
+            "solve_seconds": 0.024555583
           },
           "self_reported": {
-            "max_bound_residual": 0,
-            "max_constraint_residual": 0,
+            "max_bound_residual": null,
+            "max_constraint_residual": null,
             "max_dual_residual": 4.440892098500626e-16,
             "max_integrality_violation": 0
           },
@@ -1500,7 +1584,7 @@
             "notes": []
           },
           "logs": {
-            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving RECIPE                                      \u2502\n\u2502                                                      \u2502\n\u2502  Model      180 variables \u00b7 91 constraints           \u2502\n\u2502  Reduced    137 variables \u00b7 75 constraints           \u2502\n\u2502  Engine     dual_simplex                             \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       -266.616\n  Iterations      45\n  Solve time      0.0007 s\n",
+            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving RECIPE                                      \u2502\n\u2502                                                      \u2502\n\u2502  Model      180 variables \u00b7 91 constraints           \u2502\n\u2502  Reduced    137 variables \u00b7 75 constraints           \u2502\n\u2502  Engine     dual_simplex                             \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       -266.616\n  Iterations      45\n  Solve time      0.0246 s\n  Duals available: 91 shadow prices, 180 reduced costs\n",
             "stderr_tail": ""
           }
         },
@@ -1523,19 +1607,19 @@
             "escalated_to_sigkill": false,
             "launch_failed": false,
             "launch_error": null,
-            "wall_seconds": 0.016,
-            "timeout_seconds": 10,
-            "peak_memory_bytes": 1802240,
+            "wall_seconds": 0.026,
+            "timeout_seconds": 30,
+            "peak_memory_bytes": 1900544,
             "stdout_truncated": false,
             "stderr_truncated": false
           },
           "stage_seconds": {
-            "parse": 0.000512208,
-            "presolve": 0.012924,
-            "solve": 0.000835417,
-            "postsolve": 3.2833e-05
+            "parse": 0.000870666,
+            "presolve": null,
+            "solve": 0.023159958,
+            "postsolve": null
           },
-          "orchestrator_wall_seconds": 0.018504291074350476,
+          "orchestrator_wall_seconds": 0.030558416998246685,
           "termination": {
             "status": "optimal",
             "message": "Primal, dual, and gap tolerances satisfied",
@@ -1545,7 +1629,7 @@
           },
           "settings": {
             "requested_engine": "pdlp",
-            "time_limit_seconds": 9,
+            "time_limit_seconds": 29,
             "tolerance": 1e-08,
             "thread_count": 1
           },
@@ -1555,11 +1639,11 @@
           "work": {
             "iterations": 1100,
             "nodes": null,
-            "solve_seconds": 0.000832834
+            "solve_seconds": 0.023146292
           },
           "self_reported": {
-            "max_bound_residual": 0,
-            "max_constraint_residual": 0,
+            "max_bound_residual": null,
+            "max_constraint_residual": null,
             "max_dual_residual": 1.1148415524075972e-11,
             "max_integrality_violation": 0
           },
@@ -1614,7 +1698,7 @@
             "notes": []
           },
           "logs": {
-            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving RECIPE                                      \u2502\n\u2502                                                      \u2502\n\u2502  Model      180 variables \u00b7 91 constraints           \u2502\n\u2502  Reduced    137 variables \u00b7 75 constraints           \u2502\n\u2502  Engine     pdlp                                     \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       -266.616\n  Iterations      1100\n  Solve time      0.0008 s\n",
+            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving RECIPE                                      \u2502\n\u2502                                                      \u2502\n\u2502  Model      180 variables \u00b7 91 constraints           \u2502\n\u2502  Reduced    137 variables \u00b7 75 constraints           \u2502\n\u2502  Engine     pdlp                                     \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       -266.616\n  Iterations      1100\n  Solve time      0.0231 s\n  Duals available: 91 shadow prices, 180 reduced costs\n",
             "stderr_tail": ""
           }
         },
@@ -1622,8 +1706,8 @@
           "solver": "highs:highs-ds",
           "engine_use": {
             "requested": null,
-            "dispatched": "highs-ds",
-            "executed": "highs-ds",
+            "dispatched": "simplex",
+            "executed": "simplex",
             "fallback": false,
             "counts_for_requested": true,
             "reason": null
@@ -1637,25 +1721,31 @@
             "escalated_to_sigkill": false,
             "launch_failed": false,
             "launch_error": null,
-            "wall_seconds": 0.295,
-            "timeout_seconds": 10,
-            "peak_memory_bytes": 70615040,
+            "wall_seconds": 0.005,
+            "timeout_seconds": 30,
+            "peak_memory_bytes": 4046848,
             "stdout_truncated": false,
             "stderr_truncated": false
           },
-          "stage_seconds": null,
-          "orchestrator_wall_seconds": 0.2973757078871131,
+          "stage_seconds": {
+            "parse": null,
+            "presolve": null,
+            "solve": 0.0,
+            "postsolve": null
+          },
+          "orchestrator_wall_seconds": 0.07498595899960492,
           "termination": {
             "status": "optimal",
-            "message": "Optimization terminated successfully. (HiGHS Status 7: Optimal)",
-            "dispatched_engine": "highs-ds",
-            "executed_engine": "highs-ds",
-            "engine_reason": "reference solver, engine selected by --method"
+            "message": "Optimal",
+            "dispatched_engine": "simplex",
+            "executed_engine": "simplex",
+            "engine_reason": "reference solver, engine selected by --solver"
           },
           "settings": {
-            "requested_engine": "highs-ds",
-            "time_limit_seconds": 9.0,
-            "tolerance": null
+            "requested_engine": "simplex",
+            "time_limit_seconds": null,
+            "tolerance": null,
+            "thread_count": 1
           },
           "solver_objective": -266.61600000000027,
           "dual_bound": null,
@@ -1663,7 +1753,7 @@
           "work": {
             "iterations": 19,
             "nodes": null,
-            "solve_seconds": 0.19870383385568857
+            "solve_seconds": 0.006979584009968676
           },
           "self_reported": {
             "max_bound_residual": null,
@@ -1706,12 +1796,12 @@
             "dual": {
               "available": true,
               "reason": null,
-              "max_stationarity_abs": 2.203098814490545e-16,
+              "max_stationarity_abs": 4.440892098500626e-16,
               "max_sign_violation_abs": 0.0,
               "max_complementarity_abs": 0.0,
-              "dual_objective": -266.61599999999993,
-              "gap_abs": 3.410605131648481e-13,
-              "gap_normalised": 6.384127367227121e-16
+              "dual_objective": -266.616,
+              "gap_abs": 2.8421709430404007e-13,
+              "gap_normalised": 5.320106139355935e-16
             },
             "best_known": {
               "value": -266.616,
@@ -1722,7 +1812,7 @@
             "notes": []
           },
           "logs": {
-            "stdout_tail": "",
+            "stdout_tail": "Running HiGHS 1.15.1 (git hash: n/a): Copyright (c) 2026 under MIT licence terms\nIncludes third-party software components, see THIRD_PARTY_NOTICES.md for full details\nCommand line parsed using CLI11 2.5.0: Copyright (c) 2017-2025 University of Cincinnati\nSet option solver to \"simplex\"\nSet option parallel to \"off\"\nSet option threads to 1\nSet option time_limit to 29\nSet option solution_file to \"/var/folders/cx/0__2ns5x7r7gm4cq2g1y8rpr0000gn/T/tmpn9lel6km/highs_solution.txt\"\nLP recipe has 91 rows; 180 cols; 663 nonzeros\nCoefficient ranges:\n  Matrix  [1e-01, 1e+02]\n  Cost    [1e-03, 2e+00]\n  Bound   [2e+00, 5e+03]\n  RHS     [0e+00, 0e+00]\nPresolving model\n67 rows, 130 cols, 560 nonzeros 0s\n56 rows, 85 cols, 390 nonzeros 0s\n41 rows, 70 cols, 276 nonzeros 0s\nDependent equations search running on 14 equations with time limit of 1.00s\nDependent equations search removed 0 rows and 0 nonzeros in 0.00s (limit = 1.00s)\n35 rows, 58 cols, 258 nonzeros 0s\nPresolve reductions: rows 35(-56); columns 58(-122); nonzeros 258(-405) \nSolving the presolved LP\nUsing dual simplex solver\n  Iteration        Objective     Infeasibilities num(sum)\n          0     0.0000000000e+00 Ph1: 0(0) 0.0s\n         19    -2.6661600000e+02 Pr: 0(0) 0.0s\n\nPerformed postsolve\nSolving the original LP from the solution after postsolve\n\nModel name          : recipe\nModel status        : Optimal\nSimplex   iterations: 19\nObjective value     : -2.6661600000e+02\nP-D objective error :  6.3841273672e-16\nHiGHS run time      :          0.00\nWriting the solution to /var/folders/cx/0__2ns5x7r7gm4cq2g1y8rpr0000gn/T/tmpn9lel6km/highs_solution.txt\n",
             "stderr_tail": ""
           }
         }
@@ -1762,19 +1852,19 @@
             "escalated_to_sigkill": false,
             "launch_failed": false,
             "launch_error": null,
-            "wall_seconds": 0.002,
-            "timeout_seconds": 10,
-            "peak_memory_bytes": 1687552,
+            "wall_seconds": 0.004,
+            "timeout_seconds": 30,
+            "peak_memory_bytes": 1720320,
             "stdout_truncated": false,
             "stderr_truncated": false
           },
           "stage_seconds": {
-            "parse": 0.000120167,
-            "presolve": 0.000748625,
-            "solve": 0.000212542,
-            "postsolve": 1.5459e-05
+            "parse": 0.000218667,
+            "presolve": null,
+            "solve": 0.001828709,
+            "postsolve": null
           },
-          "orchestrator_wall_seconds": 0.00538412481546402,
+          "orchestrator_wall_seconds": 0.007641165997483768,
           "termination": {
             "status": "optimal",
             "message": "dual simplex",
@@ -1784,7 +1874,7 @@
           },
           "settings": {
             "requested_engine": "dual_simplex",
-            "time_limit_seconds": 9,
+            "time_limit_seconds": 29,
             "tolerance": 1e-08,
             "thread_count": 1
           },
@@ -1794,11 +1884,11 @@
           "work": {
             "iterations": 45,
             "nodes": null,
-            "solve_seconds": 0.000210542
+            "solve_seconds": 0.001821375
           },
           "self_reported": {
-            "max_bound_residual": 0,
-            "max_constraint_residual": 0,
+            "max_bound_residual": null,
+            "max_constraint_residual": null,
             "max_dual_residual": 2.0173207006233855e-16,
             "max_integrality_violation": 0
           },
@@ -1855,7 +1945,7 @@
             ]
           },
           "logs": {
-            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving SC50A                                       \u2502\n\u2502                                                      \u2502\n\u2502  Model      48 variables \u00b7 50 constraints            \u2502\n\u2502  Reduced    48 variables \u00b7 49 constraints            \u2502\n\u2502  Engine     dual_simplex                             \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       -64.5750771\n  Iterations      45\n  Solve time      0.0002 s\n",
+            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving SC50A                                       \u2502\n\u2502                                                      \u2502\n\u2502  Model      48 variables \u00b7 50 constraints            \u2502\n\u2502  Reduced    48 variables \u00b7 49 constraints            \u2502\n\u2502  Engine     dual_simplex                             \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       -64.5750771\n  Iterations      45\n  Solve time      0.0018 s\n  Duals available: 50 shadow prices, 48 reduced costs\n",
             "stderr_tail": ""
           }
         },
@@ -1878,19 +1968,19 @@
             "escalated_to_sigkill": false,
             "launch_failed": false,
             "launch_error": null,
-            "wall_seconds": 0.003,
-            "timeout_seconds": 10,
-            "peak_memory_bytes": 1622016,
+            "wall_seconds": 0.005,
+            "timeout_seconds": 30,
+            "peak_memory_bytes": 1687552,
             "stdout_truncated": false,
             "stderr_truncated": false
           },
           "stage_seconds": {
-            "parse": 0.000130833,
-            "presolve": 0.00075975,
-            "solve": 0.000678125,
-            "postsolve": 1.4791e-05
+            "parse": 0.000210208,
+            "presolve": null,
+            "solve": 0.00268475,
+            "postsolve": null
           },
-          "orchestrator_wall_seconds": 0.005083667114377022,
+          "orchestrator_wall_seconds": 0.008134666000842117,
           "termination": {
             "status": "optimal",
             "message": "Primal, dual, and gap tolerances satisfied",
@@ -1900,7 +1990,7 @@
           },
           "settings": {
             "requested_engine": "pdlp",
-            "time_limit_seconds": 9,
+            "time_limit_seconds": 29,
             "tolerance": 1e-08,
             "thread_count": 1
           },
@@ -1910,11 +2000,11 @@
           "work": {
             "iterations": 2400,
             "nodes": null,
-            "solve_seconds": 0.000676208
+            "solve_seconds": 0.002678083
           },
           "self_reported": {
-            "max_bound_residual": 0,
-            "max_constraint_residual": 0,
+            "max_bound_residual": null,
+            "max_constraint_residual": null,
             "max_dual_residual": 3.14498080355996e-10,
             "max_integrality_violation": 0
           },
@@ -1971,7 +2061,7 @@
             ]
           },
           "logs": {
-            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving SC50A                                       \u2502\n\u2502                                                      \u2502\n\u2502  Model      48 variables \u00b7 50 constraints            \u2502\n\u2502  Reduced    48 variables \u00b7 49 constraints            \u2502\n\u2502  Engine     pdlp                                     \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       -64.5750769\n  Iterations      2400\n  Solve time      0.0007 s\n",
+            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving SC50A                                       \u2502\n\u2502                                                      \u2502\n\u2502  Model      48 variables \u00b7 50 constraints            \u2502\n\u2502  Reduced    48 variables \u00b7 49 constraints            \u2502\n\u2502  Engine     pdlp                                     \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       -64.5750769\n  Iterations      2400\n  Solve time      0.0027 s\n  Duals available: 50 shadow prices, 48 reduced costs\n",
             "stderr_tail": ""
           }
         },
@@ -1979,8 +2069,8 @@
           "solver": "highs:highs-ds",
           "engine_use": {
             "requested": null,
-            "dispatched": "highs-ds",
-            "executed": "highs-ds",
+            "dispatched": "simplex",
+            "executed": "simplex",
             "fallback": false,
             "counts_for_requested": true,
             "reason": null
@@ -1994,25 +2084,31 @@
             "escalated_to_sigkill": false,
             "launch_failed": false,
             "launch_error": null,
-            "wall_seconds": 0.237,
-            "timeout_seconds": 10,
-            "peak_memory_bytes": 71761920,
+            "wall_seconds": 0.004,
+            "timeout_seconds": 30,
+            "peak_memory_bytes": 3817472,
             "stdout_truncated": false,
             "stderr_truncated": false
           },
-          "stage_seconds": null,
-          "orchestrator_wall_seconds": 0.23953062505461276,
+          "stage_seconds": {
+            "parse": null,
+            "presolve": null,
+            "solve": 0.0,
+            "postsolve": null
+          },
+          "orchestrator_wall_seconds": 0.07127629200113006,
           "termination": {
             "status": "optimal",
-            "message": "Optimization terminated successfully. (HiGHS Status 7: Optimal)",
-            "dispatched_engine": "highs-ds",
-            "executed_engine": "highs-ds",
-            "engine_reason": "reference solver, engine selected by --method"
+            "message": "Optimal",
+            "dispatched_engine": "simplex",
+            "executed_engine": "simplex",
+            "engine_reason": "reference solver, engine selected by --solver"
           },
           "settings": {
-            "requested_engine": "highs-ds",
-            "time_limit_seconds": 9.0,
-            "tolerance": null
+            "requested_engine": "simplex",
+            "time_limit_seconds": null,
+            "tolerance": null,
+            "thread_count": 1
           },
           "solver_objective": -64.5750770585645,
           "dual_bound": null,
@@ -2020,7 +2116,7 @@
           "work": {
             "iterations": 18,
             "nodes": null,
-            "solve_seconds": 0.15395658393390477
+            "solve_seconds": 0.0064125839999178424
           },
           "self_reported": {
             "max_bound_residual": null,
@@ -2045,9 +2141,9 @@
               "variables": []
             },
             "primal": {
-              "max_row_violation_abs": 5.684341886080802e-14,
-              "max_row_violation_scaled": 2.798001695664975e-16,
-              "worst_row": "ROW00023",
+              "max_row_violation_abs": 1.1368683772161603e-13,
+              "max_row_violation_scaled": 1.5804332896790603e-15,
+              "worst_row": "ROW00018",
               "max_bound_violation_abs": 0.0,
               "max_bound_violation_scaled": 0.0,
               "worst_variable": null,
@@ -2063,12 +2159,12 @@
             "dual": {
               "available": true,
               "reason": null,
-              "max_stationarity_abs": 5.759281940243e-16,
+              "max_stationarity_abs": 1.0502709812953981e-13,
               "max_sign_violation_abs": 0.0,
-              "max_complementarity_abs": 4.818299485119128e-15,
-              "dual_objective": -64.5750770585645,
-              "gap_abs": 0.0,
-              "gap_normalised": 0.0
+              "max_complementarity_abs": 5.2563267110394916e-14,
+              "dual_objective": -64.575077058542,
+              "gap_abs": 2.2495783014164772e-11,
+              "gap_normalised": 1.728448434561477e-13
             },
             "best_known": {
               "value": -64.575077059,
@@ -2079,7 +2175,7 @@
             "notes": []
           },
           "logs": {
-            "stdout_tail": "",
+            "stdout_tail": "Running HiGHS 1.15.1 (git hash: n/a): Copyright (c) 2026 under MIT licence terms\nIncludes third-party software components, see THIRD_PARTY_NOTICES.md for full details\nCommand line parsed using CLI11 2.5.0: Copyright (c) 2017-2025 University of Cincinnati\nSet option solver to \"simplex\"\nSet option parallel to \"off\"\nSet option threads to 1\nSet option time_limit to 29\nSet option solution_file to \"/var/folders/cx/0__2ns5x7r7gm4cq2g1y8rpr0000gn/T/tmpc7cudube/highs_solution.txt\"\nLP sc50a has 50 rows; 48 cols; 130 nonzeros\nCoefficient ranges:\n  Matrix  [1e-01, 2e+00]\n  Cost    [1e+00, 1e+00]\n  Bound   [0e+00, 0e+00]\n  RHS     [1e+02, 2e+02]\nPresolving model\n38 rows, 37 cols, 105 nonzeros 0s\n27 rows, 26 cols, 84 nonzeros 0s\n20 rows, 19 cols, 78 nonzeros 0s\n17 rows, 16 cols, 78 nonzeros 0s\n17 rows, 16 cols, 78 nonzeros 0s\nPresolve reductions: rows 17(-33); columns 16(-32); nonzeros 78(-52) \nSolving the presolved LP\nUsing dual simplex solver\n  Iteration        Objective     Infeasibilities num(sum)\n          0    -4.3094112416e-01 Ph1: 5(3.3646); Du: 1(0.430941) 0.0s\n         18    -6.4575077059e+01 Pr: 0(0) 0.0s\n\nPerformed postsolve\nSolving the original LP from the solution after postsolve\n\nModel name          : sc50a\nModel status        : Optimal\nSimplex   iterations: 18\nObjective value     : -6.4575077059e+01\nP-D objective error :  1.0918815127e-16\nHiGHS run time      :          0.00\nWriting the solution to /var/folders/cx/0__2ns5x7r7gm4cq2g1y8rpr0000gn/T/tmpc7cudube/highs_solution.txt\n",
             "stderr_tail": ""
           }
         }
@@ -2119,19 +2215,19 @@
             "escalated_to_sigkill": false,
             "launch_failed": false,
             "launch_error": null,
-            "wall_seconds": 0.002,
-            "timeout_seconds": 10,
-            "peak_memory_bytes": 1671168,
+            "wall_seconds": 0.004,
+            "timeout_seconds": 30,
+            "peak_memory_bytes": 1703936,
             "stdout_truncated": false,
             "stderr_truncated": false
           },
           "stage_seconds": {
-            "parse": 0.000129459,
-            "presolve": 0.000705125,
-            "solve": 0.00022325,
-            "postsolve": 1.5417e-05
+            "parse": 0.000198291,
+            "presolve": null,
+            "solve": 0.001674042,
+            "postsolve": null
           },
-          "orchestrator_wall_seconds": 0.005256041884422302,
+          "orchestrator_wall_seconds": 0.007391249993816018,
           "termination": {
             "status": "optimal",
             "message": "dual simplex",
@@ -2141,7 +2237,7 @@
           },
           "settings": {
             "requested_engine": "dual_simplex",
-            "time_limit_seconds": 9,
+            "time_limit_seconds": 29,
             "tolerance": 1e-08,
             "thread_count": 1
           },
@@ -2151,11 +2247,11 @@
           "work": {
             "iterations": 49,
             "nodes": null,
-            "solve_seconds": 0.000221125
+            "solve_seconds": 0.001666833
           },
           "self_reported": {
-            "max_bound_residual": 0,
-            "max_constraint_residual": 0,
+            "max_bound_residual": null,
+            "max_constraint_residual": null,
             "max_dual_residual": 1.6132928326584306e-16,
             "max_integrality_violation": 0
           },
@@ -2212,7 +2308,7 @@
             ]
           },
           "logs": {
-            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving SC50B                                       \u2502\n\u2502                                                      \u2502\n\u2502  Model      48 variables \u00b7 50 constraints            \u2502\n\u2502  Reduced    48 variables \u00b7 48 constraints            \u2502\n\u2502  Engine     dual_simplex                             \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       -70\n  Iterations      49\n  Solve time      0.0002 s\n",
+            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving SC50B                                       \u2502\n\u2502                                                      \u2502\n\u2502  Model      48 variables \u00b7 50 constraints            \u2502\n\u2502  Reduced    48 variables \u00b7 48 constraints            \u2502\n\u2502  Engine     dual_simplex                             \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       -70\n  Iterations      49\n  Solve time      0.0017 s\n  Duals available: 50 shadow prices, 48 reduced costs\n",
             "stderr_tail": ""
           }
         },
@@ -2220,62 +2316,8 @@
           "solver": "optimsolver:pdlp",
           "engine_use": {
             "requested": "pdlp",
-            "dispatched": null,
-            "executed": null,
-            "fallback": true,
-            "counts_for_requested": false,
-            "reason": "no engine executed; the solve was answered before dispatch or refused"
-          },
-          "process": {
-            "run_status": "NON_ZERO_EXIT",
-            "exit_code": 1,
-            "terminating_signal": null,
-            "timed_out": false,
-            "killed_process_tree": false,
-            "escalated_to_sigkill": false,
-            "launch_failed": false,
-            "launch_error": null,
-            "wall_seconds": 0.003,
-            "timeout_seconds": 10,
-            "peak_memory_bytes": 1572864,
-            "stdout_truncated": false,
-            "stderr_truncated": false
-          },
-          "stage_seconds": null,
-          "orchestrator_wall_seconds": 0.008205584017559886,
-          "termination": null,
-          "settings": null,
-          "solver_objective": null,
-          "dual_bound": null,
-          "mip_gap": null,
-          "work": null,
-          "self_reported": null,
-          "duals_unavailable_reason": null,
-          "check": {
-            "verdict": "no_point",
-            "solver_status": null,
-            "notes": [
-              "process ended as NON_ZERO_EXIT and wrote no structured result; nothing to check"
-            ],
-            "tolerances": {
-              "feasibility_absolute": 1e-06,
-              "feasibility_relative": 1e-08,
-              "integrality_absolute": 1e-06,
-              "optimality_normalised": 1e-06,
-              "frozen": true
-            }
-          },
-          "logs": {
-            "stdout_tail": "",
-            "stderr_tail": "\u2717 Postsolve error\n\n  Constraint upper bound violation on ROW00047\n"
-          }
-        },
-        {
-          "solver": "highs:highs-ds",
-          "engine_use": {
-            "requested": null,
-            "dispatched": "highs-ds",
-            "executed": "highs-ds",
+            "dispatched": "pdlp",
+            "executed": "pdlp",
             "fallback": false,
             "counts_for_requested": true,
             "reason": null
@@ -2289,25 +2331,147 @@
             "escalated_to_sigkill": false,
             "launch_failed": false,
             "launch_error": null,
-            "wall_seconds": 0.234,
-            "timeout_seconds": 10,
-            "peak_memory_bytes": 72089600,
+            "wall_seconds": 0.005,
+            "timeout_seconds": 30,
+            "peak_memory_bytes": 1687552,
             "stdout_truncated": false,
             "stderr_truncated": false
           },
-          "stage_seconds": null,
-          "orchestrator_wall_seconds": 0.237294333986938,
+          "stage_seconds": {
+            "parse": 0.000190375,
+            "presolve": null,
+            "solve": 0.002575541,
+            "postsolve": null
+          },
+          "orchestrator_wall_seconds": 0.007799541999702342,
           "termination": {
             "status": "optimal",
-            "message": "Optimization terminated successfully. (HiGHS Status 7: Optimal)",
-            "dispatched_engine": "highs-ds",
-            "executed_engine": "highs-ds",
-            "engine_reason": "reference solver, engine selected by --method"
+            "message": "Primal, dual, and gap tolerances satisfied",
+            "dispatched_engine": "pdlp",
+            "executed_engine": "pdlp",
+            "engine_reason": "engine forced by the caller"
           },
           "settings": {
-            "requested_engine": "highs-ds",
-            "time_limit_seconds": 9.0,
-            "tolerance": null
+            "requested_engine": "pdlp",
+            "time_limit_seconds": 29,
+            "tolerance": 1e-08,
+            "thread_count": 1
+          },
+          "solver_objective": -70.00000276497916,
+          "dual_bound": null,
+          "mip_gap": null,
+          "work": {
+            "iterations": 2600,
+            "nodes": null,
+            "solve_seconds": 0.002568708
+          },
+          "self_reported": {
+            "max_bound_residual": null,
+            "max_constraint_residual": null,
+            "max_dual_residual": null,
+            "max_integrality_violation": 0
+          },
+          "duals_unavailable_reason": "Engine multipliers violate the supplied model's optimality conditions by 0.750000",
+          "check": {
+            "verdict": "feasible",
+            "solver_status": "optimal",
+            "tolerances": {
+              "feasibility_absolute": 1e-06,
+              "feasibility_relative": 1e-08,
+              "integrality_absolute": 1e-06,
+              "optimality_normalised": 1e-06,
+              "frozen": true
+            },
+            "objective_recomputed": -70.00000276497916,
+            "nonfinite": {
+              "count": 0,
+              "variables": []
+            },
+            "primal": {
+              "max_row_violation_abs": 2.115101153776777e-06,
+              "max_row_violation_scaled": 1.1652291276030616e-08,
+              "worst_row": "ROW00036",
+              "max_bound_violation_abs": 0.0,
+              "max_bound_violation_scaled": 0.0,
+              "worst_variable": null,
+              "rows_violating": 0,
+              "variables_violating": 0
+            },
+            "integrality": {
+              "checked": false,
+              "max_violation_abs": null,
+              "worst_variable": null,
+              "variables_violating": 0
+            },
+            "dual": {
+              "available": false,
+              "reason": "solver produced no duals; optimality is NOT independently verified",
+              "max_stationarity_abs": null,
+              "max_sign_violation_abs": null,
+              "max_complementarity_abs": null,
+              "dual_objective": null,
+              "gap_abs": null,
+              "gap_normalised": null
+            },
+            "best_known": {
+              "value": -70.0,
+              "abs_difference": 2.764979157632297e-06,
+              "normalised_difference": 1.9609780875260007e-08,
+              "agrees": true
+            },
+            "notes": [
+              "objective agrees with the best-known value, which is corroboration, not an optimality proof"
+            ]
+          },
+          "logs": {
+            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving SC50B                                       \u2502\n\u2502                                                      \u2502\n\u2502  Model      48 variables \u00b7 50 constraints            \u2502\n\u2502  Reduced    48 variables \u00b7 48 constraints            \u2502\n\u2502  Engine     pdlp                                     \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       -70.0000028\n  Iterations      2600\n  Solve time      0.0026 s\n  Duals unavailable: Engine multipliers violate the supplied model's optimality conditions by 0.750000\n",
+            "stderr_tail": ""
+          }
+        },
+        {
+          "solver": "highs:highs-ds",
+          "engine_use": {
+            "requested": null,
+            "dispatched": "simplex",
+            "executed": "simplex",
+            "fallback": false,
+            "counts_for_requested": true,
+            "reason": null
+          },
+          "process": {
+            "run_status": "SUCCESS",
+            "exit_code": 0,
+            "terminating_signal": null,
+            "timed_out": false,
+            "killed_process_tree": false,
+            "escalated_to_sigkill": false,
+            "launch_failed": false,
+            "launch_error": null,
+            "wall_seconds": 0.005,
+            "timeout_seconds": 30,
+            "peak_memory_bytes": 3801088,
+            "stdout_truncated": false,
+            "stderr_truncated": false
+          },
+          "stage_seconds": {
+            "parse": null,
+            "presolve": null,
+            "solve": 0.0,
+            "postsolve": null
+          },
+          "orchestrator_wall_seconds": 0.07525508300750516,
+          "termination": {
+            "status": "optimal",
+            "message": "Optimal",
+            "dispatched_engine": "simplex",
+            "executed_engine": "simplex",
+            "engine_reason": "reference solver, engine selected by --solver"
+          },
+          "settings": {
+            "requested_engine": "simplex",
+            "time_limit_seconds": null,
+            "tolerance": null,
+            "thread_count": 1
           },
           "solver_objective": -70.0,
           "dual_bound": null,
@@ -2315,7 +2479,7 @@
           "work": {
             "iterations": 18,
             "nodes": null,
-            "solve_seconds": 0.15602245787158608
+            "solve_seconds": 0.006881584005896002
           },
           "self_reported": {
             "max_bound_residual": null,
@@ -2340,9 +2504,9 @@
               "variables": []
             },
             "primal": {
-              "max_row_violation_abs": 1.7053025658242404e-13,
-              "max_row_violation_scaled": 3.4201816402411553e-16,
-              "worst_row": "ROW00033",
+              "max_row_violation_abs": 1.4210854715202004e-14,
+              "max_row_violation_scaled": 7.62630391499517e-17,
+              "worst_row": "ROW00026",
               "max_bound_violation_abs": 0.0,
               "max_bound_violation_scaled": 0.0,
               "worst_variable": null,
@@ -2358,12 +2522,12 @@
             "dual": {
               "available": true,
               "reason": null,
-              "max_stationarity_abs": 5.551115123125783e-17,
+              "max_stationarity_abs": 9.997558336749535e-14,
               "max_sign_violation_abs": 0.0,
-              "max_complementarity_abs": 1.8651746813702627e-15,
-              "dual_objective": -70.0,
-              "gap_abs": 0.0,
-              "gap_normalised": 0.0
+              "max_complementarity_abs": 1.0491607582707729e-15,
+              "dual_objective": -69.99999999999,
+              "gap_abs": 1.000444171950221e-11,
+              "gap_normalised": 7.095348737236114e-14
             },
             "best_known": {
               "value": -70.0,
@@ -2374,7 +2538,7 @@
             "notes": []
           },
           "logs": {
-            "stdout_tail": "",
+            "stdout_tail": "Running HiGHS 1.15.1 (git hash: n/a): Copyright (c) 2026 under MIT licence terms\nIncludes third-party software components, see THIRD_PARTY_NOTICES.md for full details\nCommand line parsed using CLI11 2.5.0: Copyright (c) 2017-2025 University of Cincinnati\nSet option solver to \"simplex\"\nSet option parallel to \"off\"\nSet option threads to 1\nSet option time_limit to 29\nSet option solution_file to \"/var/folders/cx/0__2ns5x7r7gm4cq2g1y8rpr0000gn/T/tmpk6ffaf5l/highs_solution.txt\"\nLP sc50b has 50 rows; 48 cols; 118 nonzeros\nCoefficient ranges:\n  Matrix  [3e-01, 3e+00]\n  Cost    [1e+00, 1e+00]\n  Bound   [0e+00, 0e+00]\n  RHS     [3e+02, 3e+02]\nPresolving model\n37 rows, 37 cols, 93 nonzeros 0s\n23 rows, 23 cols, 65 nonzeros 0s\n17 rows, 17 cols, 60 nonzeros 0s\nDependent equations search running on 1 equations with time limit of 1.00s\nDependent equations search removed 0 rows and 0 nonzeros in 0.00s (limit = 1.00s)\n15 rows, 15 cols, 62 nonzeros 0s\nPresolve reductions: rows 15(-35); columns 15(-33); nonzeros 62(-56) \nSolving the presolved LP\nUsing dual simplex solver\n  Iteration        Objective     Infeasibilities num(sum)\n          0    -8.6188230293e-01 Ph1: 10(13.6343); Du: 1(0.861882) 0.0s\n         18    -7.0000000000e+01 Pr: 0(0) 0.0s\n\nPerformed postsolve\nSolving the original LP from the solution after postsolve\n\nModel name          : sc50b\nModel status        : Optimal\nSimplex   iterations: 18\nObjective value     : -7.0000000000e+01\nP-D objective error :  0.0000000000e+00\nHiGHS run time      :          0.00\nWriting the solution to /var/folders/cx/0__2ns5x7r7gm4cq2g1y8rpr0000gn/T/tmpk6ffaf5l/highs_solution.txt\n",
             "stderr_tail": ""
           }
         }
@@ -2414,19 +2578,19 @@
             "escalated_to_sigkill": false,
             "launch_failed": false,
             "launch_error": null,
-            "wall_seconds": 0.063,
-            "timeout_seconds": 10,
-            "peak_memory_bytes": 1998848,
+            "wall_seconds": 0.106,
+            "timeout_seconds": 30,
+            "peak_memory_bytes": 2113536,
             "stdout_truncated": false,
             "stderr_truncated": false
           },
           "stage_seconds": {
-            "parse": 0.000434333,
-            "presolve": 0.0594235,
-            "solve": 0.002089208,
-            "postsolve": 4.6e-05
+            "parse": 0.000788875,
+            "presolve": null,
+            "solve": 0.102761459,
+            "postsolve": null
           },
-          "orchestrator_wall_seconds": 0.06601033313199878,
+          "orchestrator_wall_seconds": 0.11182358299265616,
           "termination": {
             "status": "limit_reached",
             "message": "dual simplex",
@@ -2436,7 +2600,7 @@
           },
           "settings": {
             "requested_engine": "dual_simplex",
-            "time_limit_seconds": 9,
+            "time_limit_seconds": 29,
             "tolerance": 1e-08,
             "thread_count": 1
           },
@@ -2446,15 +2610,15 @@
           "work": {
             "iterations": 134,
             "nodes": null,
-            "solve_seconds": 0.002086125
+            "solve_seconds": 0.102747959
           },
           "self_reported": {
-            "max_bound_residual": 0,
-            "max_constraint_residual": 0,
+            "max_bound_residual": null,
+            "max_constraint_residual": null,
             "max_dual_residual": null,
             "max_integrality_violation": 0
           },
-          "duals_unavailable_reason": "reconstructed multipliers violate the original model's optimality conditions by 15.120000",
+          "duals_unavailable_reason": "Dual sensitivities require an optimal solution.",
           "check": {
             "verdict": "feasible",
             "solver_status": "limit_reached",
@@ -2505,7 +2669,7 @@
             "notes": []
           },
           "logs": {
-            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving SHARE2B                                     \u2502\n\u2502                                                      \u2502\n\u2502  Model      79 variables \u00b7 96 constraints            \u2502\n\u2502  Reduced    79 variables \u00b7 93 constraints            \u2502\n\u2502  Engine     dual_simplex                             \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n! Limit Reached\n\n  Objective       -374.522624\n  Iterations      134\n  Solve time      0.0021 s\n",
+            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving SHARE2B                                     \u2502\n\u2502                                                      \u2502\n\u2502  Model      79 variables \u00b7 96 constraints            \u2502\n\u2502  Reduced    79 variables \u00b7 93 constraints            \u2502\n\u2502  Engine     dual_simplex                             \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n! Limit Reached\n\n  Objective       -374.522624\n  Iterations      134\n  Solve time      0.1027 s\n  Duals unavailable: Dual sensitivities require an optimal solution.\n",
             "stderr_tail": ""
           }
         },
@@ -2528,19 +2692,19 @@
             "escalated_to_sigkill": false,
             "launch_failed": false,
             "launch_error": null,
-            "wall_seconds": 0.094,
-            "timeout_seconds": 10,
-            "peak_memory_bytes": 1867776,
+            "wall_seconds": 0.156,
+            "timeout_seconds": 30,
+            "peak_memory_bytes": 1966080,
             "stdout_truncated": false,
             "stderr_truncated": false
           },
           "stage_seconds": {
-            "parse": 0.000442709,
-            "presolve": 0.055352,
-            "solve": 0.036727959,
-            "postsolve": 4.4583e-05
+            "parse": 0.000775417,
+            "presolve": null,
+            "solve": 0.152599334,
+            "postsolve": null
           },
-          "orchestrator_wall_seconds": 0.0965874579269439,
+          "orchestrator_wall_seconds": 0.1604077500087442,
           "termination": {
             "status": "optimal",
             "message": "Primal, dual, and gap tolerances satisfied",
@@ -2550,7 +2714,7 @@
           },
           "settings": {
             "requested_engine": "pdlp",
-            "time_limit_seconds": 9,
+            "time_limit_seconds": 29,
             "tolerance": 1e-08,
             "thread_count": 1
           },
@@ -2560,11 +2724,11 @@
           "work": {
             "iterations": 60000,
             "nodes": null,
-            "solve_seconds": 0.036724083
+            "solve_seconds": 0.152586459
           },
           "self_reported": {
-            "max_bound_residual": 0,
-            "max_constraint_residual": 0,
+            "max_bound_residual": null,
+            "max_constraint_residual": null,
             "max_dual_residual": 3.1253556489996676e-08,
             "max_integrality_violation": 0
           },
@@ -2621,7 +2785,7 @@
             ]
           },
           "logs": {
-            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving SHARE2B                                     \u2502\n\u2502                                                      \u2502\n\u2502  Model      79 variables \u00b7 96 constraints            \u2502\n\u2502  Reduced    79 variables \u00b7 93 constraints            \u2502\n\u2502  Engine     pdlp                                     \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       -415.732243\n  Iterations      60000\n  Solve time      0.0367 s\n",
+            "stdout_tail": "\u256d\u2500 OPTIMSOLVER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                      \u2502\n\u2502  Solving SHARE2B                                     \u2502\n\u2502                                                      \u2502\n\u2502  Model      79 variables \u00b7 96 constraints            \u2502\n\u2502  Reduced    79 variables \u00b7 93 constraints            \u2502\n\u2502  Engine     pdlp                                     \u2502\n\u2502                                                      \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u2713 Optimal\n\n  Objective       -415.732243\n  Iterations      60000\n  Solve time      0.1526 s\n  Duals available: 96 shadow prices, 79 reduced costs\n",
             "stderr_tail": ""
           }
         },
@@ -2629,8 +2793,8 @@
           "solver": "highs:highs-ds",
           "engine_use": {
             "requested": null,
-            "dispatched": "highs-ds",
-            "executed": "highs-ds",
+            "dispatched": "simplex",
+            "executed": "simplex",
             "fallback": false,
             "counts_for_requested": true,
             "reason": null
@@ -2644,33 +2808,39 @@
             "escalated_to_sigkill": false,
             "launch_failed": false,
             "launch_error": null,
-            "wall_seconds": 0.305,
-            "timeout_seconds": 10,
-            "peak_memory_bytes": 70713344,
+            "wall_seconds": 0.006,
+            "timeout_seconds": 30,
+            "peak_memory_bytes": 4096000,
             "stdout_truncated": false,
             "stderr_truncated": false
           },
-          "stage_seconds": null,
-          "orchestrator_wall_seconds": 0.30858233314938843,
+          "stage_seconds": {
+            "parse": null,
+            "presolve": null,
+            "solve": 0.0,
+            "postsolve": null
+          },
+          "orchestrator_wall_seconds": 0.07505591699737124,
           "termination": {
             "status": "optimal",
-            "message": "Optimization terminated successfully. (HiGHS Status 7: Optimal)",
-            "dispatched_engine": "highs-ds",
-            "executed_engine": "highs-ds",
-            "engine_reason": "reference solver, engine selected by --method"
+            "message": "Optimal",
+            "dispatched_engine": "simplex",
+            "executed_engine": "simplex",
+            "engine_reason": "reference solver, engine selected by --solver"
           },
           "settings": {
-            "requested_engine": "highs-ds",
-            "time_limit_seconds": 9.0,
-            "tolerance": null
+            "requested_engine": "simplex",
+            "time_limit_seconds": null,
+            "tolerance": null,
+            "thread_count": 1
           },
-          "solver_objective": -415.73224074141945,
+          "solver_objective": -415.7322407414197,
           "dual_bound": null,
           "mip_gap": null,
           "work": {
             "iterations": 99,
             "nodes": null,
-            "solve_seconds": 0.20698937494307756
+            "solve_seconds": 0.0068142079981043935
           },
           "self_reported": {
             "max_bound_residual": null,
@@ -2689,15 +2859,15 @@
               "optimality_normalised": 1e-06,
               "frozen": true
             },
-            "objective_recomputed": -415.73224074141945,
+            "objective_recomputed": -415.7322407414197,
             "nonfinite": {
               "count": 0,
               "variables": []
             },
             "primal": {
-              "max_row_violation_abs": 7.744915819785092e-13,
-              "max_row_violation_scaled": 7.91959090899279e-16,
-              "worst_row": "000049",
+              "max_row_violation_abs": 9.848122317634989e-12,
+              "max_row_violation_scaled": 4.758483169787315e-15,
+              "worst_row": "000029",
               "max_bound_violation_abs": 0.0,
               "max_bound_violation_scaled": 0.0,
               "worst_variable": null,
@@ -2713,23 +2883,23 @@
             "dual": {
               "available": true,
               "reason": null,
-              "max_stationarity_abs": 4.263256414560601e-13,
-              "max_sign_violation_abs": 8.568537734540566e-17,
-              "max_complementarity_abs": 85685377345405.66,
-              "dual_objective": -415.7322407414214,
-              "gap_abs": 1.9326762412674725e-12,
-              "gap_normalised": 2.3216320747100966e-15
+              "max_stationarity_abs": 6.536993168992922e-12,
+              "max_sign_violation_abs": 0.0,
+              "max_complementarity_abs": 3.1276936711210003e-11,
+              "dual_objective": -415.7322407414223,
+              "gap_abs": 2.6147972675971687e-12,
+              "gap_normalised": 3.141031630490126e-15
             },
             "best_known": {
               "value": -415.73224074,
-              "abs_difference": 1.419437012373237e-09,
-              "normalised_difference": 1.7051021922848474e-12,
+              "abs_difference": 1.4196643860486802e-09,
+              "normalised_difference": 1.7053753254701075e-12,
               "agrees": true
             },
             "notes": []
           },
           "logs": {
-            "stdout_tail": "",
+            "stdout_tail": "Running HiGHS 1.15.1 (git hash: n/a): Copyright (c) 2026 under MIT licence terms\nIncludes third-party software components, see THIRD_PARTY_NOTICES.md for full details\nCommand line parsed using CLI11 2.5.0: Copyright (c) 2017-2025 University of Cincinnati\nSet option solver to \"simplex\"\nSet option parallel to \"off\"\nSet option threads to 1\nSet option time_limit to 29\nSet option solution_file to \"/var/folders/cx/0__2ns5x7r7gm4cq2g1y8rpr0000gn/T/tmpxov01mm8/highs_solution.txt\"\nLP share2b has 96 rows; 79 cols; 694 nonzeros\nCoefficient ranges:\n  Matrix  [1e-02, 1e+02]\n  Cost    [3e-02, 4e+00]\n  Bound   [0e+00, 0e+00]\n  RHS     [1e+00, 2e+01]\nPresolving model\n93 rows, 79 cols, 691 nonzeros 0s\nDependent equations search running on 6 equations with time limit of 1.00s\nDependent equations search removed 0 rows and 0 nonzeros in 0.00s (limit = 1.00s)\n86 rows, 72 cols, 723 nonzeros 0s\nPresolve reductions: rows 86(-10); columns 72(-7); nonzeros 723(+29) \nSolving the presolved LP\nUsing dual simplex solver\n  Iteration        Objective     Infeasibilities num(sum)\n          0    -2.7509910751e+01 Ph1: 54(76.2916); Du: 15(27.5099) 0.0s\n         99    -4.1573224074e+02 Pr: 0(0); Du: 0(6.66134e-16) 0.0s\n\nPerformed postsolve\nSolving the original LP from the solution after postsolve\n\nModel name          : share2b\nModel status        : Optimal\nSimplex   iterations: 99\nObjective value     : -4.1573224074e+02\nP-D objective error :  2.2533487784e-15\nHiGHS run time      :          0.00\nWriting the solution to /var/folders/cx/0__2ns5x7r7gm4cq2g1y8rpr0000gn/T/tmpxov01mm8/highs_solution.txt\n",
             "stderr_tail": ""
           }
         }
