@@ -155,9 +155,9 @@ if(OPTIMSOLVER_ENABLE_CUDA)
     optimsolver_enable_cuda()
 endif()
 
-# Linear programming engine. Self-contained and C++17; builds the library only.
-# Its tests and benchmark harnesses stay off here and are enabled by configuring
-# pdlp_engine/ standalone, or with -DPDLP_BUILD_TESTS=ON -DPDLP_BUILD_TOOLS=ON.
+# Engine unit tests are part of the root test suite by default.
+option(PDLP_BUILD_TESTS "Build the PDLP test suite" ON)
+option(QP_BUILD_TESTS "Build the QP test suite" ON)
 add_subdirectory(pdlp_engine)
 
 # Branch-and-cut over a dual simplex, and ADMM for convex QP. Both build their
@@ -415,6 +415,10 @@ if(Python3_Interpreter_FOUND)
     endif()
 endif()
 
+add_executable(test_qp_contract tests/pipeline/test_qp_contract.cpp)
+target_link_libraries(test_qp_contract PRIVATE solver_orchestrator)
+add_test(NAME qp_contract COMMAND test_qp_contract)
+
 add_executable(test_nlp_integration tests/pipeline/test_nlp_integration.cpp)
 target_link_libraries(test_nlp_integration PRIVATE solver_orchestrator)
 add_test(NAME nlp_pipeline COMMAND test_nlp_integration)
@@ -423,4 +427,51 @@ if(Python3_Interpreter_FOUND)
     add_test(NAME backend_json_provenance COMMAND ${Python3_EXECUTABLE}
         ${PROJECT_SOURCE_DIR}/tests/cli/test_backend_json.py $<TARGET_FILE:optimsolver>)
     set_tests_properties(backend_json_provenance PROPERTIES TIMEOUT 180)
+endif()
+# Offline benchmark infrastructure tests have no downloaded-data dependency.
+option(QP_REFERENCE_TESTS "Run independent OSQP comparisons (requires numpy/scipy/osqp)" OFF)
+if(QP_REFERENCE_TESTS AND NOT Python3_Interpreter_FOUND)
+    message(FATAL_ERROR "QP_REFERENCE_TESTS requires a Python interpreter")
+endif()
+if(Python3_Interpreter_FOUND)
+    add_test(NAME benchmark_suites COMMAND ${Python3_EXECUTABLE}
+        ${PROJECT_SOURCE_DIR}/benchmarks/test_suites.py)
+    if(QP_REFERENCE_TESTS)
+        execute_process(COMMAND ${Python3_EXECUTABLE} -c "import numpy, scipy, osqp"
+            RESULT_VARIABLE QP_REFERENCE_IMPORT)
+        if(NOT QP_REFERENCE_IMPORT EQUAL 0)
+            message(FATAL_ERROR "QP_REFERENCE_TESTS requires numpy, scipy and osqp")
+        endif()
+        add_executable(qp_reference_cases tools/reference_checks/qp_random_generator.cpp)
+        target_link_libraries(qp_reference_cases PRIVATE solver_orchestrator)
+        add_test(NAME qp_reference COMMAND ${Python3_EXECUTABLE}
+            ${PROJECT_SOURCE_DIR}/tools/reference_checks/qp_vs_osqp.py
+            --generator $<TARGET_FILE:qp_reference_cases> --count 300 --seed 20260908)
+        add_test(NAME benchmark_reference_adapters COMMAND ${Python3_EXECUTABLE}
+            ${PROJECT_SOURCE_DIR}/benchmarks/test_reference_adapters.py)
+        set_tests_properties(qp_reference benchmark_reference_adapters PROPERTIES TIMEOUT 240 LABELS reference)
+    endif()
+endif()
+
+# Public corpus tests are opt-in and offline. Missing/corrupt caches are failures,
+# never skips. Fetch the frozen data explicitly with benchmarks/fetch_*.py first.
+option(BENCHMARK_CORPUS_TESTS "Run cached Netlib, MIPLIB, QP and Mittelmann suites" OFF)
+set(BENCHMARK_CASE_SECONDS 10 CACHE STRING "Per solver wall budget for public corpus tests")
+if(BENCHMARK_CORPUS_TESTS)
+    if(NOT Python3_Interpreter_FOUND OR WIN32)
+        message(FATAL_ERROR "BENCHMARK_CORPUS_TESTS requires Python and the POSIX benchmark harness")
+    endif()
+    execute_process(COMMAND ${Python3_EXECUTABLE} -c "import numpy, scipy, osqp"
+        RESULT_VARIABLE BENCHMARK_REFERENCE_IMPORT)
+    if(NOT BENCHMARK_REFERENCE_IMPORT EQUAL 0)
+        message(FATAL_ERROR "BENCHMARK_CORPUS_TESTS requires numpy, scipy and osqp")
+    endif()
+    foreach(suite IN ITEMS netlib miplib qp mittelmann)
+        add_test(NAME corpus_${suite} COMMAND ${Python3_EXECUTABLE}
+            ${PROJECT_SOURCE_DIR}/benchmarks/run_suites.py --suite ${suite}
+            --binary $<TARGET_FILE:optimsolver> --runner $<TARGET_FILE:bench_runner>
+            --timeout ${BENCHMARK_CASE_SECONDS}
+            --out ${PROJECT_BINARY_DIR}/benchmark-reports/${suite}.json)
+        set_tests_properties(corpus_${suite} PROPERTIES LABELS "benchmark;reference" RUN_SERIAL TRUE)
+    endforeach()
 endif()

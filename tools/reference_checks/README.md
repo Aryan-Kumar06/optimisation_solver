@@ -1,55 +1,37 @@
 # External reference checks
 
-These compare the solver against independent third-party implementations.
-They are **not** part of `ctest`, because they need Python packages that the
-build cannot assume are installed. The checks that need no external solver
-live in `ctest` instead (`test_qp_convention`, `test_milp_enumeration`).
+Reference packages are optional and never linked into the production solver.
+To enable independent QP (OSQP) and NLP (SciPy SLSQP) tests:
 
-    pip install osqp scipy
+```sh
+python3 -m pip install numpy scipy 'osqp>=1.0,<2'
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DQP_REFERENCE_TESTS=ON -DNLP_REFERENCE_TESTS=ON
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+```
 
-## QP versus OSQP
+QP reference configuration fails if dependencies are missing. The QP test runs
+300 cases with seed 20260908 through the public `solver::solve` API. To replay
+or try another seed:
 
-Generates randomised convex QPs -- minimise and maximise, nonzero objective
-offsets, non-diagonal Hessians with real cross terms, equality / ranged /
-one-sided rows, and free variables -- solves each through the public
-`solver::solve` API, and cross-checks against OSQP.
+```sh
+python3 tools/reference_checks/qp_vs_osqp.py --generator build/qp_reference_cases --count 300 --seed 20260908
+```
 
-    g++ -std=c++17 -O2 -pthread \
-        -I include -I pdlp_engine/include -I milp_engine/include -I qp_engine/include \
-        tools/reference_checks/qp_random_generator.cpp \
-        src/model/model.cpp src/util/parallel.cpp src/adapter/pdlp_adapter.cpp \
-        src/solver/*.cpp src/presolve/*.cpp src/mps/*.cpp \
-        pdlp_engine/src/*.cpp milp_engine/src/*.cpp qp_engine/src/*.cpp \
-        -o /tmp/qp_gen
-    /tmp/qp_gen 300 555555 > /tmp/qp_cases.txt
-    python3 tools/reference_checks/qp_vs_osqp.py /tmp/qp_cases.txt
+Cases include convex minimization, concave maximization, offsets, full Hessians,
+equalities, ranged rows, one-sided rows and free/bounded variables. Original
+objectives and primal feasibility are independently recomputed. Strictly convex
+cases compare both objective (relative tolerance 1e-4) and solution (absolute
+1e-3). Feasibility tolerance is 1.01e-4, retained from the original randomized
+checker; the public corpus uses the stricter frozen benchmark tolerances.
 
-Arguments are `<count> <seed>`, so a run is reproducible. Every outcome is
-accounted for: optimal verdicts are compared on objective AND solution, and
-infeasible/unbounded verdicts are cross-checked against OSQP's own status
-rather than skipped -- reporting only the solved cases would hide exactly the
-weakness this is meant to find. The last line prints the full accounting.
+Reference exceptions, inaccurate statuses, missing cases, nonfinite values and
+unverified outcomes fail the test. Infeasible/unbounded statuses require OSQP
+corroboration; this is not certificate verification. Every case is reported.
+Bound identity rows are included in the reference model. Separate analytic
+adapter tests verify dual signs and objective conventions with exact solutions.
 
-Two things the harness deliberately does NOT do, both learned the hard way:
-
-  * It appends an identity row per variable before handing the model to OSQP.
-    OSQP has no separate variable-bound concept, only `l <= Ax <= u`, so
-    omitting them silently solves an under-constrained problem and produces
-    false "mismatches".
-  * It does not check `P x + q + A^T y = 0` against the reported
-    `constraintDuals`. Those cover the model's own rows only -- the QP
-    adapter's appended bound rows are trimmed off -- so any active variable
-    bound leaves a nonzero term by design. Solution comparison is used
-    instead, which is valid because the generated Hessians are definite and
-    the optimum is therefore unique.
-
-## LP versus scipy/HiGHS
-
-`lp_random_generator.cpp` emits randomised LPs including degenerate duplicate
-rows, equalities, free variables and one-sided bounds, together with this
-solver's verdict, for comparison against `scipy.optimize.linprog(method="highs")`.
-
-Note when interpreting disagreements: HiGHS presolve conflates "infeasible or
-unbounded" and has reported `infeasible` for instances that are provably
-unbounded (a feasible point plus an improving recession ray both exist).
-Confirm any status disagreement by hand before treating it as a defect here.
+The historical `lp_random_generator.cpp` remains available for manual LP
+experiments. Public LP/MILP comparisons use `benchmarks/run_suites.py` with
+SciPy/HiGHS; public QPs use the isolated OSQP adapter. See
+[benchmark coverage](../../benchmarks/COVERAGE.md) for limitations and results.

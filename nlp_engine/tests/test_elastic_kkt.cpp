@@ -302,20 +302,26 @@ int main() {
         // 6. Independent residual validation of the constructed QP.
         //
         // A successful inner QP status must not by itself produce a successful
-        // NLP result. ADMM's own termination test is RELATIVE and measured on
-        // its Ruiz-equilibrated system; the gate recomputes ABSOLUTE residuals
-        // of the QP the solver constructed, in unscaled SQP coordinates. It does
-        // not rebuild the SQP model from the original nonlinear problem. With
-        // row scaling disabled, the badly conditioned linearization below
-        // satisfies ADMM's test -- it returns Optimal -- while its absolute
-        // primal residual is ~1.6e-5, far above the gate's threshold. The gate
-        // rejects it, and no FirstOrderStationary result is produced.
+        // NLP result. ADMM's termination test is RELATIVE to the data's scale;
+        // the gate recomputes ABSOLUTE residuals of the QP the solver
+        // constructed, in unscaled SQP coordinates. It does not rebuild the SQP
+        // model from the original nonlinear problem. With row scaling disabled
+        // and a right-hand side of 1e9, the QP below converges relatively --
+        // ADMM returns Optimal with an absolute primal residual of ~2e-6,
+        // about 2e-15 of the data -- but that is far above the gate's absolute
+        // threshold. The gate rejects it, and no FirstOrderStationary result is
+        // produced.
+        //
+        // The right-hand side was 1e6 until the ADMM engine began terminating
+        // on original-units residuals; it then solved that QP accurately, so
+        // the case no longer exercised the gate. Scale, not inaccuracy, is what
+        // separates the two tests now.
         // -------------------------------------------------------------------
         std::cout << "independent residual validation of the constructed QP\n";
         {
             Options o; o.scaleConstraints = false;
             Model illConditioned({{}, {}}, square(x) + square(y),
-                {1e6 * x + y / 1e6}, {{1e6, 1e6}});
+                {1e6 * x + y / 1e6}, {{1e9, 1e9}});
             auto r = Solver().solve(illConditioned, {0.3, 0.7}, o);
             std::cout << "  " << toString(r.status) << ": " << r.message << "\n";
             check(r.status == Status::SubproblemFailure,

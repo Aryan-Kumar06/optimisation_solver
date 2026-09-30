@@ -454,7 +454,7 @@ To run a specific test target:
 
 Use `optimsolver solve model.nlp` (or `solve-nlp model.nlp`) for continuous smooth nonlinear objectives
 and constraints. This accepts a versioned expression-DAG format, separate from
-MPS and the natural-language frontend. `solve-nlp --help` lists the available
+MPS. `solve-nlp --help` lists the available
 budgets and JSON reporting options. Successful termination means **first-order
 stationarity**, with original-unit feasibility and KKT residual checks; it does
 not certify a global optimum, does not imply LICQ, MFCQ or another constraint

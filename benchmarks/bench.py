@@ -171,7 +171,7 @@ def run_optimsolver(runner, binary, instance, engine, timeout, workdir, threads=
                    command, solve_json, record_json, timeout)
 
 
-def run_highs(runner, instance, method, timeout, workdir, threads=1):
+def run_highs(runner, instance, method, timeout, workdir, threads=1, backend="auto"):
     """Measure the `highs` binary ALONE, then convert its output afterwards.
 
     The solver runs under bench_runner with no interpreter in the process, so
@@ -186,7 +186,7 @@ def run_highs(runner, instance, method, timeout, workdir, threads=1):
     """
     solve_json = os.path.join(workdir, "solve.json")
     record_json = os.path.join(workdir, "record.json")
-    native = shutil.which("highs")
+    native = shutil.which("highs") if backend == "auto" else None
 
     if native is None:
         command = [sys.executable, HIGHS_SCIPY_ADAPTER, instance,
@@ -221,6 +221,14 @@ def run_highs(runner, instance, method, timeout, workdir, threads=1):
         with open(solve_json) as handle:
             record["solve"] = json.load(handle)
     return record
+
+
+def run_osqp(runner, instance, timeout, workdir):
+    solve_json = os.path.join(workdir, "solve.json")
+    return _invoke(runner, "osqp", instance,
+        [sys.executable, os.path.join(HERE, "adapters", "osqp_ref.py"),
+         instance, "--out", solve_json, "--time-limit", str(max(0.1, timeout - 1))],
+        solve_json, os.path.join(workdir, "record.json"), timeout)
 
 
 def _invoke(runner, name, instance, command, solve_json, record_json, timeout):
@@ -509,12 +517,18 @@ def main():
     parser.add_argument("--out", default=os.path.join(HERE, "results", "results.json"))
     parser.add_argument("--solvers", default="dual_simplex,pdlp,highs",
                         help="comma separated: auto, dual_simplex, pdlp, "
-                             "branch_and_cut, qp, highs")
+                             "branch_and_cut, qp, highs, osqp")
+    parser.add_argument("--highs-backend", choices=["auto", "scipy"], default="auto",
+                        help="auto prefers native HiGHS; scipy reproduces the frozen suite reference")
     parser.add_argument("--threads", type=int, default=1,
                         help="worker threads for our engines; 1 = serial")
     parser.add_argument("--best-known", default=None,
                         help="JSON file mapping instance basename to objective")
     args = parser.parse_args()
+
+    unknown = {s.strip() for s in args.solvers.split(",") if s.strip()} - {"auto", "dual_simplex", "pdlp", "branch_and_cut", "qp", "highs", "osqp"}
+    if unknown:
+        parser.error(f"unknown solvers: {sorted(unknown)}")
 
     best_known_kind = {}
     kind_path = os.path.join(os.path.dirname(args.best_known or ""), "manifest.json") \
@@ -556,9 +570,14 @@ def main():
 
         with tempfile.TemporaryDirectory() as workdir:
             dump_path = os.path.join(workdir, "dump.json")
-            dumped = subprocess.run(
-                [args.binary, "solve", instance, "--dump-model", dump_path],
-                capture_output=True, text=True)
+            try:
+                dumped = subprocess.run(
+                    [args.binary, "solve", instance, "--dump-model", dump_path],
+                    capture_output=True, text=True, timeout=max(1.0, args.timeout))
+            except subprocess.TimeoutExpired:
+                entry["parse_check"] = {"status": "our_reader_timeout"}
+                rows.append(entry)
+                continue
             if dumped.returncode != 0 or not os.path.exists(dump_path):
                 entry["parse_check"] = {
                     "status": "our_reader_failed",
@@ -584,7 +603,9 @@ def main():
                 if solver == "highs":
                     method = "milp" if model.is_integer_model() else "highs-ds"
                     record = run_highs(args.runner, instance, method,
-                                       args.timeout, workdir, threads=args.threads)
+                                       args.timeout, workdir, threads=args.threads, backend=args.highs_backend)
+                elif solver == "osqp":
+                    record = run_osqp(args.runner, instance, args.timeout, workdir)
                 else:
                     engine = None if solver == "auto" else solver
                     record = run_optimsolver(args.runner, args.binary, instance,
@@ -597,7 +618,7 @@ def main():
             process = record.get("process", {})
 
             requested = None
-            if solver not in ("auto", "highs"):
+            if solver not in ("auto", "highs", "osqp"):
                 requested = solver
             engine_use = classify_engine_use(record, requested)
 
@@ -631,7 +652,7 @@ def main():
 
         rows.append(entry)
 
-    os.makedirs(os.path.dirname(args.out), exist_ok=True)
+    os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     with open(args.out, "w") as handle:
         json.dump({"tolerances": dict(verify.TOLERANCES), "results": rows},
                   handle, indent=2, allow_nan=False)

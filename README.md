@@ -145,7 +145,34 @@ Run the automated test suite with CTest:
 ctest --test-dir build --output-on-failure
 ```
 
-The current verified test suite passes all 58 test targets (100% pass rate), covering presolve reduction cascades, dual postsolve restoration, engine algorithms, and CLI execution.
+### Published validation results
+
+The 2026-09-30 Release validation against upstream `b67250b` ran **73 CTests:
+all 73 passed**, including the 300-case randomized OSQP comparison. Its earlier
+failure (case 219) and the QP objective disagreements below were traced to
+ADMM engine defects, now fixed and covered by regression tests; see
+[benchmarks/COVERAGE.md](benchmarks/COVERAGE.md).
+
+| Benchmark selection | Instances run | Objective agreement | Remaining outcomes |
+|---|---:|---:|---|
+| Netlib LP | 8 | 6 | 2 feasible, not optimal |
+| MIPLIB 2017 Collection subset | 25 | 3 | 22 limited or unverified |
+| Maros–Mészáros QP | 14 | 13 | 1 unverified (cvxqp3s) |
+| Public Mittelmann LP subset | 3 | 0 | 3 time-limited, unverified |
+| **Total** | **50** | **22** | **28 require further work** |
+
+The Netlib and QP rows were rerun with the fixed QP engine; MIPLIB and
+Mittelmann rows record the PR #15 baseline, whose engines this change does not
+touch. Across all 138 Maros-Meszaros instances the fixed engine agrees on 45
+against 29 before, with no regressions and no false optimal claims. These are fixed-subset smoke runs at **five seconds per solver process**, not
+full-library certification or comparable performance rankings. Objective
+agreement requires independently validated feasible points and optimal statuses
+from both solvers; it is not itself an optimality certificate. All 50 inputs
+passed the independent parse cross-check. All 138 QP inputs are available via
+the pinned downloader, but only 14 were solved in this run.
+
+See the **[published results, known failures and reproduction commands](benchmarks/README.md#published-validation-results--2026-09-30)**
+for the full tables, environment, tolerances, and reference-solver comparisons.
 
 ---
 

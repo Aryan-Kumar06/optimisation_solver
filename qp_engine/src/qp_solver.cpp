@@ -112,7 +112,14 @@ AdmmResult QpSolver::solve(const QpModel& problem, const AdmmOptions& options) c
 
         KktPolisher::Options pol;
         pol.maxIterations = options.polishingIterations;
-        if (KktPolisher::polish(problem, result.primal, result.constraintDual, pol)) {
+        double remaining = 0.0;
+        if (options.timeLimitSeconds > 0.0) {
+            remaining = options.timeLimitSeconds - result.solveTimeSeconds;
+            pol.timeLimitSeconds = std::max(remaining, 1e-9);
+        }
+        if (options.timeLimitSeconds > 0.0 && remaining <= 0.0) {
+            result.statusMessage += " (polishing skipped: no time left)";
+        } else if (KktPolisher::polish(problem, result.primal, result.constraintDual, pol)) {
             const double primalResidualAfter = primalViolation(problem, result.primal);
             const double dualResidualAfter =
                 dualViolation(problem, result.primal, result.constraintDual);
@@ -132,9 +139,30 @@ AdmmResult QpSolver::solve(const QpModel& problem, const AdmmOptions& options) c
                 result.dualResidual = dualResidualBefore;
                 result.statusMessage += " (polishing rejected: no improvement)";
             }
+        } else {
+            // polish() leaves primal and dual untouched when it returns false.
+            result.statusMessage += " (polishing not applied)";
         }
     }
 
+    // Final gate. Optimal is a claim about the returned vectors, so it is
+    // re-checked on exactly those vectors, in the caller's units, after any
+    // polishing -- with the same test the ADMM loop terminates on. A result
+    // that fails it is a numerical failure, never an optimum.
+    if (result.status == QpStatus::Optimal) {
+        // Same defaulting as AdmmSolver's constructor, so the gate and the
+        // loop always apply the identical test.
+        const double primalTolerance = options.primalTolerance > 0.0 ? options.primalTolerance : 1e-6;
+        const double dualTolerance = options.dualTolerance > 0.0 ? options.dualTolerance : 1e-6;
+        const KktCheck check = checkKkt(problem, result.primal, result.constraintDual,
+                                        primalTolerance, dualTolerance);
+        if (!check.met()) {
+            result.status = QpStatus::NumericalFailure;
+            result.statusMessage = "converged iterate fails the original-units optimality check "
+                                   "(primal violation " + std::to_string(check.primalViolation) +
+                                   ", dual residual " + std::to_string(check.dualResidual) + ")";
+        }
+    }
     return result;
 }
 

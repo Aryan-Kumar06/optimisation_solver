@@ -53,30 +53,38 @@ def build_scipy_form(model):
     """
     import numpy as np
 
+    from scipy.sparse import csr_matrix
+
     n = model.n
-    A_ub, b_ub, A_eq, b_eq = [], [], [], []
+    ub_data, ub_row, ub_col = [], [], []
+    eq_data, eq_row, eq_col = [], [], []
+    b_ub, b_eq = [], []
+
+    def append(row, sign, index, data, rows, cols):
+        for column, coefficient in row.items():
+            data.append(sign * coefficient)
+            rows.append(index)
+            cols.append(column)
     row_map = []  # per model row: ("eq", k) | ("ub", k_up, k_lo) with None for absent
 
     for i in range(model.m):
-        dense = np.zeros(n)
-        for column, coefficient in model.rows[i].items():
-            dense[column] = coefficient
+        row = model.rows[i]
         lower, upper = model.row_lower[i], model.row_upper[i]
 
         if lower == upper and math.isfinite(lower):
-            A_eq.append(dense)
+            append(row, 1, len(b_eq), eq_data, eq_row, eq_col)
             b_eq.append(lower)
             row_map.append(("eq", len(b_eq) - 1, None))
             continue
 
         index_upper = index_lower = None
         if math.isfinite(upper):
-            A_ub.append(dense)
+            append(row, 1, len(b_ub), ub_data, ub_row, ub_col)
             b_ub.append(upper)
             index_upper = len(b_ub) - 1
         if math.isfinite(lower):
             # a'x >= l  becomes  -a'x <= -l
-            A_ub.append(-dense)
+            append(row, -1, len(b_ub), ub_data, ub_row, ub_col)
             b_ub.append(-lower)
             index_lower = len(b_ub) - 1
         row_map.append(("ub", index_upper, index_lower))
@@ -93,9 +101,9 @@ def build_scipy_form(model):
 
     return (
         c,
-        np.array(A_ub) if A_ub else None,
+        csr_matrix((ub_data, (ub_row, ub_col)), shape=(len(b_ub), n)) if b_ub else None,
         np.array(b_ub) if b_ub else None,
-        np.array(A_eq) if A_eq else None,
+        csr_matrix((eq_data, (eq_row, eq_col)), shape=(len(b_eq), n)) if b_eq else None,
         np.array(b_eq) if b_eq else None,
         bounds,
         row_map,
@@ -183,10 +191,14 @@ def solve_milp(model, time_limit):
 
     constraints = []
     if minimisation.m:
-        A = np.zeros((minimisation.m, n))
+        from scipy.sparse import csr_matrix
+        data, rows, columns = [], [], []
         for i, row in enumerate(minimisation.rows):
             for column, coefficient in row.items():
-                A[i, column] = coefficient
+                rows.append(i)
+                columns.append(column)
+                data.append(coefficient)
+        A = csr_matrix((data, (rows, columns)), shape=(minimisation.m, n))
         constraints.append(LinearConstraint(
             A,
             [v if v > -INF else -np.inf for v in minimisation.row_lower],
